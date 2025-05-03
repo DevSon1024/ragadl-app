@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
-        android:label="ragalahari_downloader"
+        android:label="Ragalahari Downloader"
 
         android:icon="@mipmap/ic_launcher">
 
