@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ragalahari_downloader/navbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
@@ -6,8 +7,6 @@ import 'package:html/dom.dart' as dom;
 import 'package:intl/intl.dart';
 import 'dart:math';
 import 'package:shimmer/shimmer.dart';
-import 'main.dart';
-// import 'models/image_data.dart';
 
 // Headers for HTTP requests
 final Map<String, String> headers = {
@@ -42,8 +41,16 @@ class GalleryItem {
   });
 }
 
+// Define a callback type for download selection
+typedef DownloadSelectedCallback = void Function(String url, String folder, String? title);
+
 class CelebrityListPage extends StatefulWidget {
-  const CelebrityListPage({Key? key}) : super(key: key);
+  final DownloadSelectedCallback? onDownloadSelected;
+
+  const CelebrityListPage({
+    Key? key,
+    this.onDownloadSelected,
+  }) : super(key: key);
 
   @override
   _CelebrityListPageState createState() => _CelebrityListPageState();
@@ -100,6 +107,28 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     });
   }
 
+  // Method to handle download button press
+  void _handleDownloadPress(String celebrityName) {
+    if (widget.onDownloadSelected != null) {
+      // Use the callback if provided
+      widget.onDownloadSelected!(
+        '', // No URL yet, just navigating to folder
+        celebrityName,
+        null, // No title yet
+      );
+    } else {
+      // Fallback to navigation
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainNavigationScreen(
+            initialFolder: celebrityName,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,22 +172,14 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                     builder: (_) => GalleryLinksPage(
                       celebrityName: celebrity['name']!,
                       profileUrl: celebrity['url']!,
+                      onDownloadSelected: widget.onDownloadSelected,
                     ),
                   ),
                 );
               },
               trailing: IconButton(
                 icon: const Icon(Icons.download),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RagalahariDownloader(
-                        initialFolder: celebrity['name'],
-                      ),
-                    ),
-                  );
-                },
+                onPressed: () => _handleDownloadPress(celebrity['name']!),
                 tooltip: 'Download images',
               ),
             ),
@@ -172,11 +193,13 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;
   final String profileUrl;
+  final DownloadSelectedCallback? onDownloadSelected;
 
   const GalleryLinksPage({
     Key? key,
     required this.celebrityName,
     required this.profileUrl,
+    this.onDownloadSelected,
   }) : super(key: key);
 
   @override
@@ -200,16 +223,26 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   }
 
   void _navigateToDownloader(String galleryUrl, String title) {
-    Navigator.push(
+    if (widget.onDownloadSelected != null) {
+      // Use the callback if provided
+      widget.onDownloadSelected!(
+        galleryUrl,
+        widget.celebrityName,
+        title,
+      );
+    } else {
+      // Fallback to navigation
+      Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RagalahariDownloader(
-            initialFolder: widget.celebrityName,
+          builder: (_) => MainNavigationScreen(
             initialUrl: galleryUrl,
+            initialFolder: widget.celebrityName,
             galleryTitle: title,
           ),
-        )
-    );
+        ),
+      );
+    }
   }
 
   Future<void> _scrapeGalleryLinks() async {

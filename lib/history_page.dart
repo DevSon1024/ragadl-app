@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-// import 'models/image_data.dart';
-// import 'package:open_filex/open_filex.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 enum SortOption {
   newest,
@@ -33,18 +32,44 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Future<void> _checkPermissionsAndLoadImages() async {
     if (Platform.isAndroid) {
-      final permissionStatus = await Permission.storage.status;
-      final manageStorageStatus = await Permission.manageExternalStorage.status;
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      bool isPermissionGranted = false;
 
-      if (!permissionStatus.isGranted && !manageStorageStatus.isGranted) {
-        final newStatus = await Permission.manageExternalStorage.request();
-        if (!newStatus.isGranted) {
-          setState(() {
-            _errorMessage =
-            'Storage permission denied. Cannot access downloaded images.';
-          });
-          return;
+      if (androidInfo.version.sdkInt >= 33) {
+        // Android 13+: Check for Photos permission
+        final photoStatus = await Permission.photos.status;
+        if (!photoStatus.isGranted) {
+          final newStatus = await Permission.photos.request();
+          isPermissionGranted = newStatus.isGranted;
+        } else {
+          isPermissionGranted = true;
         }
+      } else if (androidInfo.version.sdkInt >= 30) {
+        // Android 11-12: Check for Manage External Storage
+        final manageStorageStatus = await Permission.manageExternalStorage.status;
+        if (!manageStorageStatus.isGranted) {
+          final newStatus = await Permission.manageExternalStorage.request();
+          isPermissionGranted = newStatus.isGranted;
+        } else {
+          isPermissionGranted = true;
+        }
+      } else {
+        // Android 10 and below: Check for Storage permission
+        final storageStatus = await Permission.storage.status;
+        if (!storageStatus.isGranted) {
+          final newStatus = await Permission.storage.request();
+          isPermissionGranted = newStatus.isGranted;
+        } else {
+          isPermissionGranted = true;
+        }
+      }
+
+      if (!isPermissionGranted) {
+        setState(() {
+          _errorMessage = 'Storage or media permission denied. Cannot access downloaded images.';
+        });
+        return;
       }
     }
 
@@ -53,15 +78,24 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Future<void> _loadDownloadedImages() async {
     try {
-      Directory? baseDir = Platform.isAndroid
-          ? Directory('/storage/emulated/0/Download/Ragalahari Downloads')
-          : await getApplicationDocumentsDirectory();
+      Directory? baseDir;
+      if (Platform.isAndroid) {
+        baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
+        if (!await baseDir.exists()) {
+          baseDir = await getExternalStorageDirectory();
+          if (baseDir != null) {
+            baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+          }
+        }
+      } else {
+        baseDir = await getApplicationDocumentsDirectory();
+        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+      }
 
-      if (!await baseDir.exists()) {
+      if (baseDir == null || !await baseDir.exists()) {
         setState(() {
           _downloadedImages = [];
-          _errorMessage =
-          'No downloads found. Download images to see them here.';
+          _errorMessage = 'No downloads found. Download images to see them here.';
         });
         return;
       }
@@ -101,16 +135,14 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  Future<void> _collectImages(
-      Directory dir, List<FileSystemEntity> imageFiles) async {
+  Future<void> _collectImages(Directory dir, List<FileSystemEntity> imageFiles) async {
     try {
       final entities = await dir.list(recursive: false).toList();
       for (var entity in entities) {
         if (entity is File && entity.path.toLowerCase().endsWith('.jpg')) {
           imageFiles.add(entity);
         } else if (entity is Directory) {
-          await _collectImages(
-              entity, imageFiles); // Recurse into subdirectories
+          await _collectImages(entity, imageFiles); // Recurse into subdirectories
         }
       }
     } catch (e) {
@@ -163,7 +195,10 @@ class _HistoryPageState extends State<HistoryPage> {
             Text(_errorMessage!),
             if (_errorMessage!.contains('permission'))
               ElevatedButton(
-                onPressed: () => openAppSettings(),
+                onPressed: () async {
+                  await openAppSettings();
+                  await _checkPermissionsAndLoadImages(); // Re-check permissions after settings
+                },
                 child: const Text('Open Settings'),
               ),
           ],
@@ -193,8 +228,7 @@ class _HistoryPageState extends State<HistoryPage> {
               Image.file(
                 file,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.broken_image),
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
               ),
               Positioned(
                 bottom: 0,
