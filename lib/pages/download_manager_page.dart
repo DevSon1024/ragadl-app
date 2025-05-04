@@ -2,29 +2,50 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-// import 'models/image_data.dart';
-// import 'package:open_filex/open_filex.dart';
+import '../models/image_data.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:flutter/services.dart';
 
 enum DownloadStatus { downloading, paused, completed, failed }
 
 class DownloadTask {
   final String url;
-  final double progress;
-  final DownloadStatus status;
+  final String fileName;
+  final String savePath;
+  final String folder;
+  final String subFolder;
+  final CancelToken cancelToken;
+  double progress;
+  DownloadStatus status;
 
   DownloadTask({
     required this.url,
-    required this.progress,
-    required this.status,
+    required this.fileName,
+    required this.savePath,
+    required this.folder,
+    required this.subFolder,
+    required this.cancelToken,
+    this.progress = 0.0,
+    this.status = DownloadStatus.downloading,
   });
 
   DownloadTask copyWith({
     String? url,
+    String? fileName,
+    String? savePath,
+    String? folder,
+    String? subFolder,
+    CancelToken? cancelToken,
     double? progress,
     DownloadStatus? status,
   }) {
     return DownloadTask(
       url: url ?? this.url,
+      fileName: fileName ?? this.fileName,
+      savePath: savePath ?? this.savePath,
+      folder: folder ?? this.folder,
+      subFolder: subFolder ?? this.subFolder,
+      cancelToken: cancelToken ?? this.cancelToken,
       progress: progress ?? this.progress,
       status: status ?? this.status,
     );
@@ -32,49 +53,108 @@ class DownloadTask {
 }
 
 class DownloadManager {
+  static final DownloadManager _instance = DownloadManager._internal();
+  factory DownloadManager() => _instance;
+  DownloadManager._internal();
+
   final Map<String, DownloadTask> _activeDownloads = {};
   final Dio _dio = Dio();
+
+  Map<String, DownloadTask> get activeDownloads => Map.unmodifiable(_activeDownloads);
 
   Future<void> addDownload({
     required String url,
     required String folder,
     required String subFolder,
     required void Function(double progress) onProgress,
+    required void Function(bool success) onComplete,
   }) async {
-    if (_activeDownloads.containsKey(url)) return;
-
-    final task = DownloadTask(
-      url: url,
-      progress: 0,
-      status: DownloadStatus.downloading,
-    );
-    _activeDownloads[url] = task;
+    // Skip if already downloading
+    if (_activeDownloads.containsKey(url)) {
+      final task = _activeDownloads[url]!;
+      if (task.status == DownloadStatus.paused) {
+        resumeDownload(url);
+      }
+      return;
+    }
 
     try {
       final directory = await _getDownloadDirectory(folder, subFolder);
       final fileName = url.split('/').last;
       final savePath = '${directory.path}/$fileName';
+      final cancelToken = CancelToken();
 
-      await _dio.download(
-        url,
-        savePath,
-        onReceiveProgress: (received, total) {
-          final progress = total > 0 ? received / total : 0.0;
-          _activeDownloads[url] = task.copyWith(progress: progress);
-          onProgress(progress);
-        },
-        options: Options(
-          headers: {'User-Agent': 'Your User Agent'},
-        ),
+      final task = DownloadTask(
+        url: url,
+        fileName: fileName,
+        savePath: savePath,
+        folder: folder,
+        subFolder: subFolder,
+        cancelToken: cancelToken,
+        progress: 0,
+        status: DownloadStatus.downloading,
       );
 
-      _activeDownloads[url] = task.copyWith(
-        status: DownloadStatus.completed,
-        progress: 1.0,
-      );
+      _activeDownloads[url] = task;
+
+      _download(task, onProgress, onComplete);
     } catch (e) {
-      _activeDownloads[url] = task.copyWith(status: DownloadStatus.failed);
-      rethrow;
+      // Handle error
+      onComplete(false);
+    }
+  }
+
+  Future<void> _download(
+      DownloadTask task,
+      void Function(double progress) onProgress,
+      void Function(bool success) onComplete,
+      ) async {
+    const maxRetries = 3;
+    int attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        await _dio.download(
+          task.url,
+          task.savePath,
+          cancelToken: task.cancelToken,
+          onReceiveProgress: (received, total) {
+            final progress = total > 0 ? received / total : 0.0;
+            _activeDownloads[task.url] = task.copyWith(progress: progress);
+            onProgress(progress);
+          },
+          options: Options(
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            },
+            followRedirects: true,
+            maxRedirects: 5,
+            receiveTimeout: const Duration(seconds: 30),
+            sendTimeout: const Duration(seconds: 15),
+          ),
+        );
+
+        _activeDownloads[task.url] = task.copyWith(
+          status: DownloadStatus.completed,
+          progress: 1.0,
+        );
+        onComplete(true);
+        return;
+      } catch (e) {
+        attempt++;
+        if (e is DioException && CancelToken.isCancel(e)) {
+          if (task.status != DownloadStatus.paused) {
+            _activeDownloads.remove(task.url);
+          }
+          return;
+        }
+        if (attempt == maxRetries) {
+          _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.failed);
+          onComplete(false);
+        } else {
+          await Future.delayed(Duration(seconds: attempt * 2)); // Exponential backoff
+        }
+      }
     }
   }
 
@@ -93,7 +173,60 @@ class DownloadManager {
     return directory;
   }
 
-  List<DownloadTask> get activeDownloads => _activeDownloads.values.toList();
+  void pauseDownload(String url) {
+    if (_activeDownloads.containsKey(url)) {
+      final task = _activeDownloads[url]!;
+      if (task.status == DownloadStatus.downloading) {
+        task.cancelToken.cancel('Download paused');
+        _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
+      }
+    }
+  }
+
+  void resumeDownload(String url) {
+    if (_activeDownloads.containsKey(url)) {
+      final task = _activeDownloads[url]!;
+      if (task.status == DownloadStatus.paused) {
+        // Create a new task with a new cancelToken
+        final newCancelToken = CancelToken();
+        final newTask = task.copyWith(
+            cancelToken: newCancelToken,
+            status: DownloadStatus.downloading
+        );
+        _activeDownloads[url] = newTask;
+
+        // Resume download
+        _download(
+          newTask,
+              (progress) {}, // Progress callback will be managed by the UI
+              (success) {}, // Completion callback will be managed by the UI
+        );
+      }
+    }
+  }
+
+  void cancelDownload(String url) {
+    if (_activeDownloads.containsKey(url)) {
+      final task = _activeDownloads[url]!;
+      if (task.status == DownloadStatus.downloading) {
+        task.cancelToken.cancel('Download canceled');
+      }
+      _activeDownloads.remove(url);
+    }
+  }
+
+  void removeCompletedDownload(String url) {
+    if (_activeDownloads.containsKey(url)) {
+      final task = _activeDownloads[url]!;
+      if (task.status == DownloadStatus.completed || task.status == DownloadStatus.failed) {
+        _activeDownloads.remove(url);
+      }
+    }
+  }
+
+  List<DownloadTask> getAllDownloads() {
+    return _activeDownloads.values.toList();
+  }
 }
 
 class DownloadManagerPage extends StatefulWidget {
@@ -104,33 +237,107 @@ class DownloadManagerPage extends StatefulWidget {
 }
 
 class _DownloadManagerPageState extends State<DownloadManagerPage> {
-  final Map<String, DownloadTask> _downloadTasks = {};
+  final DownloadManager _downloadManager = DownloadManager();
+  Map<String, DownloadTask> _downloadTasks = {};
 
   @override
   void initState() {
     super.initState();
     _loadActiveDownloads();
+
+    // Set up periodic refresh
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        _refreshDownloads();
+      }
+    });
+  }
+
+  void _refreshDownloads() {
+    if (mounted) {
+      setState(() {
+        _downloadTasks = _downloadManager.activeDownloads;
+      });
+
+      // Schedule next refresh
+      Future.delayed(const Duration(seconds: 1), () {
+        _refreshDownloads();
+      });
+    }
   }
 
   void _loadActiveDownloads() {
     setState(() {
-      _downloadTasks['url1'] = DownloadTask(
-        url: 'url1',
-        progress: 0.5,
-        status: DownloadStatus.downloading,
-      );
+      _downloadTasks = _downloadManager.activeDownloads;
     });
+  }
+
+  void _cancelAllDownloadsAndDeleteFolder() {
+    // Cancel all active downloads
+    final urls = _downloadTasks.keys.toList();
+    for (final url in urls) {
+      _downloadManager.cancelDownload(url);
+    }
+
+    // Delete the folder if it exists
+    _downloadTasks.values.forEach((task) async {
+      final folderPath = Directory('/storage/emulated/0/Download/Ragalahari Downloads/${task.folder}/${task.subFolder}');
+      if (await folderPath.exists()) {
+        await folderPath.delete(recursive: true);
+      }
+    });
+
+    // Clear the download tasks and refresh
+    setState(() {
+      _downloadTasks.clear();
+    });
+    _loadActiveDownloads();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('All downloads cancelled and folders deleted')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Download Manager'),
+        title: const Text(
+          'Download Manager',
+          style: TextStyle(
+            // color: Colors.white, // Change this to your desired color
+            fontWeight: FontWeight.bold, // Optional: Enhance visibility
+          ),
+        ),
+
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            // gradient: LinearGradient(
+            //   colors: [Colors.black, Colors.white],
+            //   begin: Alignment.topLeft,
+            //   end: Alignment.bottomRight,
+            // ),
+            // borderRadius: BorderRadius.vertical(
+            //   top: Radius.circular(30),
+            //   bottom: Radius.circular(30), // Adjust the radius as needed
+            // ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadActiveDownloads,
+            icon: const Icon(
+                 Icons.delete_sweep,
+                // color: Colors.green,
+            ),
+            onPressed: _clearCompleted,
+            tooltip: 'Clear Completed Downloads',
+          ),
+          IconButton(
+            icon: const Icon(
+                Icons.cancel,
+                // color: Colors.green,
+            ),
+            onPressed: _cancelAllDownloadsAndDeleteFolder,
+            tooltip: 'Cancel All Downloads and Delete Folders',
           ),
         ],
       ),
@@ -142,27 +349,85 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
           onPause: () => _pauseDownload(task.url),
           onResume: () => _resumeDownload(task.url),
           onCancel: () => _cancelDownload(task.url),
+          onOpen: task.status == DownloadStatus.completed
+              ? () => _openFile(task.savePath)
+              : null,
+          onRemove: (task.status == DownloadStatus.completed || task.status == DownloadStatus.failed)
+              ? () => _removeDownload(task.url)
+              : null,
+          onRedownload: task.status == DownloadStatus.failed
+              ? () => _redownloadFailed(task.url)
+              : null,
         )).toList(),
       ),
     );
   }
 
   void _pauseDownload(String url) {
-    setState(() {
-      _downloadTasks[url] = _downloadTasks[url]!.copyWith(status: DownloadStatus.paused);
-    });
+    _downloadManager.pauseDownload(url);
+    _loadActiveDownloads();
   }
 
   void _resumeDownload(String url) {
-    setState(() {
-      _downloadTasks[url] = _downloadTasks[url]!.copyWith(status: DownloadStatus.downloading);
-    });
+    _downloadManager.resumeDownload(url);
+    _loadActiveDownloads();
   }
 
   void _cancelDownload(String url) {
-    setState(() {
-      _downloadTasks.remove(url);
-    });
+    _downloadManager.cancelDownload(url);
+    _loadActiveDownloads();
+  }
+
+  void _removeDownload(String url) {
+    _downloadManager.removeCompletedDownload(url);
+    _loadActiveDownloads();
+  }
+
+  void _clearCompleted() {
+    final completedUrls = _downloadTasks.keys
+        .where((url) => _downloadTasks[url]!.status == DownloadStatus.completed)
+        .toList();
+    for (final url in completedUrls) {
+      _downloadManager.removeCompletedDownload(url);
+    }
+    _loadActiveDownloads();
+  }
+
+  void _redownloadFailed(String url) {
+    final task = _downloadTasks[url];
+    if (task != null && task.status == DownloadStatus.failed) {
+      _downloadManager.removeCompletedDownload(url); // Remove failed task
+      _downloadManager.addDownload(
+        url: task.url,
+        folder: task.folder,
+        subFolder: task.subFolder,
+        onProgress: (progress) {
+          setState(() {
+            _downloadTasks[url] = task.copyWith(progress: progress, status: DownloadStatus.downloading);
+          });
+        },
+        onComplete: (success) {
+          setState(() {
+            if (success) {
+              _downloadTasks[url] = task.copyWith(status: DownloadStatus.completed, progress: 1.0);
+            } else {
+              _downloadTasks[url] = task.copyWith(status: DownloadStatus.failed);
+            }
+          });
+        },
+      );
+      _loadActiveDownloads();
+    }
+  }
+
+  void _openFile(String path) {
+    // Uncomment the below code after adding open_filex package
+    OpenFilex.open(path);
+
+    // For now just show a snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Opening file: $path')),
+    );
   }
 }
 
@@ -171,6 +436,9 @@ class DownloadItem extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onCancel;
+  final VoidCallback? onOpen;
+  final VoidCallback? onRemove;
+  final VoidCallback? onRedownload;
 
   const DownloadItem({
     Key? key,
@@ -178,48 +446,181 @@ class DownloadItem extends StatelessWidget {
     required this.onPause,
     required this.onResume,
     required this.onCancel,
+    this.onOpen,
+    this.onRemove,
+    this.onRedownload,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              task.url.split('/').last,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(value: task.progress),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (task.status == DownloadStatus.paused)
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: onResume,
-                  )
-                else
-                  IconButton(
-                    icon: const Icon(Icons.pause),
-                    onPressed: onPause,
+    return GestureDetector(
+      onLongPress: () {
+        if (task.status == DownloadStatus.failed || task.status == DownloadStatus.paused) {
+          _copyImageUrlToClipboard(task.url, context);
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.all(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          task.fileName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${task.folder}/${task.subFolder}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.cancel,
-                  ),
-                  onPressed: onCancel,
+                  _buildStatusChip(task.status),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: task.progress,
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _getColorForStatus(task.status),
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${(task.progress * 100).toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (onOpen != null)
+                        IconButton(
+                          icon: const Icon(Icons.folder_open),
+                          onPressed: onOpen,
+                          tooltip: 'Open file',
+                          iconSize: 20,
+                        ),
+                      if (onRemove != null)
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: onRemove,
+                          tooltip: 'Remove from list',
+                          iconSize: 20,
+                        ),
+                      if (task.status == DownloadStatus.failed)
+                        IconButton(
+                          icon: const Icon(Icons.refresh),
+                          onPressed: () => onRedownload?.call(),
+                          tooltip: 'Retry download',
+                          iconSize: 20,
+                        ),
+                      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
+                        IconButton(
+                          icon: Icon(
+                            task.status == DownloadStatus.paused ? Icons.play_arrow : Icons.pause,
+                          ),
+                          onPressed: task.status == DownloadStatus.paused ? onResume : onPause,
+                          tooltip: task.status == DownloadStatus.paused ? 'Resume' : 'Pause',
+                          iconSize: 20,
+                        ),
+                      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
+                        IconButton(
+                          icon: const Icon(Icons.cancel),
+                          onPressed: onCancel,
+                          tooltip: 'Cancel',
+                          iconSize: 20,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _copyImageUrlToClipboard(String url, BuildContext context) {
+    Clipboard.setData(ClipboardData(text: url));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Image URL copied to clipboard')),
+    );
+  }
+
+  Widget _buildStatusChip(DownloadStatus status) {
+    String label;
+    Color color;
+
+    switch (status) {
+      case DownloadStatus.downloading:
+        label = 'Downloading';
+        color = Colors.blue;
+        break;
+      case DownloadStatus.paused:
+        label = 'Paused';
+        color = Colors.orange;
+        break;
+      case DownloadStatus.completed:
+        label = 'Completed';
+        color = Colors.green;
+        break;
+      case DownloadStatus.failed:
+        label = 'Failed';
+        color = Colors.red;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Color _getColorForStatus(DownloadStatus status) {
+    switch (status) {
+      case DownloadStatus.downloading:
+        return Colors.blue;
+      case DownloadStatus.paused:
+        return Colors.orange;
+      case DownloadStatus.completed:
+        return Colors.green;
+      case DownloadStatus.failed:
+        return Colors.red;
+    }
   }
 }

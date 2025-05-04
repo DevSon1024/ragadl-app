@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'pages/ragalahari_downloader.dart';
 import 'pages/history_page.dart';
 import 'pages/download_manager_page.dart';
@@ -172,6 +173,18 @@ class _MainScreenState extends State<MainScreen> {
         key: _scaffoldKey,
         appBar: AppBar(
           title: const Text('Ragalahari Downloader'),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green, Colors.yellow],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.vertical(
+                bottom: Radius.circular(20), // Adjust the radius as needed
+              ),
+            ),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.settings),
@@ -278,9 +291,53 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// Home page - Initially blank as requested
+// Home page with added social media links
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
+
+  // Function to launch URLs
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw Exception('Could not launch $url');
+    }
+  }
+
+  // Social media item widget
+  Widget _buildSocialMediaItem(
+      BuildContext context,
+      IconData icon,
+      String platform,
+      String url,
+      Color color,
+      ) {
+    return InkWell(
+      onTap: () => _launchUrl(url),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              platform,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -300,6 +357,69 @@ class HomePage extends StatelessWidget {
             'Browse celebrities or tap the + button to download images',
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          // Social media container
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Follow Ragalahari on',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _buildSocialMediaItem(
+                      context,
+                      Icons.facebook,
+                      'Facebook',
+                      'https://www.facebook.com/ragalahari',
+                      Colors.blue,
+                    ),
+                    _buildSocialMediaItem(
+                      context,
+                      Icons.alternate_email,
+                      'Twitter',
+                      'https://twitter.com/ragalahari',
+                      Colors.lightBlue,
+                    ),
+                    _buildSocialMediaItem(
+                      context,
+                      Icons.camera_alt,
+                      'Instagram',
+                      'https://www.instagram.com/ragalahari',
+                      Colors.purple,
+                    ),
+                    // _buildSocialMediaItem(
+                    //   context,
+                    //   Icons.play_arrow_outlined,
+                    //   'YouTube',
+                    //   'https://www.youtube.com/ragalahari',
+                    //   Colors.red,
+                    // ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

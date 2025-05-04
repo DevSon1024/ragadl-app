@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/image_data.dart';
 import 'dart:math';
+import 'download_manager_page.dart';
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -337,19 +338,39 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
         downloadsSuccessful = 0;
         downloadsFailed = 0;
       });
-      const maxConcurrent = 5;
-      for (int i = 0; i < imageUrls.length; i += maxConcurrent) {
-        final batch = imageUrls.skip(i).take(maxConcurrent).toList();
-        final futures = batch.asMap().entries.map((entry) => _downloadImage(entry.value.originalUrl, i + entry.key + 1)).toList();
-        final results = await Future.wait(futures);
-        setState(() {
-          downloadsSuccessful += results.where((success) => success).length;
-          downloadsFailed += results.where((success) => !success).length;
-        });
+
+      final downloadManager = DownloadManager();
+      for (int i = 0; i < imageUrls.length; i++) {
+        final imageUrl = imageUrls[i].originalUrl;
+
+        downloadManager.addDownload(
+          url: imageUrl,
+          folder: mainFolderName,
+          subFolder: subFolderName,
+          onProgress: (progress) {
+            // Progress is handled by the download manager
+          },
+          onComplete: (success) {
+            setState(() {
+              if (success) {
+                downloadsSuccessful++;
+              } else {
+                downloadsFailed++;
+              }
+            });
+          },
+        );
       }
-      _showSnackBar('Downloaded $downloadsSuccessful/${imageUrls.length} images');
+
+      _showSnackBar('Added ${imageUrls.length} images to download queue');
+
+      // Navigate to download manager page
+      Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DownloadManagerPage())
+      );
     } catch (e) {
-      _showSnackBar('Error downloading images: $e');
+      _showSnackBar('Error adding downloads: $e');
     } finally {
       setState(() {
         isDownloading = false;
@@ -357,30 +378,30 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
     }
   }
 
-  Future<bool> _downloadImage(String url, int index) async {
-    try {
-      final filename = 'image-$index.jpg';
-      final savePath = '${await _getDownloadDirectory()}/$filename';
-      if (await File(savePath).exists()) return true;
-      final response = await Dio().get(
-        url,
-        options: Options(
-          responseType: ResponseType.bytes,
-          followRedirects: true,
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 15),
-          headers: {
-            'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          },
-        ),
-      );
-      await File(savePath).writeAsBytes(response.data);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
+  // Future<bool> _downloadImage(String url, int index) async {
+  //   try {
+  //     final filename = 'image-$index.jpg';
+  //     final savePath = '${await _getDownloadDirectory()}/$filename';
+  //     if (await File(savePath).exists()) return true;
+  //     final response = await Dio().get(
+  //       url,
+  //       options: Options(
+  //         responseType: ResponseType.bytes,
+  //         followRedirects: true,
+  //         receiveTimeout: const Duration(seconds: 30),
+  //         sendTimeout: const Duration(seconds: 15),
+  //         headers: {
+  //           'User-Agent':
+  //           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  //         },
+  //       ),
+  //     );
+  //     await File(savePath).writeAsBytes(response.data);
+  //     return true;
+  //   } catch (e) {
+  //     return false;
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -669,33 +690,38 @@ class _FullImagePageState extends State<FullImagePage> {
   Future<void> _downloadImage(String imageUrl) async {
     setState(() => _isDownloading = true);
     try {
-      final directory = await _getDownloadDirectory();
-      final filename = imageUrl.split('/').last;
-      final savePath = '$directory/$filename';
-      final saveDir = Directory(directory);
-      if (!await saveDir.exists()) await saveDir.create(recursive: true);
-      final response = await Dio().get(
-        imageUrl,
-        options: Options(
-          responseType: ResponseType.bytes,
-          followRedirects: true,
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 15),
-          headers: {
-            'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          },
-        ),
+      final downloadManager = DownloadManager();
+      downloadManager.addDownload(
+        url: imageUrl,
+        folder: "SingleImages",  // Or any appropriate folder name
+        subFolder: DateTime.now().toString().split(' ')[0],  // Using date as subfolder
+        onProgress: (progress) {
+          // Progress is handled by the download manager
+        },
+        onComplete: (success) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(success
+                    ? 'Added to download manager'
+                    : 'Failed to add download'))
+            );
+          }
+        },
       );
-      if (response.statusCode == 200) {
-        await File(savePath).writeAsBytes(response.data);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Downloaded $filename')));
-        }
-      }
+
+      // Optionally navigate to the download manager page
+      /*
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DownloadManagerPage())
+    );
+    */
+
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to download: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to download: $e'))
+        );
       }
     } finally {
       if (mounted) setState(() => _isDownloading = false);

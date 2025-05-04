@@ -20,6 +20,9 @@ final Map<String, String> headers = {
   'Connection': 'keep-alive',
 };
 
+// Add this enum at the top of the file
+enum SortOption { az, za }
+
 // Domain patterns for thumbnail detection
 final List<String> thumbnailDomains = [
   "media.ragalahari.com",
@@ -134,12 +137,29 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     }
   }
 
+  SortOption _currentSortOption = SortOption.az;
+
+  void _sortCelebrities() {
+    setState(() {
+      switch (_currentSortOption) {
+        case SortOption.az:
+          _filteredCelebrities.sort((a, b) => a['name']!.compareTo(b['name']!));
+          break;
+        case SortOption.za:
+          _filteredCelebrities.sort((a, b) => b['name']!.compareTo(a['name']!));
+          break;
+      }
+    });
+  }
+
+
   void _filterCelebrities() {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredCelebrities = _celebrities
           .where((celebrity) => celebrity['name']!.toLowerCase().contains(query))
           .toList();
+      _sortCelebrities(); // Apply sorting after filtering
     });
   }
 
@@ -191,7 +211,43 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Celebrity Profiles'),
+        title: const Text(
+            'Celebrity Profiles',
+          style: TextStyle(
+            // color: Colors.white, // Change this to your desired color
+            fontWeight: FontWeight.bold, // Optional: Enhance visibility
+          ),
+        ),
+
+        actions: [
+          PopupMenuButton<SortOption>(
+            icon: const Icon(Icons.sort),
+            onSelected: (SortOption result){
+              setState(() {
+                _currentSortOption = result;
+                _sortCelebrities();
+              });
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<SortOption>>[
+              const PopupMenuItem<SortOption>(
+                value: SortOption.az,
+                child: Text('A-Z'),
+              ),
+              const PopupMenuItem<SortOption>(
+                value: SortOption.za,
+                child: Text('Z-A'),
+              ),
+            ],
+          ),
+        ],
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+              bottom: Radius.circular(20), // Adjust the radius as needed
+            ),
+          ),
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -202,6 +258,17 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
               decoration: InputDecoration(
                 hintText: 'Search celebrities...',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _searchFocusNode.unfocus();
+                    // Trigger the filter to update the list
+                    _filterCelebrities();
+                  },
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -209,6 +276,11 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
               autofocus: false,
+              onChanged: (value) {
+                // This will rebuild the widget when text changes
+                setState(() {});
+                _filterCelebrities();
+              },
             ),
           ),
         ),
@@ -223,6 +295,9 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           final celebrity = _filteredCelebrities[index];
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20), // Match the radius style
+            ),
             child: ListTile(
               title: Text(celebrity['name'] ?? 'Unknown'),
               onTap: () {
@@ -687,11 +762,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                             );
                           },
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.download),
-                          onPressed: () => _navigateToDownloader(item.url, item.title),
-                          tooltip: 'Download gallery',
-                        ),
+                        // IconButton(
+                        //   icon: const Icon(Icons.download),
+                        //   onPressed: () => _navigateToDownloader(item.url, item.title),
+                        //   tooltip: 'Download gallery',
+                        // ),
                       ],
                     ),
                   ),

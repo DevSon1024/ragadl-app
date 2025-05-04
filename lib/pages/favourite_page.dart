@@ -148,8 +148,8 @@ class _FavouritePageState extends State<FavouritePage> {
                   MaterialPageRoute(
                     builder: (_) => RagalahariDownloaderScreen(
                       initialUrl: item.url,
-                      initialFolder: item.celebrityName ?? 'Unknown',
-                      galleryTitle: item.name,
+                      initialFolder: item.celebrityName,
+                      // galleryTitle: item.name,
                     ),
                   ),
                 );

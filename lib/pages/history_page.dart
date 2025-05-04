@@ -150,7 +150,13 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Download History'),
+        title: const Text(
+            'Download History',
+          style: TextStyle(
+            // color: Colors.white, // Change this to your desired color
+            fontWeight: FontWeight.bold, // Optional: Enhance visibility
+          ),
+        ),
         actions: [
           PopupMenuButton<SortOption>(
             onSelected: (option) {
