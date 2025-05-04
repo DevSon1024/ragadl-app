@@ -323,7 +323,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
     directory ??= await getApplicationDocumentsDirectory();
 
     // Only use mainFolderName for the directory structure
-    final downloadPath = Directory('${directory.path}/Ragalahari Downloads/$mainFolderName');
+    final downloadPath = Directory('${directory.path}/Ragalahari Downloads/$mainFolderName/$subFolderName');
     if (!await downloadPath.exists()) {
       await downloadPath.create(recursive: true);
     }

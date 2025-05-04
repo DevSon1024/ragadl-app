@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ragalahari_downloader/widgets/navbar.dart';
+import '../widgets/navbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
 import 'package:intl/intl.dart';
 import 'dart:math';
+import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
-import '../screens/ragalahari_downloader_screen.dart'; // Import the downloader screen
+import 'package:shared_preferences/shared_preferences.dart'; // Add this import
+import '../screens/ragalahari_downloader_screen.dart';
 
 // Headers for HTTP requests
 final Map<String, String> headers = {
@@ -41,6 +43,39 @@ class GalleryItem {
     required this.pages,
     required this.date,
   });
+}
+
+// Define a FavoriteItem class to handle both gallery and celebrity favorites
+class FavoriteItem {
+  final String type; // 'celebrity' or 'gallery'
+  final String name; // Celebrity name or gallery title
+  final String url; // Profile URL or gallery URL
+  final String? thumbnailUrl; // Optional for galleries
+  final String? celebrityName; // For galleries, to store associated celebrity
+
+  FavoriteItem({
+    required this.type,
+    required this.name,
+    required this.url,
+    this.thumbnailUrl,
+    this.celebrityName,
+  });
+
+  Map<String, String> toJson() => {
+    'type': type,
+    'name': name,
+    'url': url,
+    'thumbnailUrl': thumbnailUrl ?? '',
+    'celebrityName': celebrityName ?? '',
+  };
+
+  factory FavoriteItem.fromJson(Map<String, String> json) => FavoriteItem(
+    type: json['type']!,
+    name: json['name']!,
+    url: json['url']!,
+    thumbnailUrl: json['thumbnailUrl']!.isEmpty ? null : json['thumbnailUrl'],
+    celebrityName: json['celebrityName']!.isEmpty ? null : json['celebrityName'],
+  );
 }
 
 // Define a callback type for download selection
@@ -87,10 +122,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
             .where((line) => line.contains(','))
             .map((line) {
           final parts = line.split(',');
-          return {
-            'name': parts[0].trim(),
-            'url': parts[1].trim()
-          };
+          return {'name': parts[0].trim(), 'url': parts[1].trim()};
         })
             .toList();
         _filteredCelebrities = List.from(_celebrities);
@@ -114,23 +146,45 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   // Method to handle download button press
   void _handleDownloadPress(String celebrityName) {
     if (widget.onDownloadSelected != null) {
-      // Use the callback if provided
-      widget.onDownloadSelected!(
-        '', // No URL yet, just navigating to folder
-        celebrityName,
-        null, // No title yet
-      );
+      widget.onDownloadSelected!('', celebrityName, null);
     } else {
-      // Navigate directly to the RagalahariDownloader with initialFolder set
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RagalahariDownloaderScreen(
-            initialFolder: celebrityName,
-          ),
+          builder: (_) => RagalahariDownloaderScreen(initialFolder: celebrityName),
         ),
       );
     }
+  }
+
+  // Function to toggle favorite status for celebrities
+  Future<void> _toggleCelebrityFavorite(String name, String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoriteKey = 'favorites';
+    List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
+    List<FavoriteItem> favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+        Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>)))
+        .toList();
+
+    final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
+    final isFavorite = favorites.any((item) =>
+    item.type == 'celebrity' && item.name == name && item.url == url);
+
+    if (isFavorite) {
+      favorites.removeWhere((item) =>
+      item.type == 'celebrity' && item.name == name && item.url == url);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name removed from favorites')));
+    } else {
+      favorites.add(favoriteItem);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name added to favorites')));
+    }
+
+    await prefs.setStringList(favoriteKey,
+        favorites.map((item) => jsonEncode(item.toJson())).toList());
+    setState(() {}); // Trigger rebuild to update icon
   }
 
   @override
@@ -183,17 +237,55 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                   ),
                 );
               },
-
-              trailing: IconButton(
-                icon: const Icon(Icons.add_box_outlined),
-                onPressed: () => _handleDownloadPress(celebrity['name']!),
-                tooltip: 'Download images',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FutureBuilder<bool>(
+                    future: _isCelebrityFavorite(
+                        celebrity['name']!, celebrity['url']!),
+                    builder: (context, snapshot) {
+                      final isFavorite = snapshot.data ?? false;
+                      return IconButton(
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: isFavorite ? Colors.yellow : null,
+                        ),
+                        onPressed: () => _toggleCelebrityFavorite(
+                            celebrity['name']!, celebrity['url']!),
+                        tooltip: isFavorite
+                            ? 'Remove from favorites'
+                            : 'Add to favorites',
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_box_outlined),
+                    onPressed: () =>
+                        _handleDownloadPress(celebrity['name']!),
+                    tooltip: 'Download images',
+                  ),
+                ],
               ),
             ),
           );
         },
       ),
     );
+  }
+
+  // Helper to check if a celebrity is in favorites
+  Future<bool> _isCelebrityFavorite(String name, String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoriteKey = 'favorites';
+    final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
+    final favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+        Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>)))
+        .toList();
+    return favorites.any((item) =>
+    item.type == 'celebrity' && item.name == name && item.url == url);
   }
 }
 
@@ -221,7 +313,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   int _currentPage = 1;
   final int _itemsPerPage = 30;
   bool _sortNewestFirst = true;
-  final int _batchSize = 10; // Process 10 links concurrently
+  final int _batchSize = 10;
 
   @override
   void initState() {
@@ -229,21 +321,54 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     _scrapeGalleryLinks();
   }
 
-  void _navigateToDownloader(String galleryUrl, String galleryTitle) {
-    // Copy the gallery URL to clipboard
-    Clipboard.setData(ClipboardData(text: galleryUrl));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Link copied to clipboard')),
+  // Function to toggle favorite status for galleries
+  Future<void> _toggleGalleryFavorite(GalleryItem item) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoriteKey = 'favorites';
+    List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
+    List<FavoriteItem> favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+        Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>)))
+        .toList();
+
+    final favoriteItem = FavoriteItem(
+      type: 'gallery',
+      name: item.title,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl,
+      celebrityName: widget.celebrityName,
     );
 
-    // Navigate to RagalahariDownloaderScreen with credentials
+    final isFavorite = favorites.any((fav) =>
+    fav.type == 'gallery' &&
+        fav.url == item.url &&
+        fav.celebrityName == widget.celebrityName);
+
+    if (isFavorite) {
+      favorites.removeWhere((fav) =>
+      fav.type == 'gallery' &&
+          fav.url == item.url &&
+          fav.celebrityName == widget.celebrityName);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${item.title} removed from favorites')));
+    } else {
+      favorites.add(favoriteItem);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${item.title} added to favorites')));
+    }
+
+    await prefs.setStringList(favoriteKey,
+        favorites.map((item) => jsonEncode(item.toJson())).toList());
+    setState(() {}); // Trigger rebuild to update icon
+  }
+
+  void _navigateToDownloader(String galleryUrl, String galleryTitle) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RagalahariDownloaderScreen(
           initialUrl: galleryUrl,
           initialFolder: widget.celebrityName,
-          // galleryTitle: galleryTitle,
         ),
       ),
     ).then((_) {
@@ -297,9 +422,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final items = <GalleryItem>[];
     final batches = <List<String>>[];
 
-    // Split links into batches
     for (var i = 0; i < links.length; i += _batchSize) {
-      batches.add(links.sublist(i, i + _batchSize > links.length ? links.length : i + _batchSize));
+      batches.add(links.sublist(
+          i, i + _batchSize > links.length ? links.length : i + _batchSize));
     }
 
     for (final batch in batches) {
@@ -308,19 +433,19 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       items.addAll(results.whereType<GalleryItem>());
     }
 
-    // Sort by date
-    items.sort((a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date));
+    items.sort((a, b) =>
+    _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date));
     return items;
   }
 
   Future<GalleryItem?> _processSingleLink(String link) async {
     try {
-      final response = await http.get(Uri.parse(link), headers: headers).timeout(const Duration(seconds: 5));
+      final response =
+      await http.get(Uri.parse(link), headers: headers).timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return null;
 
       final document = html_parser.parse(response.body);
 
-      // Extract title
       String title = '';
       final titleElement = document.querySelector('h1.gallerytitle') ??
           document.querySelector('.gallerytitle') ??
@@ -333,11 +458,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
         title = link.split('/').last.replaceAll(".aspx", "");
         if (pathSegments.length > 2) {
-          title = '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
+          title =
+          '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
         }
       }
 
-      // Extract thumbnail
       String? thumbnailUrl;
       final images = document.getElementsByTagName('img');
       for (final img in images) {
@@ -348,7 +473,6 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         }
       }
 
-      // Get page count and date
       final (pages, date) = await _getGalleryInfo(link);
 
       return GalleryItem(
@@ -366,18 +490,17 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
   Future<(int, DateTime)> _getGalleryInfo(String url) async {
     try {
-      final response = await http.get(Uri.parse(url), headers: headers).timeout(const Duration(seconds: 5));
+      final response =
+      await http.get(Uri.parse(url), headers: headers).timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return (1, DateTime(1900));
 
       final document = html_parser.parse(response.body);
 
-      // Get last page number
       final pageLinks = document.getElementsByClassName('otherPage');
       final lastPage = pageLinks.isEmpty
           ? 1
           : pageLinks.map((e) => int.tryParse(e.text.trim()) ?? 1).reduce(max);
 
-      // Get gallery date
       final dateElement = document.querySelector('.gallerydate time');
       final dateStr = dateElement?.text.trim() ?? '';
       final date = dateStr.startsWith('Updated on ')
@@ -425,7 +548,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   void _toggleSortOrder() {
     setState(() {
       _sortNewestFirst = !_sortNewestFirst;
-      _galleryItems.sort((a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date));
+      _galleryItems.sort((a, b) =>
+      _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date));
       _currentPage = 1;
       _updateDisplayedItems();
     });
@@ -459,6 +583,21 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         );
       },
     );
+  }
+
+  // Helper to check if a gallery is in favorites
+  Future<bool> _isGalleryFavorite(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoriteKey = 'favorites';
+    final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
+    final favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+        Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>)))
+        .toList();
+    return favorites.any((item) =>
+    item.type == 'gallery' &&
+        item.url == url &&
+        item.celebrityName == widget.celebrityName);
   }
 
   @override
@@ -515,7 +654,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                             child: Center(child: CircularProgressIndicator()),
                           );
                         },
-                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 60),
+                        errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.broken_image, size: 60),
                       ),
                     )
                         : Container(
@@ -525,21 +665,28 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                       child: const Icon(Icons.error, size: 40, color: Colors.white),
                     ),
                     title: Text(item.title),
-                    subtitle: Text('${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}'),
+                    subtitle:
+                    Text('${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}'),
                     onTap: () => _navigateToDownloader(item.url, item.title),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // IconButton(
-                        //   icon: const Icon(Icons.content_copy),
-                        //   onPressed: () {
-                        //     Clipboard.setData(ClipboardData(text: item.url));
-                        //     ScaffoldMessenger.of(context).showSnackBar(
-                        //       const SnackBar(content: Text('Link copied to clipboard')),
-                        //     );
-                        //   },
-                        //   tooltip: 'Copy link',
-                        // ),
+                        FutureBuilder<bool>(
+                          future: _isGalleryFavorite(item.url),
+                          builder: (context, snapshot) {
+                            final isFavorite = snapshot.data ?? false;
+                            return IconButton(
+                              icon: Icon(
+                                isFavorite ? Icons.star : Icons.star_border,
+                                color: isFavorite ? Colors.yellow : null,
+                              ),
+                              onPressed: () => _toggleGalleryFavorite(item),
+                              tooltip: isFavorite
+                                  ? 'Remove from favorites'
+                                  : 'Add to favorites',
+                            );
+                          },
+                        ),
                         IconButton(
                           icon: const Icon(Icons.download),
                           onPressed: () => _navigateToDownloader(item.url, item.title),
