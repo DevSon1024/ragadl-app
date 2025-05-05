@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/ragalahari_downloader.dart';
 import 'pages/history_page.dart';
 import 'pages/download_manager_page.dart';
 import 'pages/celebrity_list_page.dart';
 import 'pages/settings_sidebar.dart';
+import 'theme_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeConfig(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -22,39 +28,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Ragalahari Downloader',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        primaryColor: Colors.green,
-        brightness: Brightness.light,
-        cardTheme: const CardTheme(
-          elevation: 4,
-          margin: EdgeInsets.all(8),
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(fontSize: 16),
-        ),
+    return Consumer<ThemeConfig>(
+      builder: (context, themeConfig, child) => MaterialApp(
+        title: 'Ragalahari Downloader',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeConfig.lightTheme,
+        darkTheme: ThemeConfig.darkTheme,
+        themeMode: themeConfig.currentThemeMode,
+        home: const MainScreen(),
       ),
-      darkTheme: ThemeData(
-        primarySwatch: Colors.green,
-        primaryColor: Colors.green,
-        brightness: Brightness.dark,
-        cardTheme: const CardTheme(
-          elevation: 4,
-          margin: EdgeInsets.all(8),
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(fontSize: 16),
-        ),
-      ),
-      themeMode: ThemeMode.system,
-      home: const MainScreen(),
     );
   }
 }
 
+// Rest of the main.dart remains unchanged
 class MainScreen extends StatefulWidget {
   final String? initialUrl;
   final String? initialFolder;
@@ -74,15 +61,9 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  // Using PageController for smooth transitions between pages
   final PageController _pageController = PageController();
-
-  // Controllers to pass around the app
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _folderController = TextEditingController();
-
-  // Track navigation state
   String? currentUrl;
   String? currentFolder;
   String? currentGalleryTitle;
@@ -90,12 +71,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with any provided navigation parameters
     currentUrl = widget.initialUrl;
     currentFolder = widget.initialFolder;
     currentGalleryTitle = widget.galleryTitle;
-
-    // Initialize folder controller if provided
     if (widget.initialFolder != null) {
       _folderController.text = widget.initialFolder!;
       if (widget.galleryTitle != null) {
@@ -116,10 +94,8 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
-  // Handle back button presses
   Future<bool> _onWillPop() async {
     if (_selectedIndex != 0) {
-      // If not on home page, navigate to home page
       setState(() {
         _selectedIndex = 0;
         _pageController.jumpToPage(0);
@@ -127,12 +103,10 @@ class _MainScreenState extends State<MainScreen> {
       });
       return false;
     } else {
-      // If on home page, ask to exit
       return _showExitConfirmationDialog();
     }
   }
 
-  // Exit confirmation dialog
   Future<bool> _showExitConfirmationDialog() async {
     return await showDialog(
       context: context,
@@ -153,13 +127,12 @@ class _MainScreenState extends State<MainScreen> {
     ) ?? false;
   }
 
-  // Handle navigation to the downloader page with parameters
   void _navigateToDownloader({String? url, String? folder, String? title}) {
     setState(() {
       currentUrl = url;
       currentFolder = folder;
       currentGalleryTitle = title;
-      _selectedIndex = 2; // Index of the downloader page
+      _selectedIndex = 2;
       _pageController.jumpToPage(2);
       FocusScope.of(context).unfocus();
     });
@@ -175,13 +148,9 @@ class _MainScreenState extends State<MainScreen> {
           title: const Text('Ragalahari Downloader'),
           flexibleSpace: Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green, Colors.yellow],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: Colors.green,
               borderRadius: BorderRadius.vertical(
-                bottom: Radius.circular(20), // Adjust the radius as needed
+                bottom: Radius.circular(20),
               ),
             ),
           ),
@@ -190,7 +159,7 @@ class _MainScreenState extends State<MainScreen> {
               icon: const Icon(Icons.settings),
               onPressed: () {
                 _scaffoldKey.currentState?.openEndDrawer();
-                FocusScope.of(context).unfocus(); // Unfocus when opening settings
+                FocusScope.of(context).unfocus();
               },
             ),
           ],
@@ -228,15 +197,10 @@ class _MainScreenState extends State<MainScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Home button
               _buildNavItem(0, Icons.home, 'Home'),
-              // Celebrity button
               _buildNavItem(1, Icons.person, 'Celebrity'),
-              // Empty space for FAB
               const SizedBox(width: 48),
-              // Downloads button
               _buildNavItem(3, Icons.download, 'Downloads'),
-              // History button
               _buildNavItem(4, Icons.history, 'History'),
             ],
           ),
@@ -291,11 +255,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// Home page with added social media links
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
 
-  // Function to launch URLs
   Future<void> _launchUrl(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -303,7 +265,6 @@ class HomePage extends StatelessWidget {
     }
   }
 
-  // Social media item widget
   Widget _buildSocialMediaItem(
       BuildContext context,
       IconData icon,
@@ -359,7 +320,6 @@ class HomePage extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          // Social media container
           Container(
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -409,13 +369,6 @@ class HomePage extends StatelessWidget {
                       'https://www.instagram.com/ragalahari',
                       Colors.purple,
                     ),
-                    // _buildSocialMediaItem(
-                    //   context,
-                    //   Icons.play_arrow_outlined,
-                    //   'YouTube',
-                    //   'https://www.youtube.com/ragalahari',
-                    //   Colors.red,
-                    // ),
                   ],
                 ),
               ],

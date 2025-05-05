@@ -143,7 +143,16 @@ class DownloadManager {
       } catch (e) {
         attempt++;
         if (e is DioException && CancelToken.isCancel(e)) {
-          if (task.status != DownloadStatus.paused) {
+          // Check the status again to make sure it's accurate
+          final currentTask = _activeDownloads[task.url];
+          if (currentTask != null && currentTask.status == DownloadStatus.paused) {
+            // It's a paused download, so we keep it in the list
+            return;
+          } else if (task.status == DownloadStatus.paused) {
+            // Double check from the task parameter as well
+            return;
+          } else {
+            // It's a genuine cancellation, not a pause
             _activeDownloads.remove(task.url);
           }
           return;
@@ -177,8 +186,9 @@ class DownloadManager {
     if (_activeDownloads.containsKey(url)) {
       final task = _activeDownloads[url]!;
       if (task.status == DownloadStatus.downloading) {
-        task.cancelToken.cancel('Download paused');
         _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
+        // THEN cancel the token
+        task.cancelToken.cancel('Download paused');
       }
     }
   }

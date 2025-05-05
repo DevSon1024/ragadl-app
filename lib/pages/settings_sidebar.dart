@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../pages/favourite_page.dart';
 import '../pages/display_settings_page.dart';
 import '../pages/notification_settings_page.dart';
+import '../pages/update_database_page.dart'; // Import the new page
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({Key? key}) : super(key: key);
@@ -89,6 +90,18 @@ class SettingsSidebar extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const NotificationSettingsPage()),
+                      );
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.cloud_download,
+                    title: 'Update Database',
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const UpdateDatabasePage()),
                       );
                     },
                   ),

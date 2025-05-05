@@ -122,11 +122,20 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
       final lines = csvString.split('\n');
       setState(() {
         _celebrities = lines
-            .where((line) => line.contains(','))
+            .skip(1) // Skip the first row (header row)
+            .where((line) => line.trim().isNotEmpty && line.contains(',')) // Check for non-empty lines with commas
             .map((line) {
           final parts = line.split(',');
-          return {'name': parts[0].trim(), 'url': parts[1].trim()};
+          // Ensure we have at least 2 parts (name and URL)
+          if (parts.length >= 2) {
+            return {
+              'name': parts[0].trim(),
+              'url': parts[1].trim()
+            };
+          }
+          return {'name': 'Unknown', 'url': ''}; // Fallback for malformed lines
         })
+            .where((celebrity) => celebrity['name']!.isNotEmpty) // Filter out empty names
             .toList();
         _filteredCelebrities = List.from(_celebrities);
       });
@@ -339,7 +348,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                     icon: const Icon(Icons.add_box_outlined),
                     onPressed: () =>
                         _handleDownloadPress(celebrity['name']!),
-                    tooltip: 'Download images',
+                    tooltip: 'Add Name to The Main Folder Input',
                   ),
                 ],
               ),
