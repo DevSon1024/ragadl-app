@@ -6,7 +6,7 @@ import 'pages/ragalahari_downloader.dart';
 import 'pages/history_page.dart';
 import 'pages/download_manager_page.dart';
 import 'pages/celebrity_list_page.dart';
-import 'pages/settings_sidebar.dart';
+import 'pages/latest_celebrity.dart';
 import 'theme_config.dart';
 
 void main() async {
@@ -32,8 +32,8 @@ class MyApp extends StatelessWidget {
       builder: (context, themeConfig, child) => MaterialApp(
         title: 'Ragalahari Downloader',
         debugShowCheckedModeBanner: false,
-        theme: ThemeConfig.lightTheme,
-        darkTheme: ThemeConfig.darkTheme,
+        theme: themeConfig.lightTheme,
+        darkTheme: themeConfig.darkTheme,
         themeMode: themeConfig.currentThemeMode,
         home: const MainScreen(),
       ),
@@ -41,7 +41,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Rest of the main.dart remains unchanged
 class MainScreen extends StatefulWidget {
   final String? initialUrl;
   final String? initialFolder;
@@ -145,26 +144,22 @@ class _MainScreenState extends State<MainScreen> {
       child: Scaffold(
         key: _scaffoldKey,
         appBar: AppBar(
-          title: const Text('Ragalahari Downloader'),
+          title: const Text(
+            'Ragalahari Downloader',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              color: Colors.green,
-              borderRadius: BorderRadius.vertical(
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor,
+              borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(20),
               ),
             ),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                _scaffoldKey.currentState?.openEndDrawer();
-                FocusScope.of(context).unfocus();
-              },
-            ),
-          ],
         ),
-        endDrawer: const SettingsSidebar(),
         body: PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
@@ -175,7 +170,14 @@ class _MainScreenState extends State<MainScreen> {
             });
           },
           children: [
-            const HomePage(),
+            HomePage(
+              onLatestCelebritiesTapped: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LatestCelebrityPage()),
+                );
+              },
+            ),
             CelebrityListPage(
               onDownloadSelected: (url, folder, title) {
                 _navigateToDownloader(url: url, folder: folder, title: title);
@@ -256,7 +258,9 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  final VoidCallback onLatestCelebritiesTapped;
+
+  const HomePage({Key? key, required this.onLatestCelebritiesTapped}) : super(key: key);
 
   Future<void> _launchUrl(String url) async {
     final Uri uri = Uri.parse(url);
@@ -318,6 +322,16 @@ class HomePage extends StatelessWidget {
             'Browse celebrities or tap the + button to download images',
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: onLatestCelebritiesTapped,
+            icon: const Icon(Icons.star),
+            label: const Text('Latest Celebrities'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              textStyle: const TextStyle(fontSize: 16),
+            ),
           ),
           const SizedBox(height: 32),
           Container(

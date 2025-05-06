@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-
-// Import the settings pages
 import '../pages/favourite_page.dart';
 import '../pages/display_settings_page.dart';
-import '../pages/notification_settings_page.dart';
-import '../pages/update_database_page.dart'; // Import the new page
+import '../pages/update_database_page.dart';
+import '../pages/latest_celebrity.dart'; // Import LatestCelebrityPage
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({Key? key}) : super(key: key);
@@ -83,18 +81,6 @@ class SettingsSidebar extends StatelessWidget {
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.notifications,
-                    title: 'Notification Settings',
-                    onTap: () {
-                      FocusScope.of(context).unfocus();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const NotificationSettingsPage()),
-                      );
-                    },
-                  ),
-                  _buildMenuItem(
-                    context,
                     icon: Icons.cloud_download,
                     title: 'Update Database',
                     onTap: () {
@@ -102,6 +88,18 @@ class SettingsSidebar extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const UpdateDatabasePage()),
+                      );
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.star,
+                    title: 'Latest Celebrities',
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LatestCelebrityPage()),
                       );
                     },
                   ),
