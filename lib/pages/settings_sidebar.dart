@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../pages/favourite_page.dart';
 import '../pages/display_settings_page.dart';
 import '../pages/update_database_page.dart';
-import '../pages/latest_celebrity.dart'; // Import LatestCelebrityPage
+import '../pages/privacy_policy_page.dart';
+import '../pages/storage_page.dart'; // Add this import
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({Key? key}) : super(key: key);
@@ -93,13 +94,25 @@ class SettingsSidebar extends StatelessWidget {
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.star,
-                    title: 'Latest Celebrities',
+                    icon: Icons.storage,
+                    title: 'Storage Settings',
                     onTap: () {
                       FocusScope.of(context).unfocus();
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const LatestCelebrityPage()),
+                        MaterialPageRoute(builder: (_) => const StoragePage()),
+                      );
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.privacy_tip,
+                    title: 'Privacy & Policy',
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
                       );
                     },
                   ),
@@ -110,7 +123,7 @@ class SettingsSidebar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Version 1.2.0',
+                'Version 2.5.4',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 12,

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum DownloadStatus { downloading, paused, completed, failed }
 
@@ -168,8 +169,11 @@ class DownloadManager {
 
   Future<Directory> _getDownloadDirectory(String folder, String subFolder) async {
     Directory directory;
+    final prefs = await SharedPreferences.getInstance();
+    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
+
     if (Platform.isAndroid) {
-      directory = Directory('/storage/emulated/0/Download/Ragalahari Downloads/$folder/$subFolder');
+      directory = Directory('$basePath/Ragalahari Downloads/$folder/$subFolder');
     } else {
       directory = await getApplicationDocumentsDirectory();
       directory = Directory('${directory.path}/Ragalahari Downloads/$folder/$subFolder');
@@ -281,7 +285,7 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
     });
   }
 
-  void _cancelAllDownloadsAndDeleteFolder() {
+  void _cancelAllDownloadsAndDeleteFolder() async {
     // Cancel all active downloads
     final urls = _downloadTasks.keys.toList();
     for (final url in urls) {
@@ -289,12 +293,14 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
     }
 
     // Delete the folder if it exists
-    _downloadTasks.values.forEach((task) async {
-      final folderPath = Directory('/storage/emulated/0/Download/Ragalahari Downloads/${task.folder}/${task.subFolder}');
+    final prefs = await SharedPreferences.getInstance();
+    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
+    for (var task in _downloadTasks.values) {
+      final folderPath = Directory('$basePath/Ragalahari Downloads/${task.folder}/${task.subFolder}');
       if (await folderPath.exists()) {
         await folderPath.delete(recursive: true);
       }
-    });
+    }
 
     // Clear the download tasks and refresh
     setState(() {

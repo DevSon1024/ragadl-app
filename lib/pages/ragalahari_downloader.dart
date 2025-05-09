@@ -69,8 +69,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
   void didUpdateWidget(RagalahariDownloader oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialUrl != oldWidget.initialUrl ||
-        widget.initialFolder != oldWidget.initialFolder ||
-        widget.galleryTitle != oldWidget.galleryTitle) {
+        widget.initialFolder != oldWidget.initialFolder) {
       _initializeFields();
     }
   }
@@ -78,21 +77,18 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
   void _initializeFields() {
     if (!_isInitialized ||
         (widget.initialUrl != null && widget.initialUrl != _urlController.text) ||
-        (widget.initialFolder != null && widget.initialFolder != mainFolderName) ||
-        (widget.galleryTitle != null && widget.galleryTitle != _folderController.text)) {
+        (widget.initialFolder != null && widget.initialFolder != _folderController.text)) {
       if (widget.initialUrl != null) {
         _urlController.text = widget.initialUrl!;
       }
 
       if (widget.initialFolder != null) {
         mainFolderName = widget.initialFolder!;
-        _folderController.text = widget.galleryTitle ?? widget.initialFolder!;
+        _folderController.text = widget.initialFolder!;
       }
 
-      if (widget.initialUrl != null &&
-          widget.initialUrl!.isNotEmpty &&
-          widget.initialFolder != null &&
-          widget.initialFolder!.isNotEmpty &&
+      if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty &&
+          widget.initialFolder != null && widget.initialFolder!.isNotEmpty &&
           !_isInitialized) {
         Future.microtask(() {
           _processGallery(widget.initialUrl!);
@@ -328,7 +324,9 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
-          onProgress: (progress) {},
+          onProgress: (progress) {
+            // Progress is handled by the download manager
+          },
           onComplete: (success) {
             setState(() {
               if (success) {
@@ -344,8 +342,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
       _showSnackBar('Added ${imageUrls.length} images to download queue');
 
       Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const DownloadManagerPage()),
+          context,
+          MaterialPageRoute(builder: (context) => const DownloadManagerPage())
       );
     } catch (e) {
       _showSnackBar('Error adding downloads: $e');
@@ -366,158 +364,151 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _folderController,
-                    focusNode: _folderFocusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Enter Main Folder Name',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.add_box_rounded),
-                        onPressed: () {
-                          setState(() {
-                            mainFolderName = _folderController.text.trim().isEmpty
-                                ? 'RagalahariDownloads'
-                                : _folderController.text.trim();
-                          });
-                          _showSnackBar('Main Folder Set To: $mainFolderName');
-                        },
-                      ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _folderController,
+                  decoration: InputDecoration(
+                    labelText: 'Enter Main Folder Name',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add_box_rounded),
+                      onPressed: () {
+                        setState(() {
+                          mainFolderName = _folderController.text.trim().isEmpty ? 'RagalahariDownloads' : _folderController.text.trim();
+                        });
+                        _showSnackBar('Main Folder Set To: $mainFolderName');
+                      },
                     ),
-                    autofocus: false,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    keyboardType: TextInputType.text,
-                    onTap: () {
-                      print('Folder TextField tapped');
-                    },
                   ),
-                  const SizedBox(height: 8.0),
-                  TextField(
-                    controller: _urlController,
-                    focusNode: _urlFocusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Enter Ragalahari Gallery URL',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.content_copy, size: 20),
-                              onPressed: () {
-                                if (_urlController.text.isNotEmpty) {
-                                  Clipboard.setData(ClipboardData(text: _urlController.text));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('URL copied to clipboard')),
-                                  );
-                                }
-                              },
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(Icons.clear, size: 20),
-                              onPressed: () => _urlController.clear(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    autofocus: false,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    keyboardType: TextInputType.url,
-                    onTap: () {
-                      print('URL TextField tapped');
-                    },
-                  ),
-                  const SizedBox(height: 8.0),
-                  Column(
-                    children: [
-                      Row(
+                  autofocus: false,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  keyboardType: TextInputType.text,
+                  onTap: () {
+                    print('Folder TextField tapped');
+                  },
+                ),
+                const SizedBox(height: 8.0),
+                TextField(
+                  controller: _urlController,
+                  decoration: InputDecoration(
+                    labelText: 'Enter Ragalahari Gallery URL',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: (isLoading || isDownloading || mainFolderName.isEmpty)
-                                  ? null
-                                  : () {
-                                final url = _urlController.text.trim();
-                                if (url.isEmpty) {
-                                  _showSnackBar('Please enter a URL');
-                                  return;
-                                }
-                                _processGallery(url);
-                              },
-                              icon: const Icon(Icons.search),
-                              label: const Text('Fetch Images'),
-                            ),
+                          IconButton(
+                            icon: const Icon(Icons.content_copy, size: 20),
+                            onPressed: () {
+                              if (_urlController.text.isNotEmpty) {
+                                Clipboard.setData(ClipboardData(text: _urlController.text));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('URL copied to clipboard')),
+                                );
+                              }
+                            },
                           ),
-                          const SizedBox(width: 8.0),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty)
-                                  ? null
-                                  : _downloadAllImages,
-                              icon: const Icon(Icons.download),
-                              label: const Text('Download All'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8.0),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _clearAll,
-                          icon: const Icon(Icons.clear_all),
-                          label: const Text('Clear All'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (isLoading || isDownloading)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Column(
-                        children: [
-                          LinearProgressIndicator(
-                            value: isLoading
-                                ? (currentPage / totalPages)
-                                : (downloadsSuccessful + downloadsFailed) / imageUrls.length,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isLoading
-                                ? 'Fetching page $currentPage of $totalPages...'
-                                : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
-                            style: const TextStyle(fontSize: 12),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () => _urlController.clear(),
                           ),
                         ],
                       ),
                     ),
-                  if (_successMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _successMessage!,
-                        style: const TextStyle(color: Colors.green),
+                  ),
+                  autofocus: false,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  keyboardType: TextInputType.url,
+                  onTap: () {
+                    print('URL TextField tapped');
+                  },
+                ),
+                const SizedBox(height: 8.0),
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: (isLoading || isDownloading || mainFolderName.isEmpty)
+                                ? null
+                                : () {
+                              final url = _urlController.text.trim();
+                              if (url.isEmpty) {
+                                _showSnackBar('Please enter a URL');
+                                return;
+                              }
+                              _processGallery(url);
+                            },
+                            icon: const Icon(Icons.search),
+                            label: const Text('Fetch Images'),
+                          ),
+                        ),
+                        const SizedBox(width: 8.0),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty)
+                                ? null
+                                : _downloadAllImages,
+                            icon: const Icon(Icons.download),
+                            label: const Text('Download All'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8.0),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _clearAll,
+                        icon: const Icon(Icons.clear_all),
+                        label: const Text('Clear All'),
                       ),
                     ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
+                  ],
+                ),
+                if (isLoading || isDownloading)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: isLoading
+                              ? (currentPage / totalPages)
+                              : (downloadsSuccessful + downloadsFailed) / imageUrls.length,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isLoading
+                              ? 'Fetching page $currentPage of $totalPages...'
+                              : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+                if (_successMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _successMessage!,
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                  ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -655,11 +646,15 @@ class _FullImagePageState extends State<FullImagePage> {
         url: imageUrl,
         folder: "SingleImages",
         subFolder: DateTime.now().toString().split(' ')[0],
-        onProgress: (progress) {},
+        onProgress: (progress) {
+          // Progress is handled by the download manager
+        },
         onComplete: (success) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(success ? 'Added to download manager' : 'Failed to add download')),
+                SnackBar(content: Text(success
+                    ? 'Added to download manager'
+                    : 'Failed to add download'))
             );
           }
         },
@@ -667,7 +662,7 @@ class _FullImagePageState extends State<FullImagePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to download: $e')),
+            SnackBar(content: Text('Failed to download: $e'))
         );
       }
     } finally {

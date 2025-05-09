@@ -85,11 +85,11 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
               setState(() {
                 celebrityList[index]['name'] = name;
               });
-              // Navigate to RagalahariDownloader with only URL and name
+              // Navigate to RagalahariDownloader with URL and name
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RagalahariDownloaderScreen(
+                  builder: (_) => RagalahariDownloaderScreen(
                     initialUrl: url,
                     initialFolder: name,
                   ),
@@ -110,27 +110,28 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Latest Celebrities')),
       body: isLoading
-          ? Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
-        child: GridView.builder(
-          padding: const EdgeInsets.all(10),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 0.7,
-          ),
-          itemCount: 6, // Show 6 skeleton items
-          itemBuilder: (context, index) {
-            return Card(
+          ? GridView.builder(
+        padding: const EdgeInsets.all(10),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.7,
+        ),
+        itemCount: 6, // Show 6 skeleton cards
+        itemBuilder: (context, index) {
+          return Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Card(
               elevation: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Container(
-                      color: Colors.white,
+                      color: Colors.grey[300],
+                      width: double.infinity,
                     ),
                   ),
                   Padding(
@@ -141,28 +142,28 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
                         Container(
                           width: double.infinity,
                           height: 16,
-                          color: Colors.white,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 80,
+                          height: 12,
+                          color: Colors.grey[300],
                         ),
                         const SizedBox(height: 4),
                         Container(
                           width: 100,
-                          height: 12,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 120,
                           height: 14,
-                          color: Colors.white,
+                          color: Colors.grey[300],
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       )
           : GridView.builder(
         padding: const EdgeInsets.all(10),
@@ -187,7 +188,8 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
                       item['img'] ?? '',
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                      errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.error),
                     ),
                   ),
                   Padding(
@@ -214,7 +216,9 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          item['name']!.isEmpty ? 'Tap to Load Name' : item['name']!,
+                          item['name']!.isEmpty
+                              ? 'Tap to Load Name'
+                              : item['name']!,
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 14,
