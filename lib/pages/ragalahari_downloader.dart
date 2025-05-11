@@ -428,283 +428,281 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
   Widget build(BuildContext context) {
     super.build(context);
     print('RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _folderController,
-                  decoration: InputDecoration(
-                    labelText: 'Enter Main Folder Name',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.add_box_rounded),
-                      onPressed: () {
-                        setState(() {
-                          mainFolderName = _folderController.text.trim().isEmpty ? 'RagalahariDownloads' : _folderController.text.trim();
-                        });
-                        _showSnackBar('Main Folder Set To: $mainFolderName');
-                      },
-                    ),
-                  ),
-                  autofocus: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  keyboardType: TextInputType.text,
-                  onTap: () {
-                    print('Folder TextField tapped');
-                  },
-                ),
-                const SizedBox(height: 8.0),
-                TextField(
-                  controller: _urlController,
-                  decoration: InputDecoration(
-                    labelText: 'Enter Ragalahari Gallery URL',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.content_copy, size: 20),
-                            onPressed: () {
-                              if (_urlController.text.isNotEmpty) {
-                                Clipboard.setData(ClipboardData(text: _urlController.text));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('URL copied to clipboard')),
-                                );
-                              }
-                            },
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(Icons.clear, size: 20),
-                            onPressed: () => _urlController.clear(),
-                          ),
-                        ],
+    return Scaffold(
+      floatingActionButton: (imageUrls.isNotEmpty && isSelectionMode && !isLoading && !isDownloading)
+          ? FloatingActionButton.extended(
+        onPressed: _downloadSelectedImages,
+        icon: const Icon(Icons.download_for_offline),
+        label: Text('Download ${selectedImages.length}'),
+      )
+          : null,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _folderController,
+                    decoration: InputDecoration(
+                      labelText: 'Enter Main Folder Name',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.add_box_rounded),
+                        onPressed: () {
+                          setState(() {
+                            mainFolderName = _folderController.text.trim().isEmpty ? 'RagalahariDownloads' : _folderController.text.trim();
+                          });
+                          _showSnackBar('Main Folder Set To: $mainFolderName');
+                        },
                       ),
                     ),
-                  ),
-                  autofocus: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  keyboardType: TextInputType.url,
-                  onTap: () {
-                    print('URL TextField tapped');
-                  },
-                ),
-                const SizedBox(height: 8.0),
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: (isLoading || isDownloading || mainFolderName.isEmpty)
-                                ? null
-                                : () {
-                              final url = _urlController.text.trim();
-                              if (url.isEmpty) {
-                                _showSnackBar('Please enter a URL');
-                                return;
-                              }
-                              _processGallery(url);
-                            },
-                            icon: const Icon(Icons.search),
-                            label: const Text('Fetch Images'),
-                          ),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty)
-                                ? null
-                                : _downloadAllImages,
-                            icon: const Icon(Icons.download),
-                            label: const Text('Download All'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8.0),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty || selectedImages.isEmpty)
-                                ? null
-                                : _downloadSelectedImages,
-                            icon: const Icon(Icons.download_for_offline),
-                            label: const Text('Download Selected'),
-                          ),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _clearAll,
-                            icon: const Icon(Icons.clear_all),
-                            label: const Text('Clear All'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (isSelectionMode)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Selected ${selectedImages.length} images',
-                          style: const TextStyle(fontSize: 12, color: Colors.blue),
-                        ),
-                      ),
-                  ],
-                ),
-                if (isLoading || isDownloading)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Column(
-                      children: [
-                        LinearProgressIndicator(
-                          value: isLoading
-                              ? (currentPage / totalPages)
-                              : (downloadsSuccessful + downloadsFailed) / imageUrls.length,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isLoading
-                              ? 'Fetching page $currentPage of $totalPages...'
-                              : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_successMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      _successMessage!,
-                      style: const TextStyle(color: Colors.green),
-                    ),
-                  ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeIn,
-            switchOutCurve: Curves.easeOut,
-            child: isLoading
-                ? const Center(
-              key: ValueKey('loader'),
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
-            )
-                : const SizedBox.shrink(key: ValueKey('grid')),
-          ),
-        ),
-        if (!isLoading)
-          SliverPadding(
-            padding: const EdgeInsets.all(8.0),
-            sliver: imageUrls.isEmpty
-                ? const SliverToBoxAdapter(child: Center(child: Text('No images to display')))
-                : SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 4.0,
-                mainAxisSpacing: 4.0,
-                childAspectRatio: 0.75,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                  final imageData = imageUrls[index];
-                  final isSelected = selectedImages.contains(index);
-                  return GestureDetector(
+                    autofocus: false,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    keyboardType: TextInputType.text,
                     onTap: () {
-                      if (isSelectionMode) {
-                        _toggleSelection(index);
-                      } else {
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (_, __, ___) => FullImagePage(
-                              imageUrls: imageUrls,
-                              initialIndex: index,
-                            ),
-                            transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-                            transitionDuration: const Duration(milliseconds: 300),
-                          ),
-                        );
-                      }
+                      print('Folder TextField tapped');
                     },
-                    onLongPress: () => _toggleSelection(index),
-                    child: Card(
-                      elevation: 3,
-                      child: Stack(
-                        fit: StackFit.expand,
+                  ),
+                  const SizedBox(height: 8.0),
+                  TextField(
+                    controller: _urlController,
+                    focusNode: _urlFocusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Enter Ragalahari Gallery URL',
+                      border: const OutlineInputBorder(),
+                      hintText: 'https://www.ragalahari.com/actress/173432/rakul-preet-singh-at-indian-2-press-meet-hd-gallery.aspx',
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.content_copy, size: 20),
+                              onPressed: () {
+                                if (_urlController.text.isNotEmpty) {
+                                  Clipboard.setData(ClipboardData(text: _urlController.text));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('URL copied to clipboard')),
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.clear, size: 20),
+                              onPressed: () => _urlController.clear(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    autofocus: false,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    keyboardType: TextInputType.url,
+                    onTap: () {
+                      print('URL TextField tapped');
+                    },
+                  ),
+                  const SizedBox(height: 8.0),
+                  Column(
+                    children: [
+                      Row(
                         children: [
-                          Hero(
-                            tag: imageData.originalUrl,
-                            child: CachedNetworkImage(
-                              imageUrl: imageData.thumbnailUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Shimmer.fromColors(
-                                baseColor: Colors.grey[300]!,
-                                highlightColor: Colors.grey[100]!,
-                                child: Container(color: Colors.grey[300]),
-                              ),
-                              errorWidget: (context, url, error) => const Icon(Icons.error),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: (isLoading || isDownloading || mainFolderName.isEmpty)
+                                  ? null
+                                  : () {
+                                final url = _urlController.text.trim();
+                                if (url.isEmpty) {
+                                  _showSnackBar('Please enter a URL');
+                                  return;
+                                }
+                                _processGallery(url);
+                              },
+                              icon: const Icon(Icons.search),
+                              label: const Text('Fetch Images'),
                             ),
                           ),
-                          if (isSelected)
-                            Container(
-                              color: Colors.blue.withOpacity(0.3),
-                              child: const Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ),
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              color: Colors.black54,
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Text(
-                                'Image ${index + 1}',
-                                style: const TextStyle(color: Colors.white),
-                                textAlign: TextAlign.center,
-                              ),
+                          const SizedBox(width: 8.0),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty)
+                                  ? null
+                                  : _downloadAllImages,
+                              icon: const Icon(Icons.download),
+                              label: const Text('Download All'),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8.0),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _clearAll,
+                          icon: const Icon(Icons.clear_all),
+                          label: const Text('Clear All'),
+                        ),
+                      ),
+                      if (isSelectionMode)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Selected ${selectedImages.length} images',
+                            style: const TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (isLoading || isDownloading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Column(
+                        children: [
+                          LinearProgressIndicator(
+                            value: isLoading
+                                ? (currentPage / totalPages)
+                                : (downloadsSuccessful + downloadsFailed) / imageUrls.length,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isLoading
+                                ? 'Fetching page $currentPage of $totalPages...'
+                                : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                },
-                childCount: imageUrls.length,
+                  if (_successMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        _successMessage!,
+                        style: const TextStyle(color: Colors.green),
+                      ),
+                    ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
-      ],
+          SliverToBoxAdapter(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeIn,
+              switchOutCurve: Curves.easeOut,
+              child: isLoading
+                  ? const Center(
+                key: ValueKey('loader'),
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+                  : const SizedBox.shrink(key: ValueKey('grid')),
+            ),
+          ),
+          if (!isLoading)
+            SliverPadding(
+              padding: const EdgeInsets.all(8.0),
+              sliver: imageUrls.isEmpty
+                  ? const SliverToBoxAdapter(child: Center(child: Text('No images to display')))
+                  : SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 4.0,
+                  mainAxisSpacing: 4.0,
+                  childAspectRatio: 0.75,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    final imageData = imageUrls[index];
+                    final isSelected = selectedImages.contains(index);
+                    return GestureDetector(
+                      onTap: () {
+                        if (isSelectionMode) {
+                          _toggleSelection(index);
+                        } else {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (_, __, ___) => FullImagePage(
+                                imageUrls: imageUrls,
+                                initialIndex: index,
+                              ),
+                              transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+                              transitionDuration: const Duration(milliseconds: 300),
+                            ),
+                          );
+                        }
+                      },
+                      onLongPress: () => _toggleSelection(index),
+                      child: Card(
+                        elevation: 3,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Hero(
+                              tag: imageData.originalUrl,
+                              child: CachedNetworkImage(
+                                imageUrl: imageData.thumbnailUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Shimmer.fromColors(
+                                  baseColor: Colors.grey[300]!,
+                                  highlightColor: Colors.grey[100]!,
+                                  child: Container(color: Colors.grey[300]),
+                                ),
+                                errorWidget: (context, url, error) => const Icon(Icons.error),
+                              ),
+                            ),
+                            if (isSelected)
+                              Container(
+                                color: Colors.blue.withOpacity(0.3),
+                                child: const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                              ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                color: Colors.black54,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Text(
+                                  'Image ${index + 1}',
+                                  style: const TextStyle(color: Colors.white),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  childCount: imageUrls.length,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -808,14 +806,14 @@ class _FullImagePageState extends State<FullImagePage> {
             minScale: 0.1,
             maxScale: 4.0,
             child: Hero(
-            tag: imageData.originalUrl,
-            child: CachedNetworkImage(
-              imageUrl: imageData.originalUrl,
-              fit: BoxFit.contain,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
+              tag: imageData.originalUrl,
+              child: CachedNetworkImage(
+                imageUrl: imageData.originalUrl,
+                fit: BoxFit.contain,
+                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
+              ),
             ),
-          ),
           );
         },
       ),
