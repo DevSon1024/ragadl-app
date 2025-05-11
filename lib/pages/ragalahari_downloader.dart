@@ -34,8 +34,10 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
   final FocusNode _folderFocusNode = FocusNode();
 
   List<ImageData> imageUrls = [];
+  Set<int> selectedImages = {};
   bool isLoading = false;
   bool isDownloading = false;
+  bool isSelectionMode = false;
   int downloadsSuccessful = 0;
   int downloadsFailed = 0;
   int currentPage = 0;
@@ -113,6 +115,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
       _urlController.clear();
       _folderController.clear();
       imageUrls.clear();
+      selectedImages.clear();
+      isSelectionMode = false;
       mainFolderName = '';
       subFolderName = '';
       downloadsSuccessful = 0;
@@ -256,6 +260,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
       setState(() {
         isLoading = true;
         imageUrls.clear();
+        selectedImages.clear();
+        isSelectionMode = false;
         downloadsSuccessful = 0;
         downloadsFailed = 0;
         currentPage = 0;
@@ -352,6 +358,70 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
         isDownloading = false;
       });
     }
+  }
+
+  Future<void> _downloadSelectedImages() async {
+    if (selectedImages.isEmpty) {
+      _showSnackBar('No images selected');
+      return;
+    }
+
+    try {
+      setState(() {
+        isDownloading = true;
+        downloadsSuccessful = 0;
+        downloadsFailed = 0;
+      });
+
+      final downloadManager = DownloadManager();
+      for (int index in selectedImages) {
+        final imageUrl = imageUrls[index].originalUrl;
+
+        downloadManager.addDownload(
+          url: imageUrl,
+          folder: mainFolderName,
+          subFolder: subFolderName,
+          onProgress: (progress) {
+            // Progress is handled by the download manager
+          },
+          onComplete: (success) {
+            setState(() {
+              if (success) {
+                downloadsSuccessful++;
+              } else {
+                downloadsFailed++;
+              }
+            });
+          },
+        );
+      }
+
+      _showSnackBar('Added ${selectedImages.length} images to download queue');
+
+      Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DownloadManagerPage())
+      );
+    } catch (e) {
+      _showSnackBar('Error adding downloads: $e');
+    } finally {
+      setState(() {
+        isDownloading = false;
+        selectedImages.clear();
+        isSelectionMode = false;
+      });
+    }
+  }
+
+  void _toggleSelection(int index) {
+    setState(() {
+      if (selectedImages.contains(index)) {
+        selectedImages.remove(index);
+      } else {
+        selectedImages.add(index);
+      }
+      isSelectionMode = selectedImages.isNotEmpty;
+    });
   }
 
   @override
@@ -462,14 +532,35 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
                       ],
                     ),
                     const SizedBox(height: 8.0),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _clearAll,
-                        icon: const Icon(Icons.clear_all),
-                        label: const Text('Clear All'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty || selectedImages.isEmpty)
+                                ? null
+                                : _downloadSelectedImages,
+                            icon: const Icon(Icons.download_for_offline),
+                            label: const Text('Download Selected'),
+                          ),
+                        ),
+                        const SizedBox(width: 8.0),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _clearAll,
+                            icon: const Icon(Icons.clear_all),
+                            label: const Text('Clear All'),
+                          ),
+                        ),
+                      ],
                     ),
+                    if (isSelectionMode)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Selected ${selectedImages.length} images',
+                          style: const TextStyle(fontSize: 12, color: Colors.blue),
+                        ),
+                      ),
                   ],
                 ),
                 if (isLoading || isDownloading)
@@ -543,20 +634,26 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
               delegate: SliverChildBuilderDelegate(
                     (context, index) {
                   final imageData = imageUrls[index];
+                  final isSelected = selectedImages.contains(index);
                   return GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          pageBuilder: (_, __, ___) => FullImagePage(
-                            imageUrls: imageUrls,
-                            initialIndex: index,
+                      if (isSelectionMode) {
+                        _toggleSelection(index);
+                      } else {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (_, __, ___) => FullImagePage(
+                              imageUrls: imageUrls,
+                              initialIndex: index,
+                            ),
+                            transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+                            transitionDuration: const Duration(milliseconds: 300),
                           ),
-                          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-                          transitionDuration: const Duration(milliseconds: 300),
-                        ),
-                      );
+                        );
+                      }
                     },
+                    onLongPress: () => _toggleSelection(index),
                     child: Card(
                       elevation: 3,
                       child: Stack(
@@ -575,6 +672,15 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
                               errorWidget: (context, url, error) => const Icon(Icons.error),
                             ),
                           ),
+                          if (isSelected)
+                            Container(
+                              color: Colors.blue.withOpacity(0.3),
+                              child: const Icon(
+                                Icons.check_circle,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
                           Positioned(
                             bottom: 0,
                             left: 0,
@@ -702,14 +808,14 @@ class _FullImagePageState extends State<FullImagePage> {
             minScale: 0.1,
             maxScale: 4.0,
             child: Hero(
-              tag: imageData.originalUrl,
-              child: CachedNetworkImage(
-                imageUrl: imageData.originalUrl,
-                fit: BoxFit.contain,
-                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => const Icon(Icons.error),
-              ),
+            tag: imageData.originalUrl,
+            child: CachedNetworkImage(
+              imageUrl: imageData.originalUrl,
+              fit: BoxFit.contain,
+              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
+          ),
           );
         },
       ),
