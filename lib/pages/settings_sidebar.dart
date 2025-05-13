@@ -6,7 +6,7 @@ import '../pages/privacy_policy_page.dart';
 import '../pages/storage_page.dart'; // Add this import
 
 class SettingsSidebar extends StatelessWidget {
-  const SettingsSidebar({Key? key}) : super(key: key);
+  const SettingsSidebar({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +21,10 @@ class SettingsSidebar extends StatelessWidget {
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark],
+                  colors: [
+                    Theme.of(context).primaryColor,
+                    Theme.of(context).primaryColorDark,
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -43,10 +46,7 @@ class SettingsSidebar extends StatelessWidget {
                     SizedBox(height: 8),
                     Text(
                       'Customize your experience',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
                     ),
                   ],
                 ),
@@ -64,7 +64,9 @@ class SettingsSidebar extends StatelessWidget {
                       FocusScope.of(context).unfocus();
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const FavouritePage()),
+                        MaterialPageRoute(
+                          builder: (_) => const FavouritePage(),
+                        ),
                       );
                     },
                   ),
@@ -76,7 +78,9 @@ class SettingsSidebar extends StatelessWidget {
                       FocusScope.of(context).unfocus();
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const DisplaySettingsPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const DisplaySettingsPage(),
+                        ),
                       );
                     },
                   ),
@@ -88,7 +92,9 @@ class SettingsSidebar extends StatelessWidget {
                       FocusScope.of(context).unfocus();
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const UpdateDatabasePage()),
+                        MaterialPageRoute(
+                          builder: (_) => const UpdateDatabasePage(),
+                        ),
                       );
                     },
                   ),
@@ -112,7 +118,9 @@ class SettingsSidebar extends StatelessWidget {
                       FocusScope.of(context).unfocus();
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyPage(),
+                        ),
                       );
                     },
                   ),
@@ -123,11 +131,8 @@ class SettingsSidebar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Version 2.5.4',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+                'Version 2.5.6',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),
           ],
@@ -137,11 +142,11 @@ class SettingsSidebar extends StatelessWidget {
   }
 
   Widget _buildMenuItem(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).primaryColor),
       title: Text(

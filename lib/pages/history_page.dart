@@ -15,7 +15,7 @@ enum SortOption {
 }
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({Key? key}) : super(key: key);
+  const HistoryPage({super.key});
 
   @override
   _HistoryPageState createState() => _HistoryPageState();
@@ -443,10 +443,10 @@ class FullImageViewer extends StatefulWidget {
   final int initialIndex;
 
   const FullImageViewer({
-    Key? key,
+    super.key,
     required this.images,
     required this.initialIndex,
-  }) : super(key: key);
+  });
 
   @override
   _FullImageViewerState createState() => _FullImageViewerState();

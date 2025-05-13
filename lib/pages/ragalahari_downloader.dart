@@ -17,11 +17,11 @@ class RagalahariDownloader extends StatefulWidget {
   final String? galleryTitle;
 
   const RagalahariDownloader({
-    Key? key,
+    super.key,
     this.initialUrl,
     this.initialFolder,
     this.galleryTitle,
-  }) : super(key: key);
+  });
 
   @override
   _RagalahariDownloaderState createState() => _RagalahariDownloaderState();
@@ -711,7 +711,7 @@ class FullImagePage extends StatefulWidget {
   final List<ImageData> imageUrls;
   final int initialIndex;
 
-  const FullImagePage({Key? key, required this.imageUrls, required this.initialIndex}) : super(key: key);
+  const FullImagePage({super.key, required this.imageUrls, required this.initialIndex});
 
   @override
   _FullImagePageState createState() => _FullImagePageState();

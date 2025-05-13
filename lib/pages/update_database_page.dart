@@ -6,7 +6,7 @@ import 'package:html/parser.dart' as parser;
 import 'package:csv/csv.dart';
 
 class UpdateDatabasePage extends StatefulWidget {
-  const UpdateDatabasePage({Key? key}) : super(key: key);
+  const UpdateDatabasePage({super.key});
 
   @override
   State<UpdateDatabasePage> createState() => _UpdateDatabasePageState();
@@ -17,7 +17,7 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
   double _progress = 0.0;
   String _statusText = '';
   List<String> _logMessages = [];
-  ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
@@ -149,7 +149,7 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
       _addLog('✅ All data saved to: $assetsDir/$filename');
     } catch (e) {
       _addLog('Error saving CSV: $e');
-      throw e;
+      rethrow;
     }
   }
 

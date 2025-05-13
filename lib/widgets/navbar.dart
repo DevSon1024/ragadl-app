@@ -7,11 +7,11 @@ class NavigationBar extends StatelessWidget {
   final DownloadSelectedCallback? onDownloadSelected;
 
   const NavigationBar({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
     this.onDownloadSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -63,10 +63,10 @@ class NavigationFAB extends StatelessWidget {
   final VoidCallback onPressed;
 
   const NavigationFAB({
-    Key? key,
+    super.key,
     required this.isDownloaderSelected,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -93,10 +93,10 @@ class MainNavigationWrapper extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
 
   const MainNavigationWrapper({
-    Key? key,
+    super.key,
     required this.screens,
     this.onDownloadSelected,
-  }) : super(key: key);
+  });
 
   @override
   _MainNavigationWrapperState createState() => _MainNavigationWrapperState();

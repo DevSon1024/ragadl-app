@@ -243,7 +243,7 @@ class DownloadManager {
 }
 
 class DownloadManagerPage extends StatefulWidget {
-  const DownloadManagerPage({Key? key}) : super(key: key);
+  const DownloadManagerPage({super.key});
 
   @override
   _DownloadManagerPageState createState() => _DownloadManagerPageState();
@@ -456,7 +456,7 @@ class DownloadItem extends StatelessWidget {
   final VoidCallback? onRedownload;
 
   const DownloadItem({
-    Key? key,
+    super.key,
     required this.task,
     required this.onPause,
     required this.onResume,
@@ -464,7 +464,7 @@ class DownloadItem extends StatelessWidget {
     this.onOpen,
     this.onRemove,
     this.onRedownload,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

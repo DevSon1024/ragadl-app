@@ -5,7 +5,7 @@ import '../screens/ragalahari_downloader_screen.dart';
 import 'celebrity_list_page.dart'; // Import to reuse FavoriteItem and navigate
 
 class FavouritePage extends StatefulWidget {
-  const FavouritePage({Key? key}) : super(key: key);
+  const FavouritePage({super.key});
 
   @override
   _FavouritePageState createState() => _FavouritePageState();

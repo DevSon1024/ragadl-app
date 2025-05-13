@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../theme_config.dart';
 
 class DisplaySettingsPage extends StatelessWidget {
-  const DisplaySettingsPage({Key? key}) : super(key: key);
+  const DisplaySettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {

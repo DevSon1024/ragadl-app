@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
-import 'package:html/dom.dart' as html;
 import 'package:shimmer/shimmer.dart';
-import 'ragalahari_downloader.dart'; // Import RagalahariDownloader
+// Import RagalahariDownloader
 import '../screens/ragalahari_downloader_screen.dart';
 
 class LatestCelebrityPage extends StatefulWidget {
-  const LatestCelebrityPage({Key? key}) : super(key: key);
+  const LatestCelebrityPage({super.key});
 
   @override
   _LatestCelebrityPageState createState() => _LatestCelebrityPageState();
@@ -44,7 +43,8 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
           if (!imgSrc.endsWith('thumb.jpg')) continue;
 
           final partialUrl = aTag?.attributes['href'] ?? '';
-          final fullUrl = partialUrl.startsWith('/') ? baseUrl + partialUrl : partialUrl;
+          final fullUrl =
+              partialUrl.startsWith('/') ? baseUrl + partialUrl : partialUrl;
           final galleryTitle = h5Tag?.text.trim() ?? '';
           final galleryDate = h6Tag?.text.trim() ?? '';
 
@@ -53,7 +53,7 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
             'img': imgSrc,
             'title': galleryTitle,
             'date': galleryDate,
-            'name': '' // Placeholder, fetched on tap
+            'name': '', // Placeholder, fetched on tap
           });
         }
 
@@ -89,10 +89,11 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RagalahariDownloaderScreen(
-                    initialUrl: url,
-                    initialFolder: name,
-                  ),
+                  builder:
+                      (_) => RagalahariDownloaderScreen(
+                        initialUrl: url,
+                        initialFolder: name,
+                      ),
                 ),
               );
               break;
@@ -109,130 +110,132 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Latest Celebrities')),
-      body: isLoading
-          ? GridView.builder(
-        padding: const EdgeInsets.all(10),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.7,
-        ),
-        itemCount: 6, // Show 6 skeleton cards
-        itemBuilder: (context, index) {
-          return Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
-            child: Card(
-              elevation: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Container(
-                      color: Colors.grey[300],
-                      width: double.infinity,
+      body:
+          isLoading
+              ? GridView.builder(
+                padding: const EdgeInsets.all(10),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.7,
+                ),
+                itemCount: 6, // Show 6 skeleton cards
+                itemBuilder: (context, index) {
+                  return Shimmer.fromColors(
+                    baseColor: Colors.grey[300]!,
+                    highlightColor: Colors.grey[100]!,
+                    child: Card(
+                      elevation: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              color: Colors.grey[300],
+                              width: double.infinity,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: double.infinity,
+                                  height: 16,
+                                  color: Colors.grey[300],
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  width: 80,
+                                  height: 12,
+                                  color: Colors.grey[300],
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  width: 100,
+                                  height: 14,
+                                  color: Colors.grey[300],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          height: 16,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 80,
-                          height: 12,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 100,
-                          height: 14,
-                          color: Colors.grey[300],
-                        ),
-                      ],
+                  );
+                },
+              )
+              : GridView.builder(
+                padding: const EdgeInsets.all(10),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.7,
+                ),
+                itemCount: celebrityList.length,
+                itemBuilder: (context, index) {
+                  final item = celebrityList[index];
+                  return GestureDetector(
+                    onTap: () => fetchCelebrityName(index),
+                    child: Card(
+                      elevation: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Image.network(
+                              item['img'] ?? '',
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder:
+                                  (context, error, stackTrace) =>
+                                      const Icon(Icons.error),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item['title'] ?? '',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  item['date'] ?? '',
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  item['name']!.isEmpty
+                                      ? 'Tap to Load Name'
+                                      : item['name']!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
-          );
-        },
-      )
-          : GridView.builder(
-        padding: const EdgeInsets.all(10),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.7,
-        ),
-        itemCount: celebrityList.length,
-        itemBuilder: (context, index) {
-          final item = celebrityList[index];
-          return GestureDetector(
-            onTap: () => fetchCelebrityName(index),
-            child: Card(
-              elevation: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Image.network(
-                      item['img'] ?? '',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.error),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['title'] ?? '',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item['date'] ?? '',
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item['name']!.isEmpty
-                              ? 'Tap to Load Name'
-                              : item['name']!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

@@ -25,7 +25,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +48,11 @@ class MainScreen extends StatefulWidget {
   final String? galleryTitle;
 
   const MainScreen({
-    Key? key,
+    super.key,
     this.initialUrl,
     this.initialFolder,
     this.galleryTitle,
-  }) : super(key: key);
+  });
 
   @override
   _MainScreenState createState() => _MainScreenState();
@@ -265,7 +265,7 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   Future<void> _launchUrl(String url) async {
     final Uri uri = Uri.parse(url);

@@ -7,11 +7,11 @@ class RagalahariDownloaderScreen extends StatelessWidget {
   final String? galleryTitle;
 
   const RagalahariDownloaderScreen({
-    Key? key,
+    super.key,
     this.initialUrl,
     this.initialFolder,
     this.galleryTitle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
