@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class StoragePage extends StatefulWidget {
   const StoragePage({super.key});
@@ -10,7 +12,7 @@ class StoragePage extends StatefulWidget {
 }
 
 class _StoragePageState extends State<StoragePage> {
-  String _baseDownloadPath = '/storage/emulated/0/Download';
+  String _baseDownloadPath = '';
   final TextEditingController _pathController = TextEditingController();
   bool _isDefaultPath = true;
 
@@ -30,8 +32,18 @@ class _StoragePageState extends State<StoragePage> {
         _isDefaultPath = false;
       });
     } else {
+      // Set default path based on platform
+      String defaultPath;
+      if (Platform.isWindows) {
+        final docsDir = await getApplicationDocumentsDirectory();
+        defaultPath = '${docsDir.path}/Downloads';
+      } else {
+        defaultPath = '/storage/emulated/0/Download';
+      }
       setState(() {
-        _pathController.text = _baseDownloadPath;
+        _baseDownloadPath = defaultPath;
+        _pathController.text = defaultPath;
+        _isDefaultPath = true;
       });
     }
   }
@@ -59,9 +71,16 @@ class _StoragePageState extends State<StoragePage> {
   }
 
   Future<void> _resetToDefault() async {
-    await _savePath('/storage/emulated/0/Download');
+    String defaultPath;
+    if (Platform.isWindows) {
+      final docsDir = await getApplicationDocumentsDirectory();
+      defaultPath = '${docsDir.path}/Downloads';
+    } else {
+      defaultPath = '/storage/emulated/0/Download';
+    }
+    await _savePath(defaultPath);
     setState(() {
-      _pathController.text = _baseDownloadPath;
+      _pathController.text = defaultPath;
     });
   }
 

@@ -131,7 +131,7 @@ class SettingsSidebar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Version 2.5.6',
+                'Version 2.5.8',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),

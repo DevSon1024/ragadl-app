@@ -89,6 +89,7 @@ class _FavouritePageState extends State<FavouritePage> {
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: ListTile(
                     title: Text(item.name),
+                    hoverColor: Theme.of(context).primaryColor.withOpacity(0.1),
                     onTap: () {
                       Navigator.push(
                         context,

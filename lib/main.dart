@@ -9,13 +9,16 @@ import 'pages/celebrity_list_page.dart';
 import 'pages/settings_sidebar.dart';
 import 'pages/latest_celebrity.dart'; // Import LatestCelebrityPage
 import 'theme_config.dart';
+import 'package:window_manager/window_manager.dart';
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    WindowManager.instance.setMinimumSize(const Size(800, 600));
+    WindowManager.instance.setTitle('Ragalahari Downloader');
+  }
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeConfig(),

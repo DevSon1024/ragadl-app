@@ -127,26 +127,21 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
 
   Future<void> _saveToCsv(List<List<dynamic>> data, String filename) async {
     try {
-      // Add header row
-      List<List<dynamic>> csvData = [
-        ['Name', 'URL'],
-        ...data
-      ];
-
+      List<List<dynamic>> csvData = [['Name', 'URL'], ...data];
       String csv = const ListToCsvConverter().convert(csvData);
 
-      // Get the app directory
-      Directory appDocDir = await getApplicationDocumentsDirectory();
-      String assetsDir = '${appDocDir.path}/assets/data';
-
-      // Create the directory if it doesn't exist
-      Directory(assetsDir).createSync(recursive: true);
-
-      // Create and write to the file
-      File file = File('$assetsDir/$filename');
+      Directory saveDir;
+      if (Platform.isWindows) {
+        saveDir = await getApplicationDocumentsDirectory();
+      } else {
+        saveDir = await getApplicationDocumentsDirectory();
+      }
+      String filePath = '${saveDir.path}/RagalahariData/$filename';
+      Directory(saveDir.path).createSync(recursive: true);
+      File file = File(filePath);
       await file.writeAsString(csv);
 
-      _addLog('✅ All data saved to: $assetsDir/$filename');
+      _addLog('✅ All data saved to: $filePath');
     } catch (e) {
       _addLog('Error saving CSV: $e');
       rethrow;

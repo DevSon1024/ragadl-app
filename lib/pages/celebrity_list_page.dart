@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Add this import
 import '../screens/ragalahari_downloader_screen.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 // Headers for HTTP requests
 final Map<String, String> headers = {
@@ -116,38 +118,39 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
 
   Future<void> _loadCelebrities() async {
     try {
-      final csvString = await DefaultAssetBundle.of(
-        context,
-      ).loadString('assets/data/Fetched_StarZone_Data.csv');
+      String csvString;
+      if (Platform.isWindows) {
+        final saveDir = await getApplicationDocumentsDirectory();
+        final file = File('${saveDir.path}/RagalahariData/Fetched_StarZone_Data.csv');
+        if (await file.exists()) {
+          csvString = await file.readAsString();
+        } else {
+          csvString = await DefaultAssetBundle.of(context)
+              .loadString('assets/data/Fetched_StarZone_Data.csv');
+        }
+      } else {
+        csvString = await DefaultAssetBundle.of(context)
+            .loadString('assets/data/Fetched_StarZone_Data.csv');
+      }
       final lines = csvString.split('\n');
       setState(() {
-        _celebrities =
-            lines
-                .skip(1) // Skip the first row (header row)
-                .where(
-                  (line) => line.trim().isNotEmpty && line.contains(','),
-                ) // Check for non-empty lines with commas
-                .map((line) {
-                  final parts = line.split(',');
-                  // Ensure we have at least 2 parts (name and URL)
-                  if (parts.length >= 2) {
-                    return {'name': parts[0].trim(), 'url': parts[1].trim()};
-                  }
-                  return {
-                    'name': 'Unknown',
-                    'url': '',
-                  }; // Fallback for malformed lines
-                })
-                .where(
-                  (celebrity) => celebrity['name']!.isNotEmpty,
-                ) // Filter out empty names
-                .toList();
+        _celebrities = lines
+            .skip(1)
+            .where((line) => line.trim().isNotEmpty && line.contains(','))
+            .map((line) {
+          final parts = line.split(',');
+          if (parts.length >= 2) {
+            return {'name': parts[0].trim(), 'url': parts[1].trim()};
+          }
+          return {'name': 'Unknown', 'url': ''};
+        })
+            .where((celebrity) => celebrity['name']!.isNotEmpty)
+            .toList();
         _filteredCelebrities = List.from(_celebrities);
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading celebrities: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error loading celebrities: $e')));
     }
   }
 
@@ -339,6 +342,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                     ),
                     child: ListTile(
                       title: Text(celebrity['name'] ?? 'Unknown'),
+                      hoverColor: Theme.of(context).primaryColor.withOpacity(0.1),
                       onTap: () {
                         Navigator.push(
                           context,

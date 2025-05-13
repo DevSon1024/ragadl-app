@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum SortOption {
   newest,
@@ -27,6 +29,8 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   SortOption _currentSort = SortOption.newest;
   String? _errorMessage;
   bool _isLoading = false;
+  bool _isSelectionMode = false;
+  Set<int> _selectedImages = {};
   final TextEditingController _searchController = TextEditingController();
   AnimationController? _animationController;
 
@@ -95,11 +99,16 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _isSelectionMode = false;
+      _selectedImages.clear();
     });
 
     try {
       Directory? baseDir;
-      if (Platform.isAndroid) {
+      if (Platform.isWindows){
+        baseDir = await getApplicationDocumentsDirectory();
+        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+      } else if(Platform.isAndroid) {
         baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
         if (!await baseDir.exists()) {
           baseDir = await getExternalStorageDirectory();
@@ -184,23 +193,108 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     });
   }
 
-  void _openImage(int index) {
-    if (index >= 0 && index < _filteredImages.length) {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => FullImageViewer(
-            images: _filteredImages,
-            initialIndex: index,
-          ),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 300),
-        ),
-      );
-    } else {
+  void _toggleSelection(int index) {
+    setState(() {
+      if (_selectedImages.contains(index)) {
+        _selectedImages.remove(index);
+      } else {
+        _selectedImages.add(index);
+      }
+      _isSelectionMode = _selectedImages.isNotEmpty;
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedImages.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  Future<void> _deleteSelectedImages() async {
+    if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid image index')),
+        const SnackBar(content: Text('No images selected')),
       );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Selected Images'),
+        content: Text('Are you sure you want to delete ${_selectedImages.length} selected image(s)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final List<FileSystemEntity> toDelete = _selectedImages.map((index) => _filteredImages[index]).toList();
+      for (var file in toDelete) {
+        await File(file.path).delete();
+      }
+
+      await _loadDownloadedImages();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Deleted ${toDelete.length} image(s)')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete images: $e')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _shareSelectedImages() async {
+    if (_selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No images selected')),
+      );
+      return;
+    }
+    if (Platform.isWindows) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sharing is not supported on Windows')),
+      );
+      return;
+    }
+    final List<String> paths =
+    _selectedImages.map((index) => _filteredImages[index].path).toList();
+    await Share.shareFiles(
+      paths,
+      text: 'Sharing ${_selectedImages.length} image(s) from Ragalahari Downloader',
+    );
+  }
+
+  void _openImage(int index) async {
+    if (_isSelectionMode) {
+      _toggleSelection(index);
+    } else {
+      final filePath = _filteredImages[index].path;
+      if (Platform.isWindows) {
+        final uri = Uri.file(filePath);
+        await launchUrl(uri);
+      } else {
+        await OpenFilex.open(filePath);
+      }
     }
   }
 
@@ -208,65 +302,83 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Download History',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+        title: Text(
+          _isSelectionMode ? 'Selected ${_selectedImages.length}' : 'Download History',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        leading: _isSelectionMode
+            ? IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: _clearSelection,
+          tooltip: 'Cancel Selection',
+        )
+            : null,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDownloadedImages,
             tooltip: 'Refresh',
           ),
-          PopupMenuButton<SortOption>(
-            icon: const Icon(Icons.sort),
-            onSelected: (option) {
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
               FocusScope.of(context).unfocus();
-              setState(() {
-                _currentSort = option;
-              });
-              _loadDownloadedImages();
+              if (value == 'sort') {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) => SortOptionsSheet(
+                    currentSort: _currentSort,
+                    onSortSelected: (option) {
+                      setState(() {
+                        _currentSort = option;
+                      });
+                      _loadDownloadedImages();
+                      Navigator.pop(context);
+                    },
+                  ),
+                );
+              } else if (value == 'delete') {
+                _deleteSelectedImages();
+              } else if (value == 'share') {
+                _shareSelectedImages();
+              }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(
-                value: SortOption.newest,
+              const PopupMenuItem(
+                value: 'sort',
                 child: Row(
-                  children: const [
-                    Icon(Icons.access_time, size: 20),
+                  children: [
+                    Icon(Icons.sort, size: 20),
                     SizedBox(width: 8),
-                    Text('Newest First'),
+                    Text('Sort'),
                   ],
                 ),
               ),
               PopupMenuItem(
-                value: SortOption.oldest,
+                value: 'delete',
+                enabled: _selectedImages.isNotEmpty,
                 child: Row(
-                  children: const [
-                    Icon(Icons.access_time, size: 20),
-                    SizedBox(width: 8),
-                    Text('Oldest First'),
+                  children: [
+                    Icon(Icons.delete, size: 20, color: _selectedImages.isEmpty ? Colors.grey : Colors.red),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Delete Selected',
+                      style: TextStyle(color: _selectedImages.isEmpty ? Colors.grey : Colors.red),
+                    ),
                   ],
                 ),
               ),
               PopupMenuItem(
-                value: SortOption.largest,
+                value: 'share',
+                enabled: _selectedImages.isNotEmpty,
                 child: Row(
-                  children: const [
-                    Icon(Icons.storage, size: 20),
-                    SizedBox(width: 8),
-                    Text('Largest First'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: SortOption.smallest,
-                child: Row(
-                  children: const [
-                    Icon(Icons.storage, size: 20),
-                    SizedBox(width: 8),
-                    Text('Smallest First'),
+                  children: [
+                    Icon(Icons.share, size: 20, color: _selectedImages.isEmpty ? Colors.grey : Colors.blue),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Share Selected',
+                      style: TextStyle(color: _selectedImages.isEmpty ? Colors.grey : Colors.blue),
+                    ),
                   ],
                 ),
               ),
@@ -300,18 +412,43 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
               ),
             ),
           ),
+          if (_isSelectionMode)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${_selectedImages.length} selected',
+                    style: const TextStyle(fontSize: 14, color: Colors.blue),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedImages = Set.from(List.generate(_filteredImages.length, (index) => index));
+                      });
+                    },
+                    child: const Text('Select All'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(child: _buildContent()),
         ],
       ),
     );
+
   }
 
   Widget _buildContent() {
+    // Determine crossAxisCount based on platform
+    final crossAxisCount = Platform.isWindows ? 4 : 2;
+
     if (_isLoading) {
       return GridView.builder(
         padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount, // Use runtime variable
           mainAxisSpacing: 6,
           crossAxisSpacing: 6,
           childAspectRatio: 0.75,
@@ -390,8 +527,8 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
     return GridView.builder(
       padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount, // Use runtime variable
         mainAxisSpacing: 6,
         crossAxisSpacing: 6,
         childAspectRatio: 0.75,
@@ -399,8 +536,10 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       itemCount: _filteredImages.length,
       itemBuilder: (context, index) {
         final file = _filteredImages[index];
+        final isSelected = _selectedImages.contains(index);
         return GestureDetector(
           onTap: _isLoading ? null : () => _openImage(index),
+          onLongPress: () => _toggleSelection(index),
           child: Card(
             elevation: 2,
             child: Stack(
@@ -415,6 +554,15 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                     color: Colors.grey,
                   ),
                 ),
+                if (isSelected)
+                  Container(
+                    color: Colors.blue.withOpacity(0.3),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -434,6 +582,59 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           ),
         );
       },
+    );
+  }
+}
+
+class SortOptionsSheet extends StatelessWidget {
+  final SortOption currentSort;
+  final Function(SortOption) onSortSelected;
+
+  const SortOptionsSheet({
+    super.key,
+    required this.currentSort,
+    required this.onSortSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Sort By',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.access_time),
+            title: const Text('Newest First'),
+            trailing: currentSort == SortOption.newest ? const Icon(Icons.check) : null,
+            onTap: () => onSortSelected(SortOption.newest),
+          ),
+          ListTile(
+            leading: const Icon(Icons.access_time),
+            title: const Text('Oldest First'),
+            trailing: currentSort == SortOption.oldest ? const Icon(Icons.check) : null,
+            onTap: () => onSortSelected(SortOption.oldest),
+          ),
+          ListTile(
+            leading: const Icon(Icons.storage),
+            title: const Text('Largest First'),
+            trailing: currentSort == SortOption.largest ? const Icon(Icons.check) : null,
+            onTap: () => onSortSelected(SortOption.largest),
+          ),
+          ListTile(
+            leading: const Icon(Icons.storage),
+            title: const Text('Smallest First'),
+            trailing: currentSort == SortOption.smallest ? const Icon(Icons.check) : null,
+            onTap: () => onSortSelected(SortOption.smallest),
+          ),
+        ],
+      ),
     );
   }
 }
