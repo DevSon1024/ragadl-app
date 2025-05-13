@@ -5,10 +5,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/image_data.dart';
 import 'dart:math';
+import 'package:flutter/services.dart';
 import 'download_manager_page.dart';
 
 class RagalahariDownloader extends StatefulWidget {
@@ -27,7 +27,8 @@ class RagalahariDownloader extends StatefulWidget {
   _RagalahariDownloaderState createState() => _RagalahariDownloaderState();
 }
 
-class _RagalahariDownloaderState extends State<RagalahariDownloader> with AutomaticKeepAliveClientMixin {
+class _RagalahariDownloaderState extends State<RagalahariDownloader>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _folderController = TextEditingController();
   final FocusNode _urlFocusNode = FocusNode();
@@ -65,6 +66,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
     } else {
       print('RagalahariDownloader TextField lost focus');
     }
+    setState(() {}); // Trigger rebuild to update FAB visibility
   }
 
   @override
@@ -133,6 +135,16 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData != null && clipboardData.text != null) {
+      final pastedUrl = clipboardData.text!.trim();
+      setState(() {
+        _urlController.text = pastedUrl;
+      });
+    }
   }
 
   Future<void> _requestPermissions() async {
@@ -424,284 +436,369 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader> with Automa
     });
   }
 
+  bool _isValidRagalahariUrl(String url) {
+    return url.trim().startsWith('https://www.ragalahari.com');
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    print('RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
+    print(
+        'RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
     return Scaffold(
-      floatingActionButton: (imageUrls.isNotEmpty && isSelectionMode && !isLoading && !isDownloading)
-          ? FloatingActionButton.extended(
-        onPressed: _downloadSelectedImages,
-        icon: const Icon(Icons.download_for_offline),
-        label: Text('Download ${selectedImages.length}'),
-      )
-          : null,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _folderController,
-                    decoration: InputDecoration(
-                      labelText: 'Enter Main Folder Name',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.add_box_rounded),
-                        onPressed: () {
-                          setState(() {
-                            mainFolderName = _folderController.text.trim().isEmpty ? 'RagalahariDownloads' : _folderController.text.trim();
-                          });
-                          _showSnackBar('Main Folder Set To: $mainFolderName');
-                        },
-                      ),
-                    ),
-                    autofocus: false,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    keyboardType: TextInputType.text,
-                    onTap: () {
-                      print('Folder TextField tapped');
-                    },
-                  ),
-                  const SizedBox(height: 8.0),
-                  TextField(
-                    controller: _urlController,
-                    focusNode: _urlFocusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Enter Ragalahari Gallery URL',
-                      border: const OutlineInputBorder(),
-                      hintText: 'https://www.ragalahari.com/actress/173432/rakul-preet-singh-at-indian-2-press-meet-hd-gallery.aspx',
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.content_copy, size: 20),
-                              onPressed: () {
-                                if (_urlController.text.isNotEmpty) {
-                                  Clipboard.setData(ClipboardData(text: _urlController.text));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('URL copied to clipboard')),
-                                  );
-                                }
-                              },
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(Icons.clear, size: 20),
-                              onPressed: () => _urlController.clear(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    autofocus: false,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    keyboardType: TextInputType.url,
-                    onTap: () {
-                      print('URL TextField tapped');
-                    },
-                  ),
-                  const SizedBox(height: 8.0),
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: (isLoading || isDownloading || mainFolderName.isEmpty)
-                                  ? null
-                                  : () {
-                                final url = _urlController.text.trim();
-                                if (url.isEmpty) {
-                                  _showSnackBar('Please enter a URL');
-                                  return;
-                                }
-                                _processGallery(url);
-                              },
-                              icon: const Icon(Icons.search),
-                              label: const Text('Fetch Images'),
-                            ),
-                          ),
-                          const SizedBox(width: 8.0),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty)
-                                  ? null
-                                  : _downloadAllImages,
-                              icon: const Icon(Icons.download),
-                              label: const Text('Download All'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8.0),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _clearAll,
-                          icon: const Icon(Icons.clear_all),
-                          label: const Text('Clear All'),
-                        ),
-                      ),
-                      if (isSelectionMode)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            'Selected ${selectedImages.length} images',
-                            style: const TextStyle(fontSize: 12, color: Colors.blue),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (isLoading || isDownloading)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Column(
-                        children: [
-                          LinearProgressIndicator(
-                            value: isLoading
-                                ? (currentPage / totalPages)
-                                : (downloadsSuccessful + downloadsFailed) / imageUrls.length,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isLoading
-                                ? 'Fetching page $currentPage of $totalPages...'
-                                : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (_successMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _successMessage!,
-                        style: const TextStyle(color: Colors.green),
-                      ),
-                    ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                ],
-              ),
+      resizeToAvoidBottomInset: true, // Ensure the Scaffold resizes when the keyboard appears
+      floatingActionButton: Stack(
+        children: [
+          Visibility(
+            visible: _urlFocusNode.hasFocus,
+            child: FloatingActionButton(
+              onPressed: _pasteFromClipboard,
+              tooltip: 'Paste URL from Clipboard',
+              backgroundColor: Theme.of(context).primaryColor,
+              child: const Icon(Icons.paste),
             ),
           ),
-          SliverToBoxAdapter(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              switchInCurve: Curves.easeIn,
-              switchOutCurve: Curves.easeOut,
-              child: isLoading
-                  ? const Center(
-                key: ValueKey('loader'),
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-                  : const SizedBox.shrink(key: ValueKey('grid')),
+          Visibility(
+            visible: imageUrls.isNotEmpty && isSelectionMode && !isLoading && !isDownloading,
+            child: FloatingActionButton.extended(
+              onPressed: _downloadSelectedImages,
+              icon: const Icon(Icons.download_for_offline),
+              label: Text('Download ${selectedImages.length}'),
+              backgroundColor: Theme.of(context).primaryColor,
             ),
           ),
-          if (!isLoading)
-            SliverPadding(
-              padding: const EdgeInsets.all(8.0),
-              sliver: imageUrls.isEmpty
-                  ? const SliverToBoxAdapter(child: Center(child: Text('No images to display')))
-                  : SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 4.0,
-                  mainAxisSpacing: 4.0,
-                  childAspectRatio: 0.75,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    final imageData = imageUrls[index];
-                    final isSelected = selectedImages.contains(index);
-                    return GestureDetector(
-                      onTap: () {
-                        if (isSelectionMode) {
-                          _toggleSelection(index);
-                        } else {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (_, __, ___) => FullImagePage(
-                                imageUrls: imageUrls,
-                                initialIndex: index,
-                              ),
-                              transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-                              transitionDuration: const Duration(milliseconds: 300),
-                            ),
-                          );
-                        }
-                      },
-                      onLongPress: () => _toggleSelection(index),
-                      child: Card(
-                        elevation: 3,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Hero(
-                              tag: imageData.originalUrl,
-                              child: CachedNetworkImage(
-                                imageUrl: imageData.thumbnailUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Shimmer.fromColors(
-                                  baseColor: Colors.grey[300]!,
-                                  highlightColor: Colors.grey[100]!,
-                                  child: Container(color: Colors.grey[300]),
-                                ),
-                                errorWidget: (context, url, error) => const Icon(Icons.error),
-                              ),
-                            ),
-                            if (isSelected)
-                              Container(
-                                color: Colors.blue.withOpacity(0.3),
-                                child: const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.white,
-                                  size: 30,
-                                ),
-                              ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                color: Colors.black54,
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Text(
-                                  'Image ${index + 1}',
-                                  style: const TextStyle(color: Colors.white),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  childCount: imageUrls.length,
-                ),
-              ),
-            ),
         ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat, // Dynamic positioning above keyboard
+      body: GestureDetector(
+        onTap: () {
+          // Remove focus from the text field when tapping outside.
+          FocusScope.of(context).unfocus();
+        },
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _folderController,
+                      decoration: InputDecoration(
+                        labelText: 'Enter Main Folder Name',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.add_box_rounded),
+                          onPressed: () {
+                            setState(() {
+                              mainFolderName =
+                              _folderController.text.trim().isEmpty
+                                  ? 'RagalahariDownloads'
+                                  : _folderController.text.trim();
+                            });
+                            _showSnackBar(
+                                'Main Folder Set To: $mainFolderName');
+                          },
+                        ),
+                      ),
+                      autofocus: false,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      keyboardType: TextInputType.text,
+                      onTap: () {
+                        print('Folder TextField tapped');
+                      },
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextField(
+                      controller: _urlController,
+                      focusNode: _urlFocusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Enter Ragalahari Gallery URL',
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _urlController.text.isNotEmpty &&
+                                !_isValidRagalahariUrl(_urlController.text)
+                                ? Colors.red
+                                : Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _urlController.text.isNotEmpty &&
+                                !_isValidRagalahariUrl(_urlController.text)
+                                ? Colors.red
+                                : Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        errorBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
+                        focusedErrorBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
+                        errorText: _urlController.text.isNotEmpty &&
+                            !_isValidRagalahariUrl(_urlController.text)
+                            ? 'URL must start with https://www.ragalahari.com'
+                            : null,
+                        suffixIcon: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.content_copy, size: 20),
+                                onPressed: () {
+                                  if (_urlController.text.isNotEmpty) {
+                                    Clipboard.setData(ClipboardData(
+                                        text: _urlController.text));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                          Text('URL copied to clipboard')),
+                                    );
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                onPressed: () => _urlController.clear(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      autofocus: false,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      keyboardType: TextInputType.url,
+                      onTap: () {
+                        print('URL TextField tapped');
+                      },
+                      onChanged: (value) {
+                        setState(() {}); // Trigger rebuild to update error state
+                      },
+                    ),
+                    const SizedBox(height: 8.0),
+                    Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: (isLoading ||
+                                    isDownloading ||
+                                    mainFolderName.isEmpty)
+                                    ? null
+                                    : () {
+                                  final url = _urlController.text.trim();
+                                  if (url.isEmpty) {
+                                    _showSnackBar('Please enter a URL');
+                                    return;
+                                  }
+                                  if (!_isValidRagalahariUrl(url)) {
+                                    _showSnackBar('Invalid URL: Must start with https://www.ragalahari.com');
+                                    return;
+                                  }
+                                  _processGallery(url);
+                                },
+                                icon: const Icon(Icons.search),
+                                label: const Text('Fetch Images'),
+                              ),
+                            ),
+                            const SizedBox(width: 8.0),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: (isLoading ||
+                                    isDownloading ||
+                                    imageUrls.isEmpty ||
+                                    mainFolderName.isEmpty)
+                                    ? null
+                                    : _downloadAllImages,
+                                icon: const Icon(Icons.download),
+                                label: const Text('Download All'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8.0),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _clearAll,
+                            icon: const Icon(Icons.clear_all),
+                            label: const Text('Clear All'),
+                          ),
+                        ),
+                        if (isSelectionMode)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Selected ${selectedImages.length} images',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.blue),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (isLoading || isDownloading)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Column(
+                          children: [
+                            LinearProgressIndicator(
+                              value: isLoading
+                                  ? (currentPage / totalPages)
+                                  : (downloadsSuccessful + downloadsFailed) /
+                                  imageUrls.length,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isLoading
+                                  ? 'Fetching page $currentPage of $totalPages...'
+                                  : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_successMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _successMessage!,
+                          style: const TextStyle(color: Colors.green),
+                        ),
+                      ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeIn,
+                switchOutCurve: Curves.easeOut,
+                child: isLoading
+                    ? const Center(
+                  key: ValueKey('loader'),
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+                    : const SizedBox.shrink(key: ValueKey('grid')),
+              ),
+            ),
+            if (!isLoading)
+              SliverPadding(
+                padding: const EdgeInsets.all(8.0),
+                sliver: imageUrls.isEmpty
+                    ? const SliverToBoxAdapter(
+                    child: Center(child: Text('No images to display')))
+                    : SliverGrid(
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 4.0,
+                    mainAxisSpacing: 4.0,
+                    childAspectRatio: 0.75,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final imageData = imageUrls[index];
+                      final isSelected = selectedImages.contains(index);
+                      return GestureDetector(
+                        onTap: () {
+                          if (isSelectionMode) {
+                            _toggleSelection(index);
+                          } else {
+                            Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                pageBuilder: (_, __, ___) =>
+                                    FullImagePage(
+                                      imageUrls: imageUrls,
+                                      initialIndex: index,
+                                    ),
+                                transitionsBuilder:
+                                    (_, anim, __, child) =>
+                                    FadeTransition(
+                                        opacity: anim, child: child),
+                                transitionDuration:
+                                const Duration(milliseconds: 300),
+                              ),
+                            );
+                          }
+                        },
+                        onLongPress: () => _toggleSelection(index),
+                        child: Card(
+                          elevation: 3,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Hero(
+                                tag: imageData.originalUrl,
+                                child: CachedNetworkImage(
+                                  imageUrl: imageData.thumbnailUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) =>
+                                      Shimmer.fromColors(
+                                        baseColor: Colors.grey[300]!,
+                                        highlightColor: Colors.grey[100]!,
+                                        child: Container(
+                                            color: Colors.grey[300]),
+                                      ),
+                                  errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error),
+                                ),
+                              ),
+                              if (isSelected)
+                                Container(
+                                  color: Colors.blue.withOpacity(0.3),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  color: Colors.black54,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 4),
+                                  child: Text(
+                                    'Image ${index + 1}',
+                                    style: const TextStyle(
+                                        color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: imageUrls.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -755,19 +852,17 @@ class _FullImagePageState extends State<FullImagePage> {
         },
         onComplete: (success) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(success
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(success
                     ? 'Added to download manager'
-                    : 'Failed to add download'))
-            );
+                    : 'Failed to add download')));
           }
         },
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to download: $e'))
-        );
+            SnackBar(content: Text('Failed to download: $e')));
       }
     } finally {
       if (mounted) setState(() => _isDownloading = false);
@@ -780,18 +875,26 @@ class _FullImagePageState extends State<FullImagePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Image ${_currentIndex + 1} of ${widget.imageUrls.length}'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context)),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: currentImageData.originalUrl));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image URL copied to clipboard')));
+              Clipboard.setData(
+                  ClipboardData(text: currentImageData.originalUrl));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Image URL copied to clipboard')));
             },
           ),
           IconButton(
-            icon: _isDownloading ? const CircularProgressIndicator() : const Icon(Icons.download),
-            onPressed: _isDownloading ? null : () => _downloadImage(currentImageData.originalUrl),
+            icon: _isDownloading
+                ? const CircularProgressIndicator()
+                : const Icon(Icons.download),
+            onPressed: _isDownloading
+                ? null
+                : () => _downloadImage(currentImageData.originalUrl),
           ),
         ],
       ),
@@ -810,8 +913,10 @@ class _FullImagePageState extends State<FullImagePage> {
               child: CachedNetworkImage(
                 imageUrl: imageData.originalUrl,
                 fit: BoxFit.contain,
-                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => const Icon(Icons.error),
+                placeholder: (context, url) =>
+                const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) =>
+                const Icon(Icons.error),
               ),
             ),
           );
