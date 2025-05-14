@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/ragalahari_downloader.dart';
@@ -83,10 +82,6 @@ class _MainScreenState extends State<MainScreen> {
         _folderController.text += "/${widget.galleryTitle!.replaceAll("-", " ")}";
       }
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).unfocus();
-      print('Unfocused on app start');
-    });
   }
 
   @override
@@ -209,11 +204,11 @@ class _MainScreenState extends State<MainScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home, 'Home'),
-              _buildNavItem(1, Icons.person, 'Celebrity'),
+              _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
+              _buildNavItem(1, Icons.person, Icons.person_outlined, 'Celebrity'),
               const SizedBox(width: 48),
-              _buildNavItem(3, Icons.download, 'Downloads'),
-              _buildNavItem(4, Icons.history, 'History'),
+              _buildNavItem(3, Icons.download, Icons.download_outlined, 'Downloads'),
+              _buildNavItem(4, Icons.history, Icons.history_outlined, 'History'),
             ],
           ),
         ),
@@ -235,7 +230,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData filledIcon, IconData outlinedIcon, String label) {
     final isSelected = _selectedIndex == index;
     return Expanded(
       child: InkWell(
@@ -250,7 +245,7 @@ class _MainScreenState extends State<MainScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon,
+              isSelected ? filledIcon : outlinedIcon,
               color: isSelected ? Colors.white : Colors.white70,
             ),
             Text(

@@ -17,9 +17,7 @@ class DisplaySettingsPage extends StatelessWidget {
         ),
         flexibleSpace: Container(
           decoration: BoxDecoration(
-            color: Theme
-                .of(context)
-                .primaryColor,
+            color: Theme.of(context).primaryColor,
             borderRadius: const BorderRadius.vertical(
               bottom: Radius.circular(20),
             ),
@@ -33,95 +31,114 @@ class DisplaySettingsPage extends StatelessWidget {
           children: [
             Text(
               'Theme Settings',
-              style: Theme
-                  .of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
             Consumer<ThemeConfig>(
-              builder: (context, themeConfig, child) =>
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Dark Mode',
-                        style: Theme
-                            .of(context)
-                            .textTheme
-                            .bodyLarge,
-                      ),
-                      Switch(
-                        value: themeConfig.currentThemeMode == ThemeMode.dark,
-                        onChanged: (value) {
-                          themeConfig.toggleTheme();
-                        },
-                      ),
-                    ],
+              builder: (context, themeConfig, child) => Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Dark Mode',
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
+                  Switch(
+                    value: themeConfig.currentThemeMode == ThemeMode.dark,
+                    onChanged: (value) {
+                      themeConfig.toggleTheme();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Grid View Settings',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Consumer<ThemeConfig>(
+              builder: (context, themeConfig, child) => Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Grid Columns',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  DropdownButton<int>(
+                    value: themeConfig.gridColumns,
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('Full Width')),
+                      DropdownMenuItem(value: 2, child: Text('2 Columns')),
+                      DropdownMenuItem(value: 3, child: Text('3 Columns')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        themeConfig.setGridColumns(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'Theme Options',
-              style: Theme
-                  .of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
             Expanded(
               child: Consumer<ThemeConfig>(
-                builder: (context, themeConfig, child) =>
-                    ListView(
-                      children: [
-                        _buildThemeContainer(
-                          context,
-                          'Default Theme',
-                          Colors.green,
-                          themeConfig,
-                          themeName: 'default',
-                          isSelected: themeConfig.currentTheme == 'default',
-                        ),
-                        _buildThemeContainer(
-                          context,
-                          'Cool Theme',
-                          Colors.blue,
-                          themeConfig,
-                          themeName: 'cool',
-                          isSelected: themeConfig.currentTheme == 'cool',
-                        ),
-                        _buildThemeContainer(
-                          context,
-                          'Smooth Theme',
-                          Colors.pinkAccent,
-                          themeConfig,
-                          themeName: 'smooth',
-                          isSelected: themeConfig.currentTheme == 'smooth',
-                        ),
-                        _buildThemeContainer(
-                          context,
-                          'Vibrant Theme',
-                          Colors.orange,
-                          themeConfig,
-                          themeName: 'vibrant',
-                          isSelected: themeConfig.currentTheme == 'vibrant',
-                        ),
-                        _buildThemeContainer(
-                          context,
-                          'Calm Theme',
-                          Colors.teal,
-                          themeConfig,
-                          themeName: 'calm',
-                          isSelected: themeConfig.currentTheme == 'calm',
-                        ),
-                      ],
+                builder: (context, themeConfig, child) => ListView(
+                  children: [
+                    _buildThemeContainer(
+                      context,
+                      'Default Theme',
+                      Colors.green,
+                      themeConfig,
+                      themeName: 'default',
+                      isSelected: themeConfig.currentTheme == 'default',
                     ),
+                    _buildThemeContainer(
+                      context,
+                      'Cool Theme',
+                      Colors.blue,
+                      themeConfig,
+                      themeName: 'cool',
+                      isSelected: themeConfig.currentTheme == 'cool',
+                    ),
+                    _buildThemeContainer(
+                      context,
+                      'Smooth Theme',
+                      Colors.pinkAccent,
+                      themeConfig,
+                      themeName: 'smooth',
+                      isSelected: themeConfig.currentTheme == 'smooth',
+                    ),
+                    _buildThemeContainer(
+                      context,
+                      'Vibrant Theme',
+                      Colors.orange,
+                      themeConfig,
+                      themeName: 'vibrant',
+                      isSelected: themeConfig.currentTheme == 'vibrant',
+                    ),
+                    _buildThemeContainer(
+                      context,
+                      'Calm Theme',
+                      Colors.teal,
+                      themeConfig,
+                      themeName: 'calm',
+                      isSelected: themeConfig.currentTheme == 'calm',
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -130,7 +147,8 @@ class DisplaySettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeContainer(BuildContext context,
+  Widget _buildThemeContainer(
+      BuildContext context,
       String displayName,
       Color color,
       ThemeConfig themeConfig, {
@@ -168,11 +186,7 @@ class DisplaySettingsPage extends StatelessWidget {
               Expanded(
                 child: Text(
                   displayName,
-                  style: Theme
-                      .of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),

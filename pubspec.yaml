@@ -43,6 +43,7 @@ flutter:
   assets:
     - assets/data/Fetched_StarZone_Data.csv
     - assets/logo.png
+    - assets/data/Fetched_Albums_StarZone.json
 
 flutter_native_splash:
   color: "#ffffff"

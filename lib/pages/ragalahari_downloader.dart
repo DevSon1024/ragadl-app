@@ -10,6 +10,8 @@ import '../models/image_data.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'download_manager_page.dart';
+import 'package:provider/provider.dart';
+import '../theme_config.dart';
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -445,8 +447,9 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     super.build(context);
     print(
         'RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
+    final themeConfig = Provider.of<ThemeConfig>(context);
     return Scaffold(
-      resizeToAvoidBottomInset: true, // Ensure the Scaffold resizes when the keyboard appears
+      resizeToAvoidBottomInset: true,
       floatingActionButton: Stack(
         children: [
           Visibility(
@@ -469,10 +472,9 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           ),
         ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat, // Dynamic positioning above keyboard
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: GestureDetector(
         onTap: () {
-          // Remove focus from the text field when tapping outside.
           FocusScope.of(context).unfocus();
         },
         child: CustomScrollView(
@@ -497,8 +499,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                                   ? 'RagalahariDownloads'
                                   : _folderController.text.trim();
                             });
-                            _showSnackBar(
-                                'Main Folder Set To: $mainFolderName');
+                            _showSnackBar('Main Folder Set To: $mainFolderName');
                           },
                         ),
                       ),
@@ -555,8 +556,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                                         text: _urlController.text));
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                          content:
-                                          Text('URL copied to clipboard')),
+                                          content: Text('URL copied to clipboard')),
                                     );
                                   }
                                 },
@@ -578,7 +578,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                         print('URL TextField tapped');
                       },
                       onChanged: (value) {
-                        setState(() {}); // Trigger rebuild to update error state
+                        setState(() {});
                       },
                     ),
                     const SizedBox(height: 8.0),
@@ -599,7 +599,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                                     return;
                                   }
                                   if (!_isValidRagalahariUrl(url)) {
-                                    _showSnackBar('Invalid URL: Must start with https://www.ragalahari.com');
+                                    _showSnackBar(
+                                        'Invalid URL: Must start with https://www.ragalahari.com');
                                     return;
                                   }
                                   _processGallery(url);
@@ -637,8 +638,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               'Selected ${selectedImages.length} images',
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.blue),
+                              style: const TextStyle(fontSize: 12, color: Colors.blue),
                             ),
                           ),
                       ],
@@ -707,9 +707,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                     ? const SliverToBoxAdapter(
                     child: Center(child: Text('No images to display')))
                     : SliverGrid(
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: themeConfig.gridColumns,
                     crossAxisSpacing: 4.0,
                     mainAxisSpacing: 4.0,
                     childAspectRatio: 0.75,
@@ -726,15 +725,12 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                             Navigator.push(
                               context,
                               PageRouteBuilder(
-                                pageBuilder: (_, __, ___) =>
-                                    FullImagePage(
-                                      imageUrls: imageUrls,
-                                      initialIndex: index,
-                                    ),
-                                transitionsBuilder:
-                                    (_, anim, __, child) =>
-                                    FadeTransition(
-                                        opacity: anim, child: child),
+                                pageBuilder: (_, __, ___) => FullImagePage(
+                                  imageUrls: imageUrls,
+                                  initialIndex: index,
+                                ),
+                                transitionsBuilder: (_, anim, __, child) =>
+                                    FadeTransition(opacity: anim, child: child),
                                 transitionDuration:
                                 const Duration(milliseconds: 300),
                               ),
@@ -756,8 +752,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                                       Shimmer.fromColors(
                                         baseColor: Colors.grey[300]!,
                                         highlightColor: Colors.grey[100]!,
-                                        child: Container(
-                                            color: Colors.grey[300]),
+                                        child: Container(color: Colors.grey[300]),
                                       ),
                                   errorWidget: (context, url, error) =>
                                   const Icon(Icons.error),
@@ -778,12 +773,10 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                                 right: 0,
                                 child: Container(
                                   color: Colors.black54,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 4),
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
                                   child: Text(
                                     'Image ${index + 1}',
-                                    style: const TextStyle(
-                                        color: Colors.white),
+                                    style: const TextStyle(color: Colors.white),
                                     textAlign: TextAlign.center,
                                   ),
                                 ),

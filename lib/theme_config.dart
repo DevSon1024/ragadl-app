@@ -138,13 +138,14 @@ class ThemeConfig extends ChangeNotifier {
   // Add keys for SharedPreferences
   static const String _themeModeKey = 'theme_mode';
   static const String _themeNameKey = 'theme_name';
+  int _gridColumns = 2; // Default to 2 columns
+  static const String _gridColumnsKey = 'grid_columns';
 
   ThemeConfig(){
     _loadTheme();
   }
 
-  // In theme_config.dart
-  Future<void> _loadTheme() async {  // Renamed from _loadTheme to loadTheme
+  Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final themeModeIndex = prefs.getInt(_themeModeKey);
     if (themeModeIndex != null) {
@@ -154,6 +155,10 @@ class ThemeConfig extends ChangeNotifier {
     if (themeName != null) {
       _currentTheme = themeName;
     }
+    final gridCols = prefs.getInt(_gridColumnsKey);
+    if (gridCols != null) {
+      _gridColumns = gridCols;
+    }
     notifyListeners();
   }
 
@@ -161,6 +166,17 @@ class ThemeConfig extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themeModeKey, _currentThemeMode.index);
     await prefs.setString(_themeNameKey, _currentTheme);
+    await prefs.setInt(_gridColumnsKey, _gridColumns);
+  }
+
+  int get gridColumns => _gridColumns;
+
+  void setGridColumns(int columns) {
+    if ([1, 2, 3].contains(columns)) {
+      _gridColumns = columns;
+      _saveTheme();
+      notifyListeners();
+    }
   }
 
   ThemeMode get currentThemeMode => _currentThemeMode;

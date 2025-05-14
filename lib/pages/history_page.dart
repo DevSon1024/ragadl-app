@@ -8,6 +8,9 @@ import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import '../theme_config.dart';
+import 'dart:math';
 
 enum SortOption {
   newest,
@@ -173,7 +176,11 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       final entities = await dir.list(recursive: false).toList();
       for (var entity in entities) {
         if (entity is File && entity.path.toLowerCase().endsWith('.jpg')) {
-          imageFiles.add(entity);
+          // Skip files that are marked as trashed (e.g., starting with .trashed-)
+          final fileName = entity.path.split('/').last;
+          if (!fileName.startsWith('.trashed-')) {
+            imageFiles.add(entity);
+          }
         } else if (entity is Directory) {
           await _collectImages(entity, imageFiles);
         }
@@ -437,18 +444,18 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
         ],
       ),
     );
-
   }
 
   Widget _buildContent() {
-    // Determine crossAxisCount based on platform
-    final crossAxisCount = Platform.isWindows ? 4 : 2;
+    final themeConfig = Provider.of<ThemeConfig>(context);
+    // Determine crossAxisCount based on platform and user preference
+    final crossAxisCount = Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
 
     if (_isLoading) {
       return GridView.builder(
         padding: const EdgeInsets.all(8),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount, // Use runtime variable
+          crossAxisCount: crossAxisCount,
           mainAxisSpacing: 6,
           crossAxisSpacing: 6,
           childAspectRatio: 0.75,
@@ -528,7 +535,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount, // Use runtime variable
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 6,
         crossAxisSpacing: 6,
         childAspectRatio: 0.75,

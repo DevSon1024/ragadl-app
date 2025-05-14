@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:math';
 import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Add this import
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/ragalahari_downloader_screen.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -14,15 +14,12 @@ import 'package:path_provider/path_provider.dart';
 // Headers for HTTP requests
 final Map<String, String> headers = {
   'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
   'Accept':
-      'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.5',
   'Connection': 'keep-alive',
 };
-
-// Add this enum at the top of the file
-enum SortOption { az, za }
 
 // Domain patterns for thumbnail detection
 final List<String> thumbnailDomains = [
@@ -32,6 +29,16 @@ final List<String> thumbnailDomains = [
   "starzone.ragalahari.com",
   "imgcdn.ragalahari.com",
 ];
+
+// Add enums for sorting
+enum SortOption {
+  az,
+  za,
+  celebrityAll,
+  celebrityActors,
+  celebrityActresses,
+}
+enum CategoryOption { all, actors, actresses }
 
 class GalleryItem {
   final String url;
@@ -49,13 +56,12 @@ class GalleryItem {
   });
 }
 
-// Define a FavoriteItem class to handle both gallery and celebrity favorites
 class FavoriteItem {
-  final String type; // 'celebrity' or 'gallery'
-  final String name; // Celebrity name or gallery title
-  final String url; // Profile URL or gallery URL
-  final String? thumbnailUrl; // Optional for galleries
-  final String? celebrityName; // For galleries, to store associated celebrity
+  final String type;
+  final String name;
+  final String url;
+  final String? thumbnailUrl;
+  final String? celebrityName;
 
   FavoriteItem({
     required this.type,
@@ -79,13 +85,12 @@ class FavoriteItem {
     url: json['url']!,
     thumbnailUrl: json['thumbnailUrl']!.isEmpty ? null : json['thumbnailUrl'],
     celebrityName:
-        json['celebrityName']!.isEmpty ? null : json['celebrityName'],
+    json['celebrityName']!.isEmpty ? null : json['celebrityName'],
   );
 }
 
-// Define a callback type for download selection
 typedef DownloadSelectedCallback =
-    void Function(String url, String folder, String? galleryTitle);
+void Function(String url, String folder, String? galleryTitle);
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
@@ -101,6 +106,10 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   List<Map<String, String>> _filteredCelebrities = [];
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  SortOption _currentSortOption = SortOption.az;
+  CategoryOption _currentCategoryOption = CategoryOption.all;
+  Set<String> _actorUrls = {};
+  Set<String> _actressUrls = {};
 
   @override
   void initState() {
@@ -118,6 +127,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
 
   Future<void> _loadCelebrities() async {
     try {
+      // Load CSV
       String csvString;
       if (Platform.isWindows) {
         final saveDir = await getApplicationDocumentsDirectory();
@@ -133,20 +143,36 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
             .loadString('assets/data/Fetched_StarZone_Data.csv');
       }
       final lines = csvString.split('\n');
+      final celebrities = lines
+          .skip(1)
+          .where((line) => line.trim().isNotEmpty && line.contains(','))
+          .map((line) {
+        final parts = line.split(',');
+        if (parts.length >= 2) {
+          return {'name': parts[0].trim(), 'url': parts[1].trim()};
+        }
+        return {'name': 'Unknown', 'url': ''};
+      })
+          .where((celebrity) => celebrity['name']!.isNotEmpty)
+          .toList();
+
+      // Load JSON
+      final jsonString = await DefaultAssetBundle.of(context)
+          .loadString('assets/data/Fetched_Albums_StarZone.json');
+      final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
+      final actors = (jsonData['actors'] as List<dynamic>)
+          .map((e) => e['URL'] as String)
+          .toSet();
+      final actresses = (jsonData['actresses'] as List<dynamic>)
+          .map((e) => e['URL'] as String)
+          .toSet();
+
       setState(() {
-        _celebrities = lines
-            .skip(1)
-            .where((line) => line.trim().isNotEmpty && line.contains(','))
-            .map((line) {
-          final parts = line.split(',');
-          if (parts.length >= 2) {
-            return {'name': parts[0].trim(), 'url': parts[1].trim()};
-          }
-          return {'name': 'Unknown', 'url': ''};
-        })
-            .where((celebrity) => celebrity['name']!.isNotEmpty)
-            .toList();
+        _celebrities = celebrities;
+        _actorUrls = actors;
+        _actressUrls = actresses;
         _filteredCelebrities = List.from(_celebrities);
+        _sortCelebrities();
       });
     } catch (e) {
       ScaffoldMessenger.of(context)
@@ -154,12 +180,43 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     }
   }
 
-  SortOption _currentSortOption = SortOption.az;
-
   void _sortCelebrities() {
     setState(() {
+      _filteredCelebrities = List.from(_celebrities);
+
+      // Apply category filter based on sort option
+      switch (_currentSortOption) {
+        case SortOption.celebrityActors:
+          _filteredCelebrities = _filteredCelebrities
+              .where((celebrity) => _actorUrls.contains(celebrity['url']))
+              .toList();
+          break;
+        case SortOption.celebrityActresses:
+          _filteredCelebrities = _filteredCelebrities
+              .where((celebrity) => _actressUrls.contains(celebrity['url']))
+              .toList();
+          break;
+        case SortOption.celebrityAll:
+        case SortOption.az:
+        case SortOption.za:
+        // No filtering for 'All', A-Z, or Z-A
+          break;
+      }
+
+      // Apply search filter
+      final query = _searchController.text.toLowerCase();
+      if (query.isNotEmpty) {
+        _filteredCelebrities = _filteredCelebrities
+            .where((celebrity) => celebrity['name']!.toLowerCase().contains(query))
+            .toList();
+      }
+
+      // Apply sorting
       switch (_currentSortOption) {
         case SortOption.az:
+        case SortOption.celebrityAll:
+        case SortOption.celebrityActors:
+        case SortOption.celebrityActresses:
           _filteredCelebrities.sort((a, b) => a['name']!.compareTo(b['name']!));
           break;
         case SortOption.za:
@@ -170,19 +227,9 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   }
 
   void _filterCelebrities() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredCelebrities =
-          _celebrities
-              .where(
-                (celebrity) => celebrity['name']!.toLowerCase().contains(query),
-              )
-              .toList();
-      _sortCelebrities(); // Apply sorting after filtering
-    });
+    _sortCelebrities();
   }
 
-  // Method to handle download button press
   void _handleDownloadPress(String celebrityName) {
     if (widget.onDownloadSelected != null) {
       widget.onDownloadSelected!('', celebrityName, null);
@@ -190,55 +237,42 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder:
-              (_) => RagalahariDownloaderScreen(initialFolder: celebrityName),
+          builder: (_) => RagalahariDownloaderScreen(initialFolder: celebrityName),
         ),
       );
     }
   }
 
-  // Function to toggle favorite status for celebrities
   Future<void> _toggleCelebrityFavorite(String name, String url) async {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    List<FavoriteItem> favorites =
-        favoritesJson
-            .map(
-              (json) => FavoriteItem.fromJson(
-                Map<String, String>.from(
-                  jsonDecode(json) as Map<String, dynamic>,
-                ),
-              ),
-            )
-            .toList();
+    List<FavoriteItem> favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+    ))
+        .toList();
 
     final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
-    final isFavorite = favorites.any(
-      (item) =>
-          item.type == 'celebrity' && item.name == name && item.url == url,
-    );
+    final isFavorite = favorites
+        .any((item) => item.type == 'celebrity' && item.name == name && item.url == url);
 
     if (isFavorite) {
       favorites.removeWhere(
-        (item) =>
-            item.type == 'celebrity' && item.name == name && item.url == url,
-      );
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$name removed from favorites')));
+              (item) => item.type == 'celebrity' && item.name == name && item.url == url);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$name removed from favorites')));
     } else {
       favorites.add(favoriteItem);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$name added to favorites')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$name added to favorites')));
     }
 
     await prefs.setStringList(
       favoriteKey,
       favorites.map((item) => jsonEncode(item.toJson())).toList(),
     );
-    setState(() {}); // Trigger rebuild to update icon
+    setState(() {});
   }
 
   @override
@@ -248,38 +282,87 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         title: const Text(
           'Celebrity Profiles',
           style: TextStyle(
-            // color: Colors.white, // Change this to your desired color
-            fontWeight: FontWeight.bold, // Optional: Enhance visibility
+            fontWeight: FontWeight.bold,
           ),
         ),
-
         actions: [
-          PopupMenuButton<SortOption>(
+          // Unified Sort Dropdown
+          DropdownButton<SortOption>(
+            value: _currentSortOption,
             icon: const Icon(Icons.sort),
-            onSelected: (SortOption result) {
-              setState(() {
-                _currentSortOption = result;
-                _sortCelebrities();
-              });
+            onChanged: (SortOption? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  _currentSortOption = newValue;
+                  _sortCelebrities();
+                });
+              }
             },
-            itemBuilder:
-                (BuildContext context) => <PopupMenuEntry<SortOption>>[
-                  const PopupMenuItem<SortOption>(
-                    value: SortOption.az,
-                    child: Text('A-Z'),
-                  ),
-                  const PopupMenuItem<SortOption>(
-                    value: SortOption.za,
-                    child: Text('Z-A'),
-                  ),
-                ],
+            items: [
+              const DropdownMenuItem(
+                value: SortOption.az,
+                child: Text('A-Z'),
+              ),
+              const DropdownMenuItem(
+                value: SortOption.za,
+                child: Text('Z-A'),
+              ),
+              DropdownMenuItem(
+                value: SortOption.celebrityAll,
+                child: Row(
+                  children: [
+                    const Text('Celebrity'),
+                    const SizedBox(width: 8),
+                    Text(
+                      'All',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              DropdownMenuItem(
+                value: SortOption.celebrityActors,
+                child: Row(
+                  children: [
+                    const Text('Celebrity'),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Actors',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              DropdownMenuItem(
+                value: SortOption.celebrityActresses,
+                child: Row(
+                  children: [
+                    const Text('Celebrity'),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Actresses',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(20),
-              bottom: Radius.circular(20), // Adjust the radius as needed
+              bottom: Radius.circular(20),
             ),
           ),
         ),
@@ -293,18 +376,16 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
               decoration: InputDecoration(
                 hintText: 'Search celebrities...',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon:
-                    _searchController.text.isEmpty
-                        ? null
-                        : IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            _searchFocusNode.unfocus();
-                            // Trigger the filter to update the list
-                            _filterCelebrities();
-                          },
-                        ),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _searchFocusNode.unfocus();
+                    _filterCelebrities();
+                  },
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -313,7 +394,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
               ),
               autofocus: false,
               onChanged: (value) {
-                // This will rebuild the widget when text changes
                 setState(() {});
                 _filterCelebrities();
               },
@@ -321,105 +401,85 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           ),
         ),
       ),
-      body:
-          _celebrities.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _filteredCelebrities.isEmpty
-              ? const Center(child: Text('No matching celebrities found'))
-              : ListView.builder(
-                itemCount: _filteredCelebrities.length,
-                itemBuilder: (context, index) {
-                  final celebrity = _filteredCelebrities[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+      body: _celebrities.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : _filteredCelebrities.isEmpty
+          ? const Center(child: Text('No matching celebrities found'))
+          : ListView.builder(
+        itemCount: _filteredCelebrities.length,
+        itemBuilder: (context, index) {
+          final celebrity = _filteredCelebrities[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ListTile(
+              title: Text(celebrity['name'] ?? 'Unknown'),
+              hoverColor: Theme.of(context).primaryColor.withOpacity(0.1),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GalleryLinksPage(
+                      celebrityName: celebrity['name']!,
+                      profileUrl: celebrity['url']!,
+                      onDownloadSelected: widget.onDownloadSelected,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        20,
-                      ), // Match the radius style
-                    ),
-                    child: ListTile(
-                      title: Text(celebrity['name'] ?? 'Unknown'),
-                      hoverColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (_) => GalleryLinksPage(
-                                  celebrityName: celebrity['name']!,
-                                  profileUrl: celebrity['url']!,
-                                  onDownloadSelected: widget.onDownloadSelected,
-                                ),
-                          ),
-                        );
-                      },
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FutureBuilder<bool>(
-                            future: _isCelebrityFavorite(
-                              celebrity['name']!,
-                              celebrity['url']!,
-                            ),
-                            builder: (context, snapshot) {
-                              final isFavorite = snapshot.data ?? false;
-                              return IconButton(
-                                icon: Icon(
-                                  isFavorite ? Icons.star : Icons.star_border,
-                                  color: isFavorite ? Colors.yellow : null,
-                                ),
-                                onPressed:
-                                    () => _toggleCelebrityFavorite(
-                                      celebrity['name']!,
-                                      celebrity['url']!,
-                                    ),
-                                tooltip:
-                                    isFavorite
-                                        ? 'Remove from favorites'
-                                        : 'Add to favorites',
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_box_outlined),
-                            onPressed:
-                                () => _handleDownloadPress(celebrity['name']!),
-                            tooltip: 'Add Name to The Main Folder Input',
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                  ),
+                );
+              },
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FutureBuilder<bool>(
+                    future: _isCelebrityFavorite(
+                        celebrity['name']!, celebrity['url']!),
+                    builder: (context, snapshot) {
+                      final isFavorite = snapshot.data ?? false;
+                      return IconButton(
+                        icon: Icon(
+                          isFavorite ? Icons.star : Icons.star_border,
+                          color: isFavorite ? Colors.yellow : null,
+                        ),
+                        onPressed: () => _toggleCelebrityFavorite(
+                            celebrity['name']!, celebrity['url']!),
+                        tooltip: isFavorite
+                            ? 'Remove from favorites'
+                            : 'Add to favorites',
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_box_outlined),
+                    onPressed: () =>
+                        _handleDownloadPress(celebrity['name']!),
+                    tooltip: 'Add Name to The Main Folder Input',
+                  ),
+                ],
               ),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  // Helper to check if a celebrity is in favorites
   Future<bool> _isCelebrityFavorite(String name, String url) async {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    final favorites =
-        favoritesJson
-            .map(
-              (json) => FavoriteItem.fromJson(
-                Map<String, String>.from(
-                  jsonDecode(json) as Map<String, dynamic>,
-                ),
-              ),
-            )
-            .toList();
-    return favorites.any(
-      (item) =>
-          item.type == 'celebrity' && item.name == name && item.url == url,
-    );
+    final favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+    ))
+        .toList();
+    return favorites
+        .any((item) => item.type == 'celebrity' && item.name == name && item.url == url);
   }
 }
 
+// GalleryLinksPage remains unchanged
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;
   final String profileUrl;
@@ -452,21 +512,15 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     _scrapeGalleryLinks();
   }
 
-  // Function to toggle favorite status for galleries
   Future<void> _toggleGalleryFavorite(GalleryItem item) async {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    List<FavoriteItem> favorites =
-        favoritesJson
-            .map(
-              (json) => FavoriteItem.fromJson(
-                Map<String, String>.from(
-                  jsonDecode(json) as Map<String, dynamic>,
-                ),
-              ),
-            )
-            .toList();
+    List<FavoriteItem> favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+    ))
+        .toList();
 
     final favoriteItem = FavoriteItem(
       type: 'gallery',
@@ -477,16 +531,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     );
 
     final isFavorite = favorites.any(
-      (fav) =>
-          fav.type == 'gallery' &&
+          (fav) =>
+      fav.type == 'gallery' &&
           fav.url == item.url &&
           fav.celebrityName == widget.celebrityName,
     );
 
     if (isFavorite) {
       favorites.removeWhere(
-        (fav) =>
-            fav.type == 'gallery' &&
+            (fav) =>
+        fav.type == 'gallery' &&
             fav.url == item.url &&
             fav.celebrityName == widget.celebrityName,
       );
@@ -504,23 +558,21 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       favoriteKey,
       favorites.map((item) => jsonEncode(item.toJson())).toList(),
     );
-    setState(() {}); // Trigger rebuild to update icon
+    setState(() {});
   }
 
   void _navigateToDownloader(String galleryUrl, String galleryTitle) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => RagalahariDownloaderScreen(
-              initialUrl: galleryUrl,
-              initialFolder: widget.celebrityName,
-            ),
+        builder: (_) => RagalahariDownloaderScreen(
+          initialUrl: galleryUrl,
+          initialFolder: widget.celebrityName,
+        ),
       ),
     ).then((_) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Returned from downloader')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Returned from downloader')));
     });
   }
 
@@ -583,10 +635,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     }
 
     items.sort(
-      (a, b) =>
-          _sortNewestFirst
-              ? b.date.compareTo(a.date)
-              : a.date.compareTo(b.date),
+          (a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date),
     );
     return items;
   }
@@ -601,8 +650,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       final document = html_parser.parse(response.body);
 
       String title = '';
-      final titleElement =
-          document.querySelector('h1.gallerytitle') ??
+      final titleElement = document.querySelector('h1.gallerytitle') ??
           document.querySelector('.gallerytitle') ??
           document.querySelector('h1');
 
@@ -610,12 +658,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         title = titleElement.text.trim();
       } else {
         final uri = Uri.parse(link);
-        final pathSegments =
-            uri.pathSegments.where((s) => s.isNotEmpty).toList();
+        final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
         title = link.split('/').last.replaceAll(".aspx", "");
         if (pathSegments.length > 2) {
           title =
-              '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
+          '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
         }
       }
 
@@ -654,19 +701,15 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       final document = html_parser.parse(response.body);
 
       final pageLinks = document.getElementsByClassName('otherPage');
-      final lastPage =
-          pageLinks.isEmpty
-              ? 1
-              : pageLinks
-                  .map((e) => int.tryParse(e.text.trim()) ?? 1)
-                  .reduce(max);
+      final lastPage = pageLinks.isEmpty
+          ? 1
+          : pageLinks.map((e) => int.tryParse(e.text.trim()) ?? 1).reduce(max);
 
       final dateElement = document.querySelector('.gallerydate time');
       final dateStr = dateElement?.text.trim() ?? '';
-      final date =
-          dateStr.startsWith('Updated on ')
-              ? DateFormat('MMMM dd, yyyy').parse(dateStr.substring(11))
-              : DateTime.now();
+      final date = dateStr.startsWith('Updated on ')
+          ? DateFormat('MMMM dd, yyyy').parse(dateStr.substring(11))
+          : DateTime.now();
 
       return (lastPage, date);
     } catch (e) {
@@ -696,10 +739,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     setState(() {
       _sortNewestFirst = !_sortNewestFirst;
       _galleryItems.sort(
-        (a, b) =>
-            _sortNewestFirst
-                ? b.date.compareTo(a.date)
-                : a.date.compareTo(b.date),
+            (a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date),
       );
       _currentPage = 1;
       _updateDisplayedItems();
@@ -726,24 +766,18 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     );
   }
 
-  // Helper to check if a gallery is in favorites
   Future<bool> _isGalleryFavorite(String url) async {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    final favorites =
-        favoritesJson
-            .map(
-              (json) => FavoriteItem.fromJson(
-                Map<String, String>.from(
-                  jsonDecode(json) as Map<String, dynamic>,
-                ),
-              ),
-            )
-            .toList();
+    final favorites = favoritesJson
+        .map((json) => FavoriteItem.fromJson(
+      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+    ))
+        .toList();
     return favorites.any(
-      (item) =>
-          item.type == 'gallery' &&
+          (item) =>
+      item.type == 'gallery' &&
           item.url == url &&
           item.celebrityName == widget.celebrityName,
     );
@@ -761,153 +795,130 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
             onSelected: (value) {
               if (value == 'sort') _toggleSortOrder();
             },
-            itemBuilder:
-                (context) => [
-                  PopupMenuItem(
-                    value: 'sort',
-                    child: Text(
-                      _sortNewestFirst
-                          ? 'Sort: Oldest First'
-                          : 'Sort: Newest First',
-                    ),
-                  ),
-                ],
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'sort',
+                child: Text(
+                  _sortNewestFirst ? 'Sort: Oldest First' : 'Sort: Newest First',
+                ),
+              ),
+            ],
             icon: const Icon(Icons.sort),
           ),
         ],
       ),
-      body:
-          _isLoading
-              ? _buildShimmerLoading()
-              : _error != null
-              ? Center(child: Text(_error!))
-              : _galleryItems.isEmpty
-              ? const Center(child: Text('No galleries found'))
-              : Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _displayedItems.length,
-                      itemBuilder: (context, index) {
-                        final item = _displayedItems[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          child: ListTile(
-                            leading:
-                                item.thumbnailUrl != null &&
-                                        item.thumbnailUrl!.isNotEmpty
-                                    ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Image.network(
-                                        item.thumbnailUrl!,
-                                        width: 60,
-                                        height: 60,
-                                        fit: BoxFit.cover,
-                                        loadingBuilder: (
-                                          context,
-                                          child,
-                                          loadingProgress,
-                                        ) {
-                                          if (loadingProgress == null)
-                                            return child;
-                                          return const SizedBox(
-                                            width: 60,
-                                            height: 60,
-                                            child: Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            ),
-                                          );
-                                        },
-                                        errorBuilder:
-                                            (_, __, ___) => const Icon(
-                                              Icons.broken_image,
-                                              size: 60,
-                                            ),
-                                      ),
-                                    )
-                                    : Container(
-                                      width: 60,
-                                      height: 60,
-                                      color: Colors.red.shade200,
-                                      child: const Icon(
-                                        Icons.error,
-                                        size: 40,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                            title: Text(item.title),
-                            subtitle: Text(
-                              '${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}',
+      body: _isLoading
+          ? _buildShimmerLoading()
+          : _error != null
+          ? Center(child: Text(_error!))
+          : _galleryItems.isEmpty
+          ? const Center(child: Text('No galleries found'))
+          : Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _displayedItems.length,
+              itemBuilder: (context, index) {
+                final item = _displayedItems[index];
+                return Card(
+                  margin:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: ListTile(
+                    leading: item.thumbnailUrl != null &&
+                        item.thumbnailUrl!.isNotEmpty
+                        ? ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.network(
+                        item.thumbnailUrl!,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        loadingBuilder:
+                            (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: Center(
+                              child: CircularProgressIndicator(),
                             ),
-                            onTap:
-                                () =>
-                                    _navigateToDownloader(item.url, item.title),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FutureBuilder<bool>(
-                                  future: _isGalleryFavorite(item.url),
-                                  builder: (context, snapshot) {
-                                    final isFavorite = snapshot.data ?? false;
-                                    return IconButton(
-                                      icon: Icon(
-                                        isFavorite
-                                            ? Icons.star
-                                            : Icons.star_border,
-                                        color:
-                                            isFavorite ? Colors.yellow : null,
-                                      ),
-                                      onPressed:
-                                          () => _toggleGalleryFavorite(item),
-                                      tooltip:
-                                          isFavorite
-                                              ? 'Remove from favorites'
-                                              : 'Add to favorites',
-                                    );
-                                  },
-                                ),
-                                // IconButton(
-                                //   icon: const Icon(Icons.download),
-                                //   onPressed: () => _navigateToDownloader(item.url, item.title),
-                                //   tooltip: 'Download gallery',
-                                // ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  if (totalPages > 1)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            onPressed:
-                                _currentPage > 1
-                                    ? () => _changePage(_currentPage - 1)
-                                    : null,
-                          ),
-                          Text('Page $_currentPage of $totalPages'),
-                          IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            onPressed:
-                                _currentPage < totalPages
-                                    ? () => _changePage(_currentPage + 1)
-                                    : null,
-                          ),
-                        ],
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.broken_image,
+                          size: 60,
+                        ),
+                      ),
+                    )
+                        : Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.red.shade200,
+                      child: const Icon(
+                        Icons.error,
+                        size: 40,
+                        color: Colors.white,
                       ),
                     ),
+                    title: Text(item.title),
+                    subtitle: Text(
+                      '${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}',
+                    ),
+                    onTap: () =>
+                        _navigateToDownloader(item.url, item.title),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FutureBuilder<bool>(
+                          future: _isGalleryFavorite(item.url),
+                          builder: (context, snapshot) {
+                            final isFavorite = snapshot.data ?? false;
+                            return IconButton(
+                              icon: Icon(
+                                isFavorite
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color:
+                                isFavorite ? Colors.yellow : null,
+                              ),
+                              onPressed: () => _toggleGalleryFavorite(item),
+                              tooltip: isFavorite
+                                  ? 'Remove from favorites'
+                                  : 'Add to favorites',
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (totalPages > 1)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: _currentPage > 1
+                        ? () => _changePage(_currentPage - 1)
+                        : null,
+                  ),
+                  Text('Page $_currentPage of $totalPages'),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: _currentPage < totalPages
+                        ? () => _changePage(_currentPage + 1)
+                        : null,
+                  ),
                 ],
               ),
+            ),
+        ],
+      ),
     );
   }
 }
