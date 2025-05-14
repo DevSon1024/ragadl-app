@@ -280,7 +280,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     _selectedImages.map((index) => _filteredImages[index].path).toList();
     await Share.shareFiles(
       paths,
-      text: 'Sharing ${_selectedImages.length} image(s) from Ragalahari Downloader',
+      text: 'Sharing images from Ragalahari Downloader',
     );
   }
 
