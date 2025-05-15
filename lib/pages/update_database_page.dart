@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'package:flutter/material.dart';
@@ -107,42 +108,58 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
   }
 
   static void _backgroundUpdate(SendPort sendPort) async {
-    List<List<dynamic>> newData = [];
+    List<Map<String, String>> actorsData = [];
+    List<Map<String, String>> actressesData = [];
+    List<List<dynamic>> newCsvData = [];
     List<String> logs = [];
-    String alphabet = 'abcdefghijklmnopqrstuvwxyz';
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 
     try {
       List<String> existingNames = await _readExistingNames('Fetched_StarZone_Data.csv');
-      for (int i = 0; i < alphabet.length; i++) {
-        String letter = alphabet[i];
-        List<List<dynamic>> letterData = await _fetchLinksFromAlpha(letter);
-        for (var data in letterData) {
-          String name = data[0];
+      for (var letter in alphabet.split('')) {
+        var actorData = await _fetchLinksFromAlpha(letter, 'actor');
+        var actressData = await _fetchLinksFromAlpha(letter, 'actress');
+        actorsData.addAll(actorData);
+        actressesData.addAll(actressData);
+        for (var data in [...actorData, ...actressData]) {
+          String name = data['Name']!;
           if (!existingNames.contains(name)) {
-            newData.add(data);
+            newCsvData.add([name, data['URL']]);
             logs.add('$name Added');
           }
         }
         await Future.delayed(const Duration(milliseconds: 300));
       }
 
-      if (newData.isNotEmpty) {
+      if (newCsvData.isNotEmpty) {
         Directory saveDir = await getApplicationDocumentsDirectory();
-        String filePath = '${saveDir.path}/RagalahariData/Fetched_StarZone_Data.csv';
-        File file = File(filePath);
-        List<List<dynamic>> existingData = [];
-        if (await file.exists()) {
-          String csvContent = await file.readAsString();
-          existingData = const CsvToListConverter().convert(csvContent);
-        }
+        String dirPath = '${saveDir.path}/RagalahariData';
+        Directory(dirPath).createSync(recursive: true);
 
+        // Save CSV
+        String csvFilePath = '$dirPath/Fetched_StarZone_Data.csv';
+        File csvFile = File(csvFilePath);
+        List<List<dynamic>> existingCsvData = [];
+        if (await csvFile.exists()) {
+          String csvContent = await csvFile.readAsString();
+          existingCsvData = const CsvToListConverter().convert(csvContent);
+        }
         List<List<dynamic>> csvData = [
           ['Name', 'URL'],
-          ...existingData.skip(1),
-          ...newData,
+          ...existingCsvData.skip(1),
+          ...newCsvData,
         ];
         String csv = const ListToCsvConverter().convert(csvData);
-        await file.writeAsString(csv);
+        await csvFile.writeAsString(csv);
+
+        // Save JSON
+        String jsonFilePath = '$dirPath/Fetched_Albums_StarZone.json';
+        File jsonFile = File(jsonFilePath);
+        Map<String, dynamic> jsonData = {
+          'actors': actorsData,
+          'actresses': actressesData,
+        };
+        await jsonFile.writeAsString(json.encode(jsonData));
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('lastUpdateTimestamp', DateTime.now().millisecondsSinceEpoch);
@@ -177,9 +194,9 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
     }
   }
 
-  static Future<List<List<dynamic>>> _fetchLinksFromAlpha(String alphaLetter) async {
-    String baseUrl = 'https://www.ragalahari.com/$alphaLetter/starzonesearch.aspx';
-    List<List<dynamic>> linksData = [];
+  static Future<List<Map<String, String>>> _fetchLinksFromAlpha(String alphaLetter, String category) async {
+    String baseUrl = 'https://www.ragalahari.com/$category/$alphaLetter/starzonesearch.aspx';
+    List<Map<String, String>> linksData = [];
 
     try {
       final response = await http.get(Uri.parse(baseUrl));
@@ -191,12 +208,12 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
           String name = aTag.text.trim();
           if (href != null && href.isNotEmpty && name.isNotEmpty) {
             String fullUrl = 'https://www.ragalahari.com$href';
-            linksData.add([name, fullUrl]);
+            linksData.add({'Name': name, 'URL': fullUrl});
           }
         }
       }
     } catch (e) {
-      // Log errors in background via sendPort if needed
+      // Errors logged in background
     }
     return linksData;
   }
@@ -214,8 +231,10 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
     }
 
     try {
-      List<List<dynamic>> newData = [];
-      String alphabet = 'abcdefghijklmnopqrstuvwxyz';
+      List<Map<String, String>> actorsData = [];
+      List<Map<String, String>> actressesData = [];
+      List<List<dynamic>> newCsvData = [];
+      const alphabet = 'abcdefghijklmnopqrstuvwxyz';
       List<String> existingNames = await _readExistingNames('Fetched_StarZone_Data.csv');
 
       for (int i = 0; i < alphabet.length; i++) {
@@ -226,40 +245,61 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
           });
         }
 
-        List<List<dynamic>> letterData = await _fetchLinksFromAlpha(letter);
-        for (var data in letterData) {
-          String name = data[0];
+        // Fetch both categories concurrently
+        var actorDataFuture = _fetchLinksFromAlpha(letter, 'actor');
+        var actressDataFuture = _fetchLinksFromAlpha(letter, 'actress');
+        var results = await Future.wait([actorDataFuture, actressDataFuture]);
+        var actorData = results[0];
+        var actressData = results[1];
+
+        actorsData.addAll(actorData);
+        actressesData.addAll(actressData);
+
+        for (var data in [...actorData, ...actressData]) {
+          String name = data['Name']!;
           if (!existingNames.contains(name)) {
-            newData.add(data);
+            newCsvData.add([name, data['URL']]);
             _addLog('$name Added');
           }
         }
         await Future.delayed(const Duration(milliseconds: 300));
       }
 
-      if (newData.isNotEmpty) {
+      if (newCsvData.isNotEmpty) {
         if (!isBackground) {
           setState(() {
-            _statusText = 'Saving new data to CSV...';
+            _statusText = 'Saving data to CSV and JSON...';
           });
         }
 
         Directory saveDir = await getApplicationDocumentsDirectory();
-        String filePath = '${saveDir.path}/RagalahariData/Fetched_StarZone_Data.csv';
-        File file = File(filePath);
-        List<List<dynamic>> existingData = [];
-        if (await file.exists()) {
-          String csvContent = await file.readAsString();
-          existingData = const CsvToListConverter().convert(csvContent);
-        }
+        String dirPath = '${saveDir.path}/RagalahariData';
+        Directory(dirPath).createSync(recursive: true);
 
+        // Save CSV
+        String csvFilePath = '$dirPath/Fetched_StarZone_Data.csv';
+        File csvFile = File(csvFilePath);
+        List<List<dynamic>> existingCsvData = [];
+        if (await csvFile.exists()) {
+          String csvContent = await csvFile.readAsString();
+          existingCsvData = const CsvToListConverter().convert(csvContent);
+        }
         List<List<dynamic>> csvData = [
           ['Name', 'URL'],
-          ...existingData.skip(1),
-          ...newData,
+          ...existingCsvData.skip(1),
+          ...newCsvData,
         ];
         String csv = const ListToCsvConverter().convert(csvData);
-        await file.writeAsString(csv);
+        await csvFile.writeAsString(csv);
+
+        // Save JSON
+        String jsonFilePath = '$dirPath/Fetched_Albums_StarZone.json';
+        File jsonFile = File(jsonFilePath);
+        Map<String, dynamic> jsonData = {
+          'actors': actorsData,
+          'actresses': actressesData,
+        };
+        await jsonFile.writeAsString(json.encode(jsonData));
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('lastUpdateTimestamp', DateTime.now().millisecondsSinceEpoch);
@@ -319,7 +359,7 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Scrapes data from ragalahari.com and updates local database with new star names and URLs.',
+              'Scrapes data from ragalahari.com and updates local JSON and CSV with new star names and URLs.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),

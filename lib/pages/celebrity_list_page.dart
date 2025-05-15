@@ -114,6 +114,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   @override
   void initState() {
     super.initState();
+    _loadSortOption(); // Load saved sort option
     _loadCelebrities();
     _searchController.addListener(_filterCelebrities);
   }
@@ -125,9 +126,26 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     super.dispose();
   }
 
+  Future<void> _loadSortOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedSortOption = prefs.getString('sortOption');
+    if (savedSortOption != null) {
+      setState(() {
+        _currentSortOption = SortOption.values.firstWhere(
+              (option) => option.toString() == savedSortOption,
+          orElse: () => SortOption.az,
+        );
+      });
+    }
+  }
+
+  Future<void> _saveSortOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('sortOption', _currentSortOption.toString());
+  }
+
   Future<void> _loadCelebrities() async {
     try {
-      // Load CSV
       String csvString;
       if (Platform.isWindows) {
         final saveDir = await getApplicationDocumentsDirectory();
@@ -156,7 +174,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           .where((celebrity) => celebrity['name']!.isNotEmpty)
           .toList();
 
-      // Load JSON
       final jsonString = await DefaultAssetBundle.of(context)
           .loadString('assets/data/Fetched_Albums_StarZone.json');
       final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -184,7 +201,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     setState(() {
       _filteredCelebrities = List.from(_celebrities);
 
-      // Apply category filter based on sort option
       switch (_currentSortOption) {
         case SortOption.celebrityActors:
           _filteredCelebrities = _filteredCelebrities
@@ -199,11 +215,9 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         case SortOption.celebrityAll:
         case SortOption.az:
         case SortOption.za:
-        // No filtering for 'All', A-Z, or Z-A
           break;
       }
 
-      // Apply search filter
       final query = _searchController.text.toLowerCase();
       if (query.isNotEmpty) {
         _filteredCelebrities = _filteredCelebrities
@@ -211,7 +225,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
             .toList();
       }
 
-      // Apply sorting
       switch (_currentSortOption) {
         case SortOption.az:
         case SortOption.celebrityAll:
@@ -286,7 +299,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           ),
         ),
         actions: [
-          // Unified Sort Dropdown
           DropdownButton<SortOption>(
             value: _currentSortOption,
             icon: const Icon(Icons.sort),
@@ -294,6 +306,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
               if (newValue != null) {
                 setState(() {
                   _currentSortOption = newValue;
+                  _saveSortOption(); // Save the new sort option
                   _sortCelebrities();
                 });
               }

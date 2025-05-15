@@ -291,17 +291,19 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     );
   }
 
-  void _openImage(int index) async {
+  void _openImage(int index) {
     if (_isSelectionMode) {
       _toggleSelection(index);
     } else {
-      final filePath = _filteredImages[index].path;
-      if (Platform.isWindows) {
-        final uri = Uri.file(filePath);
-        await launchUrl(uri);
-      } else {
-        await OpenFilex.open(filePath);
-      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FullImageViewer(
+            images: _filteredImages,
+            initialIndex: index,
+          ),
+        ),
+      );
     }
   }
 
