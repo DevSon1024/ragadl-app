@@ -77,18 +77,16 @@ Key Flutter packages used:
 /lib
 │
 ├── main.dart                          # Entry point/# Latest albums and social links
-├──settings_sidebar.dart
-├──models/
-│   ├──image_data.dart
-├──pages/
+├── settings_sidebar.dart
+├── pages/
 │   ├──celebrity_list_page.dart        # All celebrity listing
 │   ├──download_mangager_page.dart     # Shows download status (pause/resume)
 │   ├──history_page.dart               # Downloaded image history
 │   ├──latest_celebrity.dart
 │   ├──ragalahari_downloader.dart      # Input gallery URL + download
-├──screens/
+├── screens/
 │   ├──ragalahari_downloader_screen.dart    
-├──widgets/
+├── widgets/
 │   ├──navbar.dart
 │   ├──theme_config.dart         
 ├── settings/
