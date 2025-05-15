@@ -27,7 +27,6 @@ This Flutter-based Android app allows users to download image galleries from [Ra
 |-----------|----------------|------------|
 | ![Home](screenshots/home.jpg) | ![Celebrity](screenshots/celebrity.jpg) | ![Downloader](screenshots/downloader.jpg) |
 | History Page |
-|---------------|
 | ![History](screenshots/history.jpg) |
 ---
 
