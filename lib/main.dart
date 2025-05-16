@@ -5,14 +5,36 @@ import 'pages/ragalahari_downloader.dart';
 import 'pages/history_page.dart';
 import 'pages/download_manager_page.dart';
 import 'pages/celebrity_list_page.dart';
-import 'pages/settings_sidebar.dart';
+import 'settings_sidebar.dart';
 import 'pages/latest_celebrity.dart'; // Import LatestCelebrityPage
-import 'theme_config.dart';
+import 'widgets/theme_config.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
+import 'package:awesome_notifications/awesome_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await AwesomeNotifications().initialize(
+    null, // Use default icon
+    [
+      NotificationChannel(
+        channelKey: 'download_channel',
+        channelName: 'Download Notifications',
+        channelDescription: 'Notifications for download status',
+        defaultColor: Colors.green,
+        ledColor: Colors.white,
+        importance: NotificationImportance.High,
+        channelShowBadge: true,
+      ),
+    ],
+    debug: true,
+  );
+
+  if (Platform.isAndroid) {
+    // Request notification permission
+    await AwesomeNotifications().requestPermissionToSendNotifications();
+  }
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
     WindowManager.instance.setMinimumSize(const Size(800, 600));
@@ -24,6 +46,13 @@ void main() async {
       child: const MyApp(),
     ),
   );
+}
+
+class ImageData {
+  final String thumbnailUrl;
+  final String originalUrl;
+
+  ImageData({required this.thumbnailUrl, required this.originalUrl});
 }
 
 class MyApp extends StatelessWidget {

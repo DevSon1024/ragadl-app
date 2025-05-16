@@ -7,9 +7,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
-import '../theme_config.dart';
+import '../widgets/theme_config.dart';
 import 'dart:math';
 
 enum SortOption {

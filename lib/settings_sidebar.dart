@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../pages/favourite_page.dart';
-import '../pages/display_settings_page.dart';
-import '../pages/update_database_page.dart';
-import '../pages/privacy_policy_page.dart';
-import '../pages/storage_page.dart'; // Add this import
+import 'settings/favourite_page.dart';
+import 'settings/display_settings_page.dart';
+import 'settings/update_database_page.dart';
+import 'settings/privacy_policy_page.dart';
+import 'settings/storage_settings.dart';
+import 'settings/notification_settings_page.dart'; // Add this import
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({super.key});
@@ -112,6 +113,20 @@ class SettingsSidebar extends StatelessWidget {
                   ),
                   _buildMenuItem(
                     context,
+                    icon: Icons.notifications,
+                    title: 'Notification Settings',
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationSettingsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
                     icon: Icons.privacy_tip,
                     title: 'Privacy & Policy',
                     onTap: () {
@@ -142,11 +157,11 @@ class SettingsSidebar extends StatelessWidget {
   }
 
   Widget _buildMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required VoidCallback onTap,
+      }) {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).primaryColor),
       title: Text(

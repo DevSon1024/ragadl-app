@@ -6,12 +6,12 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
-import '../models/image_data.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'download_manager_page.dart';
 import 'package:provider/provider.dart';
-import '../theme_config.dart';
+import '../widgets/theme_config.dart';
+import 'package:ragalahari_downloader/main.dart';
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -337,6 +337,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       });
 
       final downloadManager = DownloadManager();
+      final batchId = DateTime.now().millisecondsSinceEpoch.toString(); // Unique batch ID
       for (int i = 0; i < imageUrls.length; i++) {
         final imageUrl = imageUrls[i].originalUrl;
 
@@ -344,9 +345,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
-          onProgress: (progress) {
-            // Progress is handled by the download manager
-          },
+          batchId: batchId, // Pass batch ID
+          onProgress: (progress) {},
           onComplete: (success) {
             setState(() {
               if (success) {
@@ -362,8 +362,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       _showSnackBar('Added ${imageUrls.length} images to download queue');
 
       Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const DownloadManagerPage())
+        context,
+        MaterialPageRoute(builder: (context) => const DownloadManagerPage()),
       );
     } catch (e) {
       _showSnackBar('Error adding downloads: $e');
@@ -388,6 +388,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       });
 
       final downloadManager = DownloadManager();
+      final batchId = DateTime.now().millisecondsSinceEpoch.toString(); // Unique batch ID
       for (int index in selectedImages) {
         final imageUrl = imageUrls[index].originalUrl;
 
@@ -395,9 +396,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
-          onProgress: (progress) {
-            // Progress is handled by the download manager
-          },
+          batchId: batchId, // Pass batch ID
+          onProgress: (progress) {},
           onComplete: (success) {
             setState(() {
               if (success) {
@@ -413,8 +413,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       _showSnackBar('Added ${selectedImages.length} images to download queue');
 
       Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const DownloadManagerPage())
+        context,
+        MaterialPageRoute(builder: (context) => const DownloadManagerPage()),
       );
     } catch (e) {
       _showSnackBar('Error adding downloads: $e');

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../screens/ragalahari_downloader_screen.dart';
-import 'celebrity_list_page.dart'; // Import to reuse FavoriteItem and navigate
+import '../pages/celebrity_list_page.dart'; // Import to reuse FavoriteItem and navigate
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});
