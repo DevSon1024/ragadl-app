@@ -55,9 +55,9 @@ class _StoragePageState extends State<StoragePage> {
       _baseDownloadPath = path;
       _isDefaultPath = path == '/storage/emulated/0/Download';
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Download path set to: $path')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Download path set to: $path')),
+    );
   }
 
   Future<void> _pickFolder() async {
@@ -84,6 +84,15 @@ class _StoragePageState extends State<StoragePage> {
     });
   }
 
+  Future<void> _clearCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    await _loadSavedPath(); // Reload default path after clearing
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cache cleared successfully')),
+    );
+  }
+
   @override
   void dispose() {
     _pathController.dispose();
@@ -106,7 +115,7 @@ class _StoragePageState extends State<StoragePage> {
             const SizedBox(height: 8),
             const Text(
               'Choose a base directory for downloads. The structure will be: '
-              '[Your Path]/Ragalahari Downloads/[folder]/[subfolder]',
+                  '[Your Path]/Ragalahari Downloads/[folder]/[subfolder]',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -137,6 +146,16 @@ class _StoragePageState extends State<StoragePage> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _clearCache,
+              icon: const Icon(Icons.delete_forever),
+              label: const Text('Clear Cache'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
