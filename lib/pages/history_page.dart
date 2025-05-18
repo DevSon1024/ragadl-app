@@ -1,15 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../widgets/theme_config.dart';
+import 'recycle_page.dart';
 import 'dart:math';
+import '../permissions.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 enum SortOption {
   newest,
@@ -55,43 +56,16 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   }
 
   Future<void> _checkPermissionsAndLoadImages() async {
-    if (Platform.isAndroid) {
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      bool isPermissionGranted = false;
+    bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
+    if (!permissionsGranted) {
+      permissionsGranted = await PermissionHandler.requestAllPermissions(context);
+    }
 
-      if (androidInfo.version.sdkInt >= 33) {
-        final photoStatus = await Permission.photos.status;
-        if (!photoStatus.isGranted) {
-          final newStatus = await Permission.photos.request();
-          isPermissionGranted = newStatus.isGranted;
-        } else {
-          isPermissionGranted = true;
-        }
-      } else if (androidInfo.version.sdkInt >= 30) {
-        final manageStorageStatus = await Permission.manageExternalStorage.status;
-        if (!manageStorageStatus.isGranted) {
-          final newStatus = await Permission.manageExternalStorage.request();
-          isPermissionGranted = newStatus.isGranted;
-        } else {
-          isPermissionGranted = true;
-        }
-      } else {
-        final storageStatus = await Permission.storage.status;
-        if (!storageStatus.isGranted) {
-          final newStatus = await Permission.storage.request();
-          isPermissionGranted = newStatus.isGranted;
-        } else {
-          isPermissionGranted = true;
-        }
-      }
-
-      if (!isPermissionGranted) {
-        setState(() {
-          _errorMessage = 'Storage or media permission denied. Cannot access downloaded images.';
-        });
-        return;
-      }
+    if (!permissionsGranted) {
+      setState(() {
+        _errorMessage = 'Storage or media permission denied. Cannot access downloaded images.';
+      });
+      return;
     }
 
     await _loadDownloadedImages();
@@ -107,10 +81,10 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
     try {
       Directory? baseDir;
-      if (Platform.isWindows){
+      if (Platform.isWindows) {
         baseDir = await getApplicationDocumentsDirectory();
         baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
-      } else if(Platform.isAndroid) {
+      } else if (Platform.isAndroid) {
         baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
         if (!await baseDir.exists()) {
           baseDir = await getExternalStorageDirectory();
@@ -229,7 +203,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Selected Images'),
-        content: Text('Are you sure you want to delete ${_selectedImages.length} selected image(s)?'),
+        content: Text('Are you sure you want to move ${_selectedImages.length} selected image(s) to the recycle bin?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -237,7 +211,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Move to Recycle Bin', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -250,19 +224,53 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     });
 
     try {
+      final deleteCount = _selectedImages.length; // Store count before clearing
       final List<FileSystemEntity> toDelete = _selectedImages.map((index) => _filteredImages[index]).toList();
+      final List<String> trashedPaths = [];
+
+      // Move files to a "trashed" state with new naming convention
       for (var file in toDelete) {
-        await File(file.path).delete();
+        final fileName = file.path.split('/').last;
+        final dirPath = file.path.substring(0, file.path.length - fileName.length);
+        final trashedPath = '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$fileName';
+        await File(file.path).rename(trashedPath);
+        trashedPaths.add(trashedPath);
       }
 
       await _loadDownloadedImages();
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deleted ${toDelete.length} image(s)')),
+        SnackBar(
+          content: Text('$deleteCount image(s) moved to recycle bin'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () async {
+              // Restore trashed files
+              setState(() {
+                _isLoading = true;
+              });
+              for (var trashedPath in trashedPaths) {
+                final originalPath = trashedPath.replaceFirst(RegExp(r'^\.trashed-\d+-'), '', trashedPath.lastIndexOf('/'));
+                await File(trashedPath).rename(originalPath);
+              }
+              await _loadDownloadedImages();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Images restored')),
+                );
+              }
+            },
+          ),
+          duration: const Duration(seconds: 5),
+        ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete images: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to move images: $e')),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
@@ -316,19 +324,41 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
         ),
         leading: _isSelectionMode
             ? IconButton(
-          icon: const Icon(Icons.close),
+          icon: Icon(
+            Icons.close,
+            color: Theme.of(context).iconTheme.color,
+          ),
           onPressed: _clearSelection,
           tooltip: 'Cancel Selection',
         )
             : null,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(
+              Icons.refresh,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onPressed: _loadDownloadedImages,
             tooltip: 'Refresh',
           ),
+          IconButton(
+            icon: Icon(
+              Icons.delete_sweep,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RecyclePage()),
+              );
+            },
+            tooltip: 'Recycle Bin',
+          ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
+            icon: Icon(
+              Icons.more_vert,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onSelected: (value) {
               FocusScope.of(context).unfocus();
               if (value == 'sort') {
@@ -352,13 +382,17 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'sort',
                 child: Row(
                   children: [
-                    Icon(Icons.sort, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sort'),
+                    Icon(
+                      Icons.sort,
+                      size: 20,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Sort'),
                   ],
                 ),
               ),
@@ -367,7 +401,11 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                 enabled: _selectedImages.isNotEmpty,
                 child: Row(
                   children: [
-                    Icon(Icons.delete, size: 20, color: _selectedImages.isEmpty ? Colors.grey : Colors.red),
+                    Icon(
+                      Icons.delete,
+                      size: 20,
+                      color: _selectedImages.isEmpty ? Colors.grey : Colors.red,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Delete Selected',
@@ -381,11 +419,15 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                 enabled: _selectedImages.isNotEmpty,
                 child: Row(
                   children: [
-                    Icon(Icons.share, size: 20, color: _selectedImages.isEmpty ? Colors.grey : Colors.blue),
+                    Icon(
+                      Icons.share,
+                      size: 20,
+                      color: _selectedImages.isEmpty ? Colors.grey : Theme.of(context).primaryColor,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Share Selected',
-                      style: TextStyle(color: _selectedImages.isEmpty ? Colors.grey : Colors.blue),
+                      style: TextStyle(color: _selectedImages.isEmpty ? Colors.grey : Theme.of(context).primaryColor),
                     ),
                   ],
                 ),
@@ -402,10 +444,16 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search images...',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Theme.of(context).iconTheme.color,
+                ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: Icon(
+                    Icons.clear,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
                   onPressed: () {
                     _searchController.clear();
                     _filterImages();
@@ -428,7 +476,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                 children: [
                   Text(
                     '${_selectedImages.length} selected',
-                    style: const TextStyle(fontSize: 14, color: Colors.blue),
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).primaryColor),
                   ),
                   TextButton(
                     onPressed: () {
@@ -449,7 +497,6 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
   Widget _buildContent() {
     final themeConfig = Provider.of<ThemeConfig>(context);
-    // Determine crossAxisCount based on platform and user preference
     final crossAxisCount = Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
 
     if (_isLoading) {
@@ -496,10 +543,10 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 48,
-              color: Colors.red,
+              color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: 16),
             Text(
@@ -511,7 +558,10 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.settings),
+                  icon: Icon(
+                    Icons.settings,
+                    color: Theme.of(context).primaryColor,
+                  ),
                   label: const Text('Open Settings'),
                   onPressed: () async {
                     await openAppSettings();
@@ -556,18 +606,18 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                 Image.file(
                   File(file.path),
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
+                  errorBuilder: (context, error, stackTrace) => Icon(
                     Icons.broken_image,
                     size: 48,
-                    color: Colors.grey,
+                    color: Theme.of(context).iconTheme.color,
                   ),
                 ),
                 if (isSelected)
                   Container(
                     color: Colors.blue.withOpacity(0.3),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check_circle,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       size: 30,
                     ),
                   ),
@@ -580,7 +630,10 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                     padding: const EdgeInsets.all(4),
                     child: Text(
                       '${(File(file.path).lengthSync() / 1024).toStringAsFixed(1)} KB',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontSize: 12,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -618,27 +671,59 @@ class SortOptionsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: const Icon(Icons.access_time),
+            leading: Icon(
+              Icons.access_time,
+              color: Theme.of(context).iconTheme.color,
+            ),
             title: const Text('Newest First'),
-            trailing: currentSort == SortOption.newest ? const Icon(Icons.check) : null,
+            trailing: currentSort == SortOption.newest
+                ? Icon(
+              Icons.check,
+              color: Theme.of(context).iconTheme.color,
+            )
+                : null,
             onTap: () => onSortSelected(SortOption.newest),
           ),
           ListTile(
-            leading: const Icon(Icons.access_time),
+            leading: Icon(
+              Icons.access_time,
+              color: Theme.of(context).iconTheme.color,
+            ),
             title: const Text('Oldest First'),
-            trailing: currentSort == SortOption.oldest ? const Icon(Icons.check) : null,
+            trailing: currentSort == SortOption.oldest
+                ? Icon(
+              Icons.check,
+              color: Theme.of(context).iconTheme.color,
+            )
+                : null,
             onTap: () => onSortSelected(SortOption.oldest),
           ),
           ListTile(
-            leading: const Icon(Icons.storage),
+            leading: Icon(
+              Icons.storage,
+              color: Theme.of(context).iconTheme.color,
+            ),
             title: const Text('Largest First'),
-            trailing: currentSort == SortOption.largest ? const Icon(Icons.check) : null,
+            trailing: currentSort == SortOption.largest
+                ? Icon(
+              Icons.check,
+              color: Theme.of(context).iconTheme.color,
+            )
+                : null,
             onTap: () => onSortSelected(SortOption.largest),
           ),
           ListTile(
-            leading: const Icon(Icons.storage),
+            leading: Icon(
+              Icons.storage,
+              color: Theme.of(context).iconTheme.color,
+            ),
             title: const Text('Smallest First'),
-            trailing: currentSort == SortOption.smallest ? const Icon(Icons.check) : null,
+            trailing: currentSort == SortOption.smallest
+                ? Icon(
+              Icons.check,
+              color: Theme.of(context).iconTheme.color,
+            )
+                : null,
             onTap: () => onSortSelected(SortOption.smallest),
           ),
         ],
@@ -689,10 +774,13 @@ class _FullImageViewerState extends State<FullImageViewer> {
   Future<void> _deleteImage(File file) async {
     setState(() => _isDeleting = true);
     try {
-      await file.delete();
+      final fileName = file.path.split('/').last;
+      final dirPath = file.path.substring(0, file.path.length - fileName.length);
+      final trashedPath = '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$fileName';
+      await file.rename(trashedPath);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image deleted successfully')),
+          const SnackBar(content: Text('Image moved to recycle bin')),
         );
         // Remove the image from the list and update the UI
         final updatedImages = List<FileSystemEntity>.from(widget.images)..removeAt(_currentIndex);
@@ -719,7 +807,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete image: $e')),
+          SnackBar(content: Text('Failed to move image: $e')),
         );
       }
     } finally {
@@ -732,7 +820,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Image'),
-        content: const Text('Are you sure you want to delete this image?'),
+        content: const Text('Are you sure you want to move this image to the recycle bin?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -743,7 +831,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
               _deleteImage(file);
               Navigator.pop(context);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Move to Recycle Bin', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -773,26 +861,36 @@ class _FullImageViewerState extends State<FullImageViewer> {
       appBar: AppBar(
         title: Text('Image ${_currentIndex + 1} of ${widget.images.length}'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).iconTheme.color,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.copy),
+            icon: Icon(
+              Icons.copy,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onPressed: () => _copyImagePath(currentImage.path),
             tooltip: 'Copy Path',
           ),
           IconButton(
             icon: _isDeleting
                 ? const CircularProgressIndicator()
-                : const Icon(Icons.delete),
-            onPressed: _isDeleting
-                ? null
-                : () => _showDeleteConfirmation(currentImage),
+                : Icon(
+              Icons.delete,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            onPressed: _isDeleting ? null : () => _showDeleteConfirmation(currentImage),
             tooltip: 'Delete Image',
           ),
           IconButton(
-            icon: const Icon(Icons.open_in_new),
+            icon: Icon(
+              Icons.open_in_new,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onPressed: () => _openFile(currentImage.path),
             tooltip: 'Open in File Explorer',
           ),
@@ -813,11 +911,11 @@ class _FullImageViewerState extends State<FullImageViewer> {
               child: Image.file(
                 imageFile,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Center(
+                errorBuilder: (context, error, stackTrace) => Center(
                   child: Icon(
                     Icons.broken_image,
                     size: 48,
-                    color: Colors.grey,
+                    color: Theme.of(context).iconTheme.color,
                   ),
                 ),
               ),

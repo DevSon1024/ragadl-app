@@ -1,8 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -12,6 +10,10 @@ import 'download_manager_page.dart';
 import 'package:provider/provider.dart';
 import '../widgets/theme_config.dart';
 import 'package:ragalahari_downloader/main.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'link_history_page.dart';
+import '../permissions.dart';
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -149,55 +151,14 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     }
   }
 
-  Future<void> _requestPermissions() async {
-    if (Platform.isAndroid) {
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-
-      if (androidInfo.version.sdkInt >= 30) {
-        if (!await Permission.manageExternalStorage.isGranted) {
-          final status = await Permission.manageExternalStorage.request();
-          if (!status.isGranted) {
-            _showPermissionDeniedDialog();
-          } else {
-            _showSnackBar('Storage permission granted');
-          }
-        }
-      } else {
-        if (!await Permission.storage.isGranted) {
-          final status = await Permission.storage.request();
-          if (!status.isGranted) {
-            _showPermissionDeniedDialog();
-          } else {
-            _showSnackBar('Storage permission granted');
-          }
-        }
-      }
-      await Permission.accessMediaLocation.request();
+  Future<void> _checkPermissions() async {
+    bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
+    if (!permissionsGranted) {
+      permissionsGranted = await PermissionHandler.requestAllPermissions(context);
     }
-  }
-
-  void _showPermissionDeniedDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Storage Permission Required'),
-        content: const Text('This app needs storage permission to download and save images.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              openAppSettings();
-              Navigator.pop(context);
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
+    if (permissionsGranted) {
+      _showSnackBar('Storage permission granted');
+    }
   }
 
   String _extractGalleryId(String url) {
@@ -269,7 +230,31 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     return imageDataSet.toList();
   }
 
+  Future<void> _saveToHistory(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    final historyKey = 'link_history';
+    List<String> historyJson = prefs.getStringList(historyKey) ?? [];
+    List<LinkHistoryItem> history = historyJson
+        .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
+        .toList();
+
+    final historyItem = LinkHistoryItem(
+      url: url,
+      celebrityName: mainFolderName,
+      galleryTitle: widget.galleryTitle,
+      timestamp: DateTime.now(),
+    );
+
+    // Avoid duplicates by checking URL and celebrityName
+    if (!history.any((item) => item.url == url && item.celebrityName == mainFolderName)) {
+      history.add(historyItem);
+      await prefs.setStringList(
+          historyKey, history.map((h) => jsonEncode(h.toJson())).toList());
+    }
+  }
+
   Future<void> _processGallery(String baseUrl) async {
+    await _saveToHistory(baseUrl);
     try {
       setState(() {
         isLoading = true;
@@ -280,7 +265,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
         downloadsFailed = 0;
         currentPage = 0;
       });
-      await _requestPermissions();
+      await _checkPermissions();
       final galleryId = _extractGalleryId(baseUrl);
 
       if (mainFolderName.isEmpty && _folderController.text.isNotEmpty) {

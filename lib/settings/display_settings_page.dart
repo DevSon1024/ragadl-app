@@ -99,6 +99,14 @@ class DisplaySettingsPage extends StatelessWidget {
                   children: [
                     _buildThemeContainer(
                       context,
+                      'Google Theme',
+                      const Color(0xFF1A73E8),
+                      themeConfig,
+                      themeName: 'google',
+                      isSelected: themeConfig.currentTheme == 'google',
+                    ),
+                    _buildThemeContainer(
+                      context,
                       'Default Theme',
                       Colors.green,
                       themeConfig,

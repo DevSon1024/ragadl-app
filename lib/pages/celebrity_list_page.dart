@@ -107,7 +107,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   SortOption _currentSortOption = SortOption.az;
-  CategoryOption _currentCategoryOption = CategoryOption.all;
   Set<String> _actorUrls = {};
   Set<String> _actressUrls = {};
 
@@ -492,7 +491,6 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   }
 }
 
-// GalleryLinksPage remains unchanged
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;
   final String profileUrl;
@@ -512,17 +510,67 @@ class GalleryLinksPage extends StatefulWidget {
 class _GalleryLinksPageState extends State<GalleryLinksPage> {
   List<GalleryItem> _galleryItems = [];
   List<GalleryItem> _displayedItems = [];
+  List<GalleryItem> _filteredItems = [];
   bool _isLoading = true;
   String? _error;
   int _currentPage = 1;
   final int _itemsPerPage = 30;
   bool _sortNewestFirst = true;
   final int _batchSize = 10;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    _loadCachedGalleryLinks();
+    _searchController.addListener(_filterGalleries);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCachedGalleryLinks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'gallery_cache_${widget.profileUrl.hashCode}';
+    final cachedData = prefs.getString(cacheKey);
+    if (cachedData != null) {
+      final List<dynamic> jsonData = jsonDecode(cachedData);
+      setState(() {
+        _galleryItems = jsonData
+            .map((item) => GalleryItem(
+          url: item['url'],
+          title: item['title'],
+          thumbnailUrl: item['thumbnailUrl'],
+          pages: item['pages'],
+          date: DateTime.parse(item['date']),
+        ))
+            .toList();
+        _filteredItems = List.from(_galleryItems);
+        _updateDisplayedItems();
+        _isLoading = false;
+      });
+    }
     _scrapeGalleryLinks();
+  }
+
+  Future<void> _cacheGalleryLinks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'gallery_cache_${widget.profileUrl.hashCode}';
+    final jsonData = _galleryItems
+        .map((item) => {
+      'url': item.url,
+      'title': item.title,
+      'thumbnailUrl': item.thumbnailUrl,
+      'pages': item.pages,
+      'date': item.date.toIso8601String(),
+    })
+        .toList();
+    await prefs.setString(cacheKey, jsonEncode(jsonData));
   }
 
   Future<void> _toggleGalleryFavorite(GalleryItem item) async {
@@ -602,9 +650,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
         setState(() {
           _galleryItems = items;
+          _filteredItems = List.from(_galleryItems);
           _updateDisplayedItems();
           _isLoading = false;
         });
+        await _cacheGalleryLinks();
       } else {
         throw 'Failed to load page: ${response.statusCode}';
       }
@@ -622,7 +672,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
     return galleriesPanel
         .getElementsByClassName('galimg')
-        .map((a) => a.attributes['href'] ?? '')
+        .map(( barefoot) => barefoot.attributes['href'] ?? '')
         .where((href) => href.isNotEmpty)
         .map((href) => Uri.parse(widget.profileUrl).resolve(href).toString())
         .toList();
@@ -730,13 +780,34 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     }
   }
 
+  void _filterGalleries() {
+    final query = _searchController.text.trim();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredItems = List.from(_galleryItems);
+      } else {
+        _filteredItems = _galleryItems
+            .where((item) {
+          final galleryId = item.url
+              .split('/')
+              .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
+              .firstOrNull;
+          return galleryId != null && galleryId.startsWith(query);
+        })
+            .toList();
+      }
+      _currentPage = 1;
+      _updateDisplayedItems();
+    });
+  }
+
   void _updateDisplayedItems() {
     final startIndex = (_currentPage - 1) * _itemsPerPage;
     final endIndex = startIndex + _itemsPerPage;
     setState(() {
-      _displayedItems = _galleryItems.sublist(
+      _displayedItems = _filteredItems.sublist(
         startIndex,
-        endIndex > _galleryItems.length ? _galleryItems.length : endIndex,
+        endIndex > _filteredItems.length ? _filteredItems.length : endIndex,
       );
     });
   }
@@ -751,7 +822,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   void _toggleSortOrder() {
     setState(() {
       _sortNewestFirst = !_sortNewestFirst;
-      _galleryItems.sort(
+      _filteredItems.sort(
             (a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date),
       );
       _currentPage = 1;
@@ -798,7 +869,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (_galleryItems.length / _itemsPerPage).ceil();
+    final totalPages = (_filteredItems.length / _itemsPerPage).ceil();
 
     return Scaffold(
       appBar: AppBar(
@@ -819,12 +890,47 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
             icon: const Icon(Icons.sort),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Search by gallery code...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _searchFocusNode.unfocus();
+                    _filterGalleries();
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                filled: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              keyboardType: TextInputType.number,
+              autofocus: false,
+              onChanged: (value) {
+                setState(() {});
+                _filterGalleries();
+              },
+            ),
+          ),
+        ),
       ),
       body: _isLoading
           ? _buildShimmerLoading()
           : _error != null
           ? Center(child: Text(_error!))
-          : _galleryItems.isEmpty
+          : _filteredItems.isEmpty
           ? const Center(child: Text('No galleries found'))
           : Column(
         children: [
@@ -834,8 +940,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
               itemBuilder: (context, index) {
                 final item = _displayedItems[index];
                 return Card(
-                  margin:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
                   child: ListTile(
                     leading: item.thumbnailUrl != null &&
                         item.thumbnailUrl!.isNotEmpty
@@ -848,7 +954,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                         fit: BoxFit.cover,
                         loadingBuilder:
                             (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
+                          if (loadingProgress == null) {
+                            return child;
+                          }
                           return const SizedBox(
                             width: 60,
                             height: 60,
@@ -857,7 +965,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                             ),
                           );
                         },
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorBuilder: (_, __, ___) =>
+                        const Icon(
                           Icons.broken_image,
                           size: 60,
                         ),
@@ -891,10 +1000,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                                 isFavorite
                                     ? Icons.star
                                     : Icons.star_border,
-                                color:
-                                isFavorite ? Colors.yellow : null,
+                                color: isFavorite
+                                    ? Colors.yellow
+                                    : null,
                               ),
-                              onPressed: () => _toggleGalleryFavorite(item),
+                              onPressed: () =>
+                                  _toggleGalleryFavorite(item),
                               tooltip: isFavorite
                                   ? 'Remove from favorites'
                                   : 'Add to favorites',

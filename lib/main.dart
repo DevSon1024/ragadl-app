@@ -6,17 +6,22 @@ import 'pages/history_page.dart';
 import 'pages/download_manager_page.dart';
 import 'pages/celebrity_list_page.dart';
 import 'settings_sidebar.dart';
-import 'pages/latest_celebrity.dart'; // Import LatestCelebrityPage
+import 'pages/latest_celebrity.dart';
+import 'pages/latest_actor_and_actress.dart';
+import 'settings/favourite_page.dart';
+import 'pages/link_history_page.dart';
 import 'widgets/theme_config.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'permissions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await AwesomeNotifications().initialize(
-    null, // Use default icon
+    null,
     [
       NotificationChannel(
         channelKey: 'download_channel',
@@ -31,15 +36,12 @@ void main() async {
     debug: true,
   );
 
-  if (Platform.isAndroid) {
-    // Request notification permission
-    await AwesomeNotifications().requestPermissionToSendNotifications();
-  }
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
     WindowManager.instance.setMinimumSize(const Size(800, 600));
     WindowManager.instance.setTitle('Ragalahari Downloader');
   }
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeConfig(),
@@ -104,13 +106,17 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     currentUrl = widget.initialUrl;
     currentFolder = widget.initialFolder;
-    currentGalleryTitle = widget.galleryTitle;
+    currentGalleryTitle = widget.initialFolder;
     if (widget.initialFolder != null) {
       _folderController.text = widget.initialFolder!;
       if (widget.galleryTitle != null) {
         _folderController.text += "/${widget.galleryTitle!.replaceAll("-", " ")}";
       }
     }
+    // Request permissions on first run
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PermissionHandler.requestFirstRunPermissions(context);
+    });
   }
 
   @override
@@ -183,15 +189,29 @@ class _MainScreenState extends State<MainScreen> {
             decoration: BoxDecoration(
               color: Theme.of(context).primaryColor,
               borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(20),
+                bottom: Radius.circular(15),
               ),
             ),
           ),
           actions: [
             IconButton(
-              icon: const Icon(
+              icon: Icon(
+                Icons.history,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
+                );
+                FocusScope.of(context).unfocus();
+              },
+              tooltip: 'Link History',
+            ),
+            IconButton(
+              icon: Icon(
                 Icons.settings,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
               onPressed: () {
                 _scaffoldKey.currentState?.openEndDrawer();
@@ -211,7 +231,9 @@ class _MainScreenState extends State<MainScreen> {
             });
           },
           children: [
-            const HomePage(),
+            HomePage(
+              onDownloadSelected: _navigateToDownloader,
+            ),
             CelebrityListPage(
               onDownloadSelected: (url, folder, title) {
                 _navigateToDownloader(url: url, folder: folder, title: title);
@@ -229,13 +251,14 @@ class _MainScreenState extends State<MainScreen> {
         bottomNavigationBar: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 8.0,
+          height: 71.0, // Reduced height
           color: Theme.of(context).primaryColor,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
               _buildNavItem(1, Icons.person, Icons.person_outlined, 'Celebrity'),
-              const SizedBox(width: 48),
+              const SizedBox(width: 40), // Adjusted for FAB spacing
               _buildNavItem(3, Icons.download, Icons.download_outlined, 'Downloads'),
               _buildNavItem(4, Icons.history, Icons.history_outlined, 'History'),
             ],
@@ -252,7 +275,11 @@ class _MainScreenState extends State<MainScreen> {
               FocusScope.of(context).unfocus();
             });
           },
-          child: const Icon(Icons.add),
+          shape: const CircleBorder(),
+          child: Icon(
+            Icons.add,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
@@ -275,13 +302,18 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Icon(
               isSelected ? filledIcon : outlinedIcon,
-              color: isSelected ? Colors.white : Colors.white70,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+              size: 24, // Consistent icon size
             ),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 12,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+                fontSize: 11, // Slightly smaller font for compact look
               ),
             ),
           ],
@@ -291,8 +323,49 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+  final Function({String? url, String? folder, String? title}) onDownloadSelected;
+
+  const HomePage({super.key, required this.onDownloadSelected});
+
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  List<Map<String, dynamic>> sections = [
+    {'title': 'Latest All Celebrities', 'icon': Icons.star, 'page': const LatestCelebrityPage()},
+    {'title': 'Favorites', 'icon': Icons.favorite, 'page': const FavouritePage()},
+    {'title': 'Actors', 'icon': Icons.person, 'page': const ActorPage()},
+    {'title': 'Actress', 'icon': Icons.person_outline, 'page': const ActressPage()},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSectionOrder();
+  }
+
+  Future<void> _loadSectionOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final order = prefs.getStringList('section_order');
+    if (order != null && order.length == sections.length) {
+      List<Map<String, dynamic>> reordered = [];
+      for (var title in order) {
+        var section = sections.firstWhere((s) => s['title'] == title);
+        reordered.add(section);
+      }
+      setState(() {
+        sections = reordered;
+      });
+    }
+  }
+
+  Future<void> _saveSectionOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final order = sections.map((s) => s['title'] as String).toList();
+    await prefs.setStringList('section_order', order);
+  }
 
   Future<void> _launchUrl(String url) async {
     final Uri uri = Uri.parse(url);
@@ -338,41 +411,73 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.photo_library, size: 80, color: Colors.green),
-          const SizedBox(height: 16),
-          Text(
-            'Welcome to Ragalahari Downloader',
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Browse celebrities or tap the + button to download images',
-            style: Theme.of(context).textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LatestCelebrityPage()),
-              );
-            },
-            icon: const Icon(Icons.star),
-            label: const Text('Latest Celebrities'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.photo_library,
+                  size: 80,
+                  color: Theme.of(context).primaryColor,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Welcome to Ragalahari Downloader',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Browse celebrities or tap the + button to download images',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 32),
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            onReorder: (oldIndex, newIndex) {
+              setState(() {
+                if (newIndex > oldIndex) {
+                  newIndex -= 1;
+                }
+                final section = sections.removeAt(oldIndex);
+                sections.insert(newIndex, section);
+                _saveSectionOrder();
+              });
+            },
+            children: sections.map((section) {
+              return Card(
+                key: ValueKey(section['title']),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: Icon(
+                    section['icon'],
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  title: Text(section['title']),
+                  trailing: Icon(
+                    Icons.drag_handle,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => section['page']),
+                    );
+                  },
+                ),
+              );
+            }).toList(),
+          ),
           Container(
             padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
