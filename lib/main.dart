@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/ragalahari_downloader.dart';
-import 'pages/history_page.dart';
+import 'pages/history/history_page.dart';
 import 'pages/download_manager_page.dart';
 import 'pages/celebrity_list_page.dart';
 import 'settings_sidebar.dart';

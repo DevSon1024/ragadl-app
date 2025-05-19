@@ -1,0 +1,942 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
+import '../../widgets/theme_config.dart';
+import 'recycle_page.dart';
+import 'dart:math';
+import '../../permissions.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'history_settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'sub_folder_page.dart';
+
+enum SortOption {
+  newest,
+  oldest,
+  largest,
+  smallest,
+}
+
+class HistoryPage extends StatefulWidget {
+  const HistoryPage({super.key});
+
+  @override
+  _HistoryPageState createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStateMixin {
+  List<FileSystemEntity> _downloadedItems = [];
+  List<FileSystemEntity> _filteredItems = [];
+  SortOption _currentSort = SortOption.newest;
+  ViewPreset _currentPreset = ViewPreset.images;
+  ViewType _viewType = ViewType.list; // Default to List View
+  String? _errorMessage;
+  bool _isLoading = false;
+  bool _isSelectionMode = false;
+  Set<int> _selectedItems = {};
+  final TextEditingController _searchController = TextEditingController();
+  AnimationController? _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _searchController.addListener(_filterItems);
+    _loadPreset();
+    _loadViewType();
+    _checkPermissionsAndLoadItems();
+  }
+
+  Future<void> _loadPreset() async {
+    final prefs = await SharedPreferences.getInstance();
+    final presetString = prefs.getString('viewPreset');
+    if (presetString != null) {
+      setState(() {
+        _currentPreset = ViewPreset.values.firstWhere(
+              (preset) => preset.toString() == presetString,
+          orElse: () => ViewPreset.images,
+        );
+      });
+    }
+  }
+
+  Future<void> _savePreset(ViewPreset preset) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('viewPreset', preset.toString());
+  }
+
+  Future<void> _loadViewType() async {
+    final prefs = await SharedPreferences.getInstance();
+    final viewTypeString = prefs.getString('viewType');
+    if (viewTypeString != null) {
+      setState(() {
+        _viewType = ViewType.values.firstWhere(
+              (type) => type.toString() == viewTypeString,
+          orElse: () => ViewType.list,
+        );
+      });
+    }
+  }
+
+  Future<void> _saveViewType(ViewType type) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('viewType', type.toString());
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _animationController?.dispose();
+    super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _getFolderDetails(Directory dir) async {
+    int imageCount = 0;
+    int totalSize = 0;
+    try {
+      final entities = await dir.list(recursive: true).toList();
+      for (var entity in entities) {
+        if (entity is File && ['jpg', 'jpeg', 'png'].contains(entity.path.toLowerCase().split('.').last)) {
+          imageCount++;
+          totalSize += entity.statSync().size;
+        }
+      }
+    } catch (e) {
+      print('Error calculating folder details for ${dir.path}: $e');
+    }
+    return {
+      'imageCount': imageCount,
+      'totalSize': totalSize,
+    };
+  }
+
+  Future<void> _checkPermissionsAndLoadItems() async {
+    bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
+    if (!permissionsGranted) {
+      permissionsGranted = await PermissionHandler.requestAllPermissions(context);
+    }
+
+    if (!permissionsGranted) {
+      setState(() {
+        _errorMessage = 'Storage or media permission denied. Cannot access downloaded items.';
+      });
+      return;
+    }
+
+    await _loadDownloadedItems();
+  }
+
+  Future<void> _loadDownloadedItems() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _isSelectionMode = false;
+      _selectedItems.clear();
+    });
+
+    try {
+      Directory? baseDir;
+      if (Platform.isWindows) {
+        baseDir = await getApplicationDocumentsDirectory();
+        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+      } else if (Platform.isAndroid) {
+        baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
+        if (!await baseDir.exists()) {
+          baseDir = await getExternalStorageDirectory();
+          if (baseDir != null) {
+            baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+          }
+        }
+      } else {
+        baseDir = await getApplicationDocumentsDirectory();
+        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+      }
+
+      if (baseDir == null || !await baseDir.exists()) {
+        setState(() {
+          _downloadedItems = [];
+          _filteredItems = [];
+          _errorMessage = 'No downloads found. Download items to see them here.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final List<FileSystemEntity> items = [];
+      await _collectItems(baseDir, items);
+
+      items.sort((a, b) {
+        final aStat = a.statSync();
+        final bStat = b.statSync();
+
+        switch (_currentSort) {
+          case SortOption.newest:
+            return bStat.modified.compareTo(aStat.modified);
+          case SortOption.oldest:
+            return aStat.modified.compareTo(bStat.modified);
+          case SortOption.largest:
+            return bStat.size.compareTo(aStat.size);
+          case SortOption.smallest:
+            return aStat.size.compareTo(bStat.size);
+        }
+      });
+
+      setState(() {
+        _downloadedItems = items;
+        _filteredItems = items;
+        _errorMessage = items.isEmpty ? 'No items found in the download directory.' : null;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _downloadedItems = [];
+        _filteredItems = [];
+        _errorMessage = 'Error loading items: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _collectItems(Directory dir, List<FileSystemEntity> items) async {
+    try {
+      final entities = await dir.list(recursive: true).toList();
+      for (var entity in entities) {
+        final name = entity.path.split('/').last;
+        if (name.startsWith('.trashed-')) continue;
+
+        if (_currentPreset == ViewPreset.images && entity is File) {
+          final extension = entity.path.toLowerCase().split('.').last;
+          if (['jpg', 'jpeg', 'png'].contains(extension)) {
+            items.add(entity);
+          }
+        } else if (_currentPreset == ViewPreset.galleriesFolder && entity is Directory) {
+          final parentDir = Directory(entity.path).parent.path.split('/').last;
+          if (RegExp(r'^[A-Za-z]+$').hasMatch(parentDir)) {
+            items.add(entity);
+          }
+        } else if (_currentPreset == ViewPreset.celebrityAlbum && entity is Directory) {
+          final dirName = entity.path.split('/').last;
+          if (RegExp(r'^[A-Za-z]+$').hasMatch(dirName)) {
+            items.add(entity);
+          }
+        }
+      }
+    } catch (e) {
+      print('Error scanning directory ${dir.path}: $e');
+    }
+  }
+
+  void _filterItems() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredItems = _downloadedItems.where((item) {
+        final name = item.path.split('/').last.toLowerCase();
+        return name.contains(query);
+      }).toList();
+    });
+  }
+
+  void _toggleSelection(int index) {
+    setState(() {
+      if (_selectedItems.contains(index)) {
+        _selectedItems.remove(index);
+      } else {
+        _selectedItems.add(index);
+      }
+      _isSelectionMode = _selectedItems.isNotEmpty;
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedItems.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  Future<void> _deleteSelectedItems() async {
+    if (_selectedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No items selected')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Selected Items'),
+        content: Text('Are you sure you want to move ${_selectedItems.length} selected item(s) to the recycle bin?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Move to Recycle Bin', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final deleteCount = _selectedItems.length;
+      final List<FileSystemEntity> toDelete = _selectedItems.map((index) => _filteredItems[index]).toList();
+      final List<String> trashedPaths = [];
+
+      for (var item in toDelete) {
+        final name = item.path.split('/').last;
+        final dirPath = item.path.substring(0, item.path.length - name.length);
+        final trashedPath = '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$name';
+        await (item is File ? File(item.path) : Directory(item.path)).rename(trashedPath);
+        trashedPaths.add(trashedPath);
+      }
+
+      await _loadDownloadedItems();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$deleteCount item(s) moved to recycle bin'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () async {
+              setState(() {
+                _isLoading = true;
+              });
+              for (var trashedPath in trashedPaths) {
+                final originalPath = trashedPath.replaceFirst(RegExp(r'^\.trashed-\d+-'), '', trashedPath.lastIndexOf('/'));
+                await (trashedPath.endsWith('.jpg') ? File(trashedPath) : Directory(trashedPath)).rename(originalPath);
+              }
+              await _loadDownloadedItems();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Items restored')),
+                );
+              }
+            },
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to move items: $e')),
+        );
+      }
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _shareSelectedItems() async {
+    if (_selectedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No items selected')),
+      );
+      return;
+    }
+    if (Platform.isWindows) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sharing is not supported on Windows')),
+      );
+      return;
+    }
+    final List<String> paths = _selectedItems
+        .map((index) => _filteredItems[index])
+        .where((item) => item is File)
+        .map((item) => item.path)
+        .toList();
+    if (paths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No images selected for sharing')),
+      );
+      return;
+    }
+    await Share.shareFiles(
+      paths,
+      text: 'Sharing items from Ragalahari Downloader',
+    );
+  }
+
+  void _openItem(int index) {
+    if (_isSelectionMode) {
+      _toggleSelection(index);
+    } else {
+      final item = _filteredItems[index];
+      if (item is File) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FullImageViewer(
+              images: _filteredItems.whereType<File>().toList(),
+              initialIndex: _filteredItems.whereType<File>().toList().indexOf(item),
+            ),
+          ),
+        );
+      } else if (item is Directory) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SubFolderPage(
+              directory: item,
+              sortOption: _currentSort,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _isSelectionMode ? 'Selected ${_selectedItems.length}' : 'Download History',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        leading: _isSelectionMode
+            ? IconButton(
+          icon: Icon(
+            Icons.close,
+            color: Theme.of(context).iconTheme.color,
+          ),
+          onPressed: _clearSelection,
+          tooltip: 'Cancel Selection',
+        )
+            : null,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.view_module,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                builder: (context) => ViewPresetSelector(
+                  currentPreset: _currentPreset,
+                  currentViewType: _viewType,
+                  onPresetSelected: (preset) {
+                    setState(() {
+                      _currentPreset = preset;
+                    });
+                    _savePreset(preset);
+                    _loadDownloadedItems();
+                    Navigator.pop(context);
+                  },
+                  onViewTypeSelected: (type) {
+                    setState(() {
+                      _viewType = type;
+                    });
+                    _saveViewType(type);
+                    Navigator.pop(context);
+                  },
+                ),
+              );
+            },
+            tooltip: 'View Options',
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.delete_sweep,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RecyclePage()),
+              );
+            },
+            tooltip: 'Recycle Bin',
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            onSelected: (value) {
+              FocusScope.of(context).unfocus();
+              if (value == 'sort') {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) => SortOptionsSheet(
+                    currentSort: _currentSort,
+                    onSortSelected: (option) {
+                      setState(() {
+                        _currentSort = option;
+                      });
+                      _loadDownloadedItems();
+                      Navigator.pop(context);
+                    },
+                  ),
+                );
+              } else if (value == 'delete') {
+                _deleteSelectedItems();
+              } else if (value == 'share') {
+                _shareSelectedItems();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'sort',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sort,
+                      size: 20,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Sort'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                enabled: _selectedItems.isNotEmpty,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete,
+                      size: 20,
+                      color: _selectedItems.isEmpty ? Colors.grey : Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Delete Selected',
+                      style: TextStyle(color: _selectedItems.isEmpty ? Colors.grey : Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'share',
+                enabled: _selectedItems.isNotEmpty,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.share,
+                      size: 20,
+                      color: _selectedItems.isEmpty ? Colors.grey : Theme.of(context).primaryColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Share Selected',
+                      style: TextStyle(color: _selectedItems.isEmpty ? Colors.grey : Theme.of(context).primaryColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search items...',
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Theme.of(context).iconTheme.color,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filterItems();
+                  },
+                )
+                    : null,
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).cardColor,
+              ),
+            ),
+          ),
+          if (_isSelectionMode)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${_selectedItems.length} selected',
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).primaryColor),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedItems = Set.from(List.generate(_filteredItems.length, (index) => index));
+                      });
+                    },
+                    child: const Text('Select All'),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    final themeConfig = Provider.of<ThemeConfig>(context);
+    final crossAxisCount = Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
+
+    if (_isLoading) {
+      return ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: ListTile(
+              leading: Container(
+                width: 48,
+                height: 48,
+                color: Colors.grey[300],
+              ),
+              title: Container(
+                height: 12,
+                color: Colors.grey[300],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            if (_errorMessage!.contains('permission'))
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: ElevatedButton.icon(
+                  icon: Icon(
+                    Icons.settings,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  label: const Text('Open Settings'),
+                  onPressed: () async {
+                    await openAppSettings();
+                    await _checkPermissionsAndLoadItems();
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (_filteredItems.isEmpty) {
+      return const Center(
+        child: Text(
+          'No items found.',
+          style: TextStyle(fontSize: 16),
+        ),
+      );
+    }
+
+    if (_currentPreset == ViewPreset.galleriesFolder || _currentPreset == ViewPreset.celebrityAlbum) {
+      if (_viewType == ViewType.list) {
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: _filteredItems.length,
+          itemBuilder: (context, index) {
+            final item = _filteredItems[index];
+            final isSelected = _selectedItems.contains(index);
+            Widget leadingIcon;
+
+            if (_currentPreset == ViewPreset.galleriesFolder && item is Directory) {
+              final dir = Directory(item.path);
+              final images = dir
+                  .listSync(recursive: false)
+                  .whereType<File>()
+                  .where((file) => ['jpg', 'jpeg', 'png'].contains(file.path.toLowerCase().split('.').last))
+                  .toList();
+              leadingIcon = images.isNotEmpty
+                  ? SizedBox(
+                width: 48,
+                height: 48,
+                child: Image.file(
+                  images.first,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.folder,
+                    size: 48,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
+                ),
+              )
+                  : Icon(
+                Icons.folder,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              );
+            } else {
+              leadingIcon = Icon(
+                Icons.folder,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              );
+            }
+
+            return FutureBuilder<Map<String, dynamic>>(
+              future: item is Directory ? _getFolderDetails(item) : Future.value({'imageCount': 0, 'totalSize': 0}),
+              builder: (context, snapshot) {
+                final imageCount = snapshot.data?['imageCount'] ?? 0;
+                final totalSize = snapshot.data?['totalSize'] ?? 0;
+                final sizeInMB = (totalSize / (1024 * 1024)).toStringAsFixed(2);
+
+                return ListTile(
+                  leading: leadingIcon,
+                  title: Text(
+                    item.path.split('/').last,
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: item is Directory
+                      ? Text(
+                    '$imageCount image${imageCount == 1 ? '' : 's'}, $sizeInMB MB',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  )
+                      : null,
+                  trailing: isSelected
+                      ? Icon(
+                    Icons.check_circle,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  )
+                      : null,
+                  onTap: _isLoading ? null : () => _openItem(index),
+                  onLongPress: () => _toggleSelection(index),
+                  selected: isSelected,
+                  selectedTileColor: Colors.blue.withOpacity(0.1),
+                );
+              },
+            );
+          },
+        );
+      } else {
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            childAspectRatio: 0.75,
+          ),
+          itemCount: _filteredItems.length,
+          itemBuilder: (context, index) {
+            final item = _filteredItems[index];
+            final isSelected = _selectedItems.contains(index);
+            Widget thumbnail;
+
+            if (_currentPreset == ViewPreset.galleriesFolder && item is Directory) {
+              final dir = Directory(item.path);
+              final images = dir
+                  .listSync(recursive: false)
+                  .whereType<File>()
+                  .where((file) => ['jpg', 'jpeg', 'png'].contains(file.path.toLowerCase().split('.').last))
+                  .toList();
+              thumbnail = images.isNotEmpty
+                  ? Image.file(
+                images.first,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.folder,
+                  size: 48,
+                  color: Theme.of(context).iconTheme.color,
+                ),
+              )
+                  : Icon(
+                Icons.folder,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              );
+            } else {
+              thumbnail = Icon(
+                Icons.folder,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              );
+            }
+
+            return FutureBuilder<Map<String, dynamic>>(
+              future: item is Directory ? _getFolderDetails(item) : Future.value({'imageCount': 0, 'totalSize': 0}),
+              builder: (context, snapshot) {
+                final imageCount = snapshot.data?['imageCount'] ?? 0;
+                final sizeInMB = (snapshot.data?['totalSize'] ?? 0) / (1024 * 1024);
+                return GestureDetector(
+                  onTap: _isLoading ? null : () => _openItem(index),
+                  onLongPress: () => _toggleSelection(index),
+                  child: Card(
+                    elevation: 2,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        thumbnail,
+                        if (isSelected)
+                          Container(
+                            color: Colors.blue.withOpacity(0.3),
+                            child: Icon(
+                              Icons.check_circle,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              size: 30,
+                            ),
+                          ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            color: Colors.black54,
+                            padding: const EdgeInsets.all(4),
+                            child: Text(
+                              '${item.path.split('/').last}\n$imageCount image${imageCount == 1 ? '' : 's'}, ${sizeInMB.toStringAsFixed(2)} MB',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      }
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: _filteredItems.length,
+      itemBuilder: (context, index) {
+        final item = _filteredItems[index];
+        final isSelected = _selectedItems.contains(index);
+        final isImage = item is File;
+        return GestureDetector(
+          onTap: _isLoading ? null : () => _openItem(index),
+          onLongPress: () => _toggleSelection(index),
+          child: Card(
+            elevation: 2,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (isImage)
+                  Image.file(
+                    File(item.path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.broken_image,
+                      size: 48,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                  )
+                else
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.folder,
+                        size: 48,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        item.path.split('/').last,
+                        style: const TextStyle(fontSize: 12),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                if (isSelected)
+                  Container(
+                    color: Colors.blue.withOpacity(0.3),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 30,
+                    ),
+                  ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors.black54,
+                    padding: const EdgeInsets.all(4),
+                    child: Text(
+                      isImage
+                          ? '${(File(item.path).lengthSync() / 1024).toStringAsFixed(1)} KB'
+                          : item.path.split('/').last,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
