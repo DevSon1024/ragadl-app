@@ -7,7 +7,7 @@ import 'dart:math';
 import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../screens/ragalahari_downloader_screen.dart';
+import '../../screens/ragalahari_downloader_screen.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 

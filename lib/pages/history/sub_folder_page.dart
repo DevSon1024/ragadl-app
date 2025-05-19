@@ -146,6 +146,38 @@ class _SubFolderPageState extends State<SubFolderPage> {
       }
     }
   }
+  Future<Map<String, dynamic>> _getFolderDetails(Directory dir) async {
+    int imageCount = 0;
+    int folderCount = 0;
+    int totalSize = 0;
+    File? latestImage;
+    DateTime? latestModified;
+
+    try {
+      final entities = await dir.list(recursive: true).toList();
+      for (var entity in entities) {
+        if (entity is File && ['jpg', 'jpeg', 'png'].contains(entity.path.toLowerCase().split('.').last)) {
+          imageCount++;
+          totalSize += entity.statSync().size;
+          final modified = entity.statSync().modified;
+          if (latestModified == null || modified.isAfter(latestModified)) {
+            latestModified = modified;
+            latestImage = entity;
+          }
+        } else if (entity is Directory) {
+          folderCount++;
+        }
+      }
+    } catch (e) {
+      print('Error calculating folder details for ${dir.path}: $e');
+    }
+    return {
+      'imageCount': imageCount,
+      'folderCount': folderCount,
+      'totalSize': totalSize,
+      'latestImage': latestImage,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -277,73 +309,117 @@ class _SubFolderPageState extends State<SubFolderPage> {
                 final item = _filteredItems[index];
                 final isSelected = _selectedItems.contains(index);
                 final isImage = item is File;
-                return GestureDetector(
-                  onTap: _isLoading ? null : () => _openItem(index),
-                  onLongPress: () => _toggleSelection(index),
-                  child: Card(
-                    elevation: 2,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (isImage)
-                          Image.file(
-                            File(item.path),
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.broken_image,
-                              size: 48,
-                              color: Theme.of(context).iconTheme.color,
-                            ),
-                          )
-                        else
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.folder,
-                                size: 48,
-                                color: Theme.of(context).iconTheme.color,
+
+                return FutureBuilder<Map<String, dynamic>>(
+                  future: isImage ? Future.value({'totalSize': item.statSync().size, 'imageCount': 1}) : _getFolderDetails(Directory(item.path)),
+                  builder: (context, snapshot) {
+                    final size = snapshot.data != null ? snapshot.data!['totalSize'] as int : 0;
+                    final imageCount = snapshot.data != null ? snapshot.data!['imageCount'] as int : 0;
+                    final latestImage = snapshot.data != null ? snapshot.data!['latestImage'] as File? : null;
+
+                    return GestureDetector(
+                      onTap: _isLoading ? null : () => _openItem(index),
+                      onLongPress: () => _toggleSelection(index),
+                      child: Card(
+                        elevation: 2,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (isImage)
+                              Image.file(
+                                File(item.path),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.broken_image,
+                                  size: 48,
+                                  color: Theme.of(context).iconTheme.color,
+                                ),
+                              )
+                            else
+                              latestImage != null
+                                  ? Image.file(
+                                latestImage,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.folder,
+                                      size: 48,
+                                      color: Theme.of(context).iconTheme.color,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      item.path.split('/').last,
+                                      style: const TextStyle(fontSize: 12),
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              )
+                                  : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.folder,
+                                    size: 48,
+                                    color: Theme.of(context).iconTheme.color,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    item.path.split('/').last,
+                                    style: const TextStyle(fontSize: 12),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                item.path.split('/').last,
-                                style: const TextStyle(fontSize: 12),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
+                            if (isSelected)
+                              Container(
+                                color: Colors.blue.withOpacity(0.3),
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 30,
+                                ),
                               ),
-                            ],
-                          ),
-                        if (isSelected)
-                          Container(
-                            color: Colors.blue.withOpacity(0.3),
-                            child: Icon(
-                              Icons.check_circle,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              size: 30,
-                            ),
-                          ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: Colors.black54,
-                            padding: const EdgeInsets.all(4),
-                            child: Text(
-                              isImage
-                                  ? '${(File(item.path).lengthSync() / 1024).toStringAsFixed(1)} KB'
-                                  : item.path.split('/').last,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontSize: 12,
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                color: Colors.black54,
+                                padding: const EdgeInsets.all(4),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      isImage
+                                          ? '${(size / 1024).toStringAsFixed(1)} KB'
+                                          : '${(size / (1024 * 1024)).toStringAsFixed(2)} MB',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onPrimary,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    Text(
+                                      '$imageCount images',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onPrimary,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              textAlign: TextAlign.center,
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),

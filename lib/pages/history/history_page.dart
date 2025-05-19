@@ -96,15 +96,33 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     super.dispose();
   }
 
-  Future<Map<String, dynamic>> _getFolderDetails(Directory dir) async {
+  Future<Map<String, dynamic>> _getFolderDetails(Directory dir, {bool countSubfolders = false}) async {
     int imageCount = 0;
+    int folderCount = 0;
     int totalSize = 0;
+    File? latestImage;
+    DateTime? latestModified;
+
     try {
       final entities = await dir.list(recursive: true).toList();
       for (var entity in entities) {
         if (entity is File && ['jpg', 'jpeg', 'png'].contains(entity.path.toLowerCase().split('.').last)) {
           imageCount++;
           totalSize += entity.statSync().size;
+          final modified = entity.statSync().modified;
+          if (latestModified == null || modified.isAfter(latestModified)) {
+            latestModified = modified;
+            latestImage = entity;
+          }
+        } else if (entity is Directory && countSubfolders) {
+          folderCount++;
+          // Include size of all files in subfolders
+          final subEntities = await Directory(entity.path).list(recursive: true).toList();
+          for (var subEntity in subEntities) {
+            if (subEntity is File) {
+              totalSize += subEntity.statSync().size;
+            }
+          }
         }
       }
     } catch (e) {
@@ -112,7 +130,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     }
     return {
       'imageCount': imageCount,
+      'folderCount': folderCount,
       'totalSize': totalSize,
+      'latestImage': latestImage,
     };
   }
 
@@ -183,7 +203,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           case SortOption.largest:
             return bStat.size.compareTo(aStat.size);
           case SortOption.smallest:
-            return aStat.size.compareTo(bStat.size);
+            return aStat.size.compareTo(aStat.size);
         }
       });
 
@@ -205,7 +225,8 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
   Future<void> _collectItems(Directory dir, List<FileSystemEntity> items) async {
     try {
-      final entities = await dir.list(recursive: true).toList();
+      // Use recursive listing for Images preset, non-recursive for folder presets
+      final entities = await dir.list(recursive: _currentPreset == ViewPreset.images).toList();
       for (var entity in entities) {
         final name = entity.path.split('/').last;
         if (name.startsWith('.trashed-')) continue;
@@ -216,15 +237,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
             items.add(entity);
           }
         } else if (_currentPreset == ViewPreset.galleriesFolder && entity is Directory) {
-          final parentDir = Directory(entity.path).parent.path.split('/').last;
-          if (RegExp(r'^[A-Za-z]+$').hasMatch(parentDir)) {
-            items.add(entity);
-          }
+          items.add(entity); // Include all top-level directories
         } else if (_currentPreset == ViewPreset.celebrityAlbum && entity is Directory) {
-          final dirName = entity.path.split('/').last;
-          if (RegExp(r'^[A-Za-z]+$').hasMatch(dirName)) {
-            items.add(entity);
-          }
+          items.add(entity); // Include all top-level directories
         }
       }
     } catch (e) {
@@ -688,48 +703,39 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           itemBuilder: (context, index) {
             final item = _filteredItems[index];
             final isSelected = _selectedItems.contains(index);
-            Widget leadingIcon;
-
-            if (_currentPreset == ViewPreset.galleriesFolder && item is Directory) {
-              final dir = Directory(item.path);
-              final images = dir
-                  .listSync(recursive: false)
-                  .whereType<File>()
-                  .where((file) => ['jpg', 'jpeg', 'png'].contains(file.path.toLowerCase().split('.').last))
-                  .toList();
-              leadingIcon = images.isNotEmpty
-                  ? SizedBox(
-                width: 48,
-                height: 48,
-                child: Image.file(
-                  images.first,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Icon(
-                    Icons.folder,
-                    size: 48,
-                    color: Theme.of(context).iconTheme.color,
-                  ),
-                ),
-              )
-                  : Icon(
-                Icons.folder,
-                size: 48,
-                color: Theme.of(context).iconTheme.color,
-              );
-            } else {
-              leadingIcon = Icon(
-                Icons.folder,
-                size: 48,
-                color: Theme.of(context).iconTheme.color,
-              );
-            }
 
             return FutureBuilder<Map<String, dynamic>>(
-              future: item is Directory ? _getFolderDetails(item) : Future.value({'imageCount': 0, 'totalSize': 0}),
+              future: item is Directory
+                  ? _getFolderDetails(item, countSubfolders: _currentPreset == ViewPreset.celebrityAlbum)
+                  : Future.value({'imageCount': 0, 'totalSize': 0, 'latestImage': null}),
               builder: (context, snapshot) {
                 final imageCount = snapshot.data?['imageCount'] ?? 0;
+                final folderCount = snapshot.data?['folderCount'] ?? 0;
                 final totalSize = snapshot.data?['totalSize'] ?? 0;
+                final latestImage = snapshot.data?['latestImage'] as File?;
                 final sizeInMB = (totalSize / (1024 * 1024)).toStringAsFixed(2);
+
+                Widget leadingIcon = Icon(
+                  Icons.folder,
+                  size: 48,
+                  color: Theme.of(context).iconTheme.color,
+                );
+
+                if (latestImage != null) {
+                  leadingIcon = SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Image.file(
+                      latestImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.folder,
+                        size: 48,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                    ),
+                  );
+                }
 
                 return ListTile(
                   leading: leadingIcon,
@@ -740,7 +746,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                   ),
                   subtitle: item is Directory
                       ? Text(
-                    '$imageCount image${imageCount == 1 ? '' : 's'}, $sizeInMB MB',
+                    _currentPreset == ViewPreset.celebrityAlbum
+                        ? '$folderCount folder${folderCount == 1 ? '' : 's'}, $sizeInMB MB'
+                        : '$imageCount image${imageCount == 1 ? '' : 's'}, $sizeInMB MB',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   )
                       : null,
@@ -772,43 +780,36 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           itemBuilder: (context, index) {
             final item = _filteredItems[index];
             final isSelected = _selectedItems.contains(index);
-            Widget thumbnail;
 
-            if (_currentPreset == ViewPreset.galleriesFolder && item is Directory) {
-              final dir = Directory(item.path);
-              final images = dir
-                  .listSync(recursive: false)
-                  .whereType<File>()
-                  .where((file) => ['jpg', 'jpeg', 'png'].contains(file.path.toLowerCase().split('.').last))
-                  .toList();
-              thumbnail = images.isNotEmpty
-                  ? Image.file(
-                images.first,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(
+            return FutureBuilder<Map<String, dynamic>>(
+              future: item is Directory
+                  ? _getFolderDetails(item, countSubfolders: _currentPreset == ViewPreset.celebrityAlbum)
+                  : Future.value({'imageCount': 0, 'totalSize': 0, 'latestImage': null}),
+              builder: (context, snapshot) {
+                final imageCount = snapshot.data?['imageCount'] ?? 0;
+                final folderCount = snapshot.data?['folderCount'] ?? 0;
+                final totalSize = snapshot.data?['totalSize'] ?? 0;
+                final latestImage = snapshot.data?['latestImage'] as File?;
+                final sizeInMB = (totalSize / (1024 * 1024)).toStringAsFixed(2);
+
+                Widget thumbnail = Icon(
                   Icons.folder,
                   size: 48,
                   color: Theme.of(context).iconTheme.color,
-                ),
-              )
-                  : Icon(
-                Icons.folder,
-                size: 48,
-                color: Theme.of(context).iconTheme.color,
-              );
-            } else {
-              thumbnail = Icon(
-                Icons.folder,
-                size: 48,
-                color: Theme.of(context).iconTheme.color,
-              );
-            }
+                );
 
-            return FutureBuilder<Map<String, dynamic>>(
-              future: item is Directory ? _getFolderDetails(item) : Future.value({'imageCount': 0, 'totalSize': 0}),
-              builder: (context, snapshot) {
-                final imageCount = snapshot.data?['imageCount'] ?? 0;
-                final sizeInMB = (snapshot.data?['totalSize'] ?? 0) / (1024 * 1024);
+                if (latestImage != null) {
+                  thumbnail = Image.file(
+                    latestImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.folder,
+                      size: 48,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                  );
+                }
+
                 return GestureDetector(
                   onTap: _isLoading ? null : () => _openItem(index),
                   onLongPress: () => _toggleSelection(index),
@@ -835,7 +836,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                             color: Colors.black54,
                             padding: const EdgeInsets.all(4),
                             child: Text(
-                              '${item.path.split('/').last}\n$imageCount image${imageCount == 1 ? '' : 's'}, ${sizeInMB.toStringAsFixed(2)} MB',
+                              _currentPreset == ViewPreset.celebrityAlbum
+                                  ? '${item.path.split('/').last}\n$folderCount folder${folderCount == 1 ? '' : 's'}, $sizeInMB MB'
+                                  : '${item.path.split('/').last}\n$imageCount image${imageCount == 1 ? '' : 's'}, $sizeInMB MB',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onPrimary,
                                 fontSize: 12,

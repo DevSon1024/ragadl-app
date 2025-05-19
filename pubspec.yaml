@@ -30,6 +30,7 @@ dependencies:
   flutter_isolate: ^2.0.4
   flutter_riverpod: ^2.5.0
   awesome_notifications: ^0.10.1
+  archive: ^3.6.1
 
 dev_dependencies:
   flutter_test:

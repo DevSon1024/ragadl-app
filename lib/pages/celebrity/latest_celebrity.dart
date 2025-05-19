@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../screens/ragalahari_downloader_screen.dart';
+import '../../screens/ragalahari_downloader_screen.dart';
 
 class LatestCelebrityPage extends StatefulWidget {
   const LatestCelebrityPage({super.key});
