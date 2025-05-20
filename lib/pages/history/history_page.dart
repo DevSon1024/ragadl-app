@@ -12,6 +12,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'history_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sub_folder_page.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 enum SortOption {
   newest,
@@ -32,7 +33,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   List<FileSystemEntity> _filteredItems = [];
   SortOption _currentSort = SortOption.newest;
   ViewPreset _currentPreset = ViewPreset.images;
-  ViewType _viewType = ViewType.list; // Default to List View
+  ViewType _viewType = ViewType.list;
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSelectionMode = false;
@@ -137,20 +138,91 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   }
 
   Future<void> _checkPermissionsAndLoadItems() async {
-    bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
-    if (!permissionsGranted) {
-      permissionsGranted = await PermissionHandler.requestAllPermissions(context);
-    }
-
+    bool permissionsGranted = await _checkAndRequestPermissions();
     if (!permissionsGranted) {
       setState(() {
-        _errorMessage = 'Storage or media permission denied. Cannot access downloaded items.';
+        _errorMessage = 'Storage or media permission denied. Cannot access or modify downloaded items. Please grant permissions in app settings.';
       });
       return;
     }
 
     await _loadDownloadedItems();
   }
+
+  Future<bool> _checkAndRequestPermissions() async {
+    if (!Platform.isAndroid) {
+      // Non-Android platforms use standard storage permissions
+      return await PermissionHandler.checkStoragePermissions() ||
+          await PermissionHandler.requestAllPermissions(context);
+    }
+
+    // Android-specific permission handling
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final sdkInt = androidInfo.version.sdkInt;
+
+    if (sdkInt >= 30) {
+      // Android 11+ (API 30+): Request MANAGE_EXTERNAL_STORAGE
+      final manageStorageStatus = await Permission.manageExternalStorage.status;
+      if (!manageStorageStatus.isGranted) {
+        final result = await Permission.manageExternalStorage.request();
+        if (!result.isGranted) {
+          // Prompt user to grant permission via settings
+          await _showPermissionDialog();
+          return false;
+        }
+      }
+    } else {
+      // Android 10 or below: Use storage permission
+      final storageStatus = await Permission.storage.status;
+      if (!storageStatus.isGranted) {
+        final result = await Permission.storage.request();
+        if (!result.isGranted) {
+          await _showPermissionDialog();
+          return false;
+        }
+      }
+    }
+
+    // Check media permissions for additional safety
+    final mediaPermissions = await PermissionHandler.checkStoragePermissions();
+    if (!mediaPermissions) {
+      final granted = await PermissionHandler.requestAllPermissions(context);
+      if (!granted) {
+        await _showPermissionDialog();
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  Future<void> _showPermissionDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permission Required'),
+        content: const Text(
+          'This app requires storage permissions to manage files. Please grant "Manage All Files" permission in app settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await openAppSettings();
+              Navigator.pop(context);
+              // Re-check permissions after returning from settings
+              await _checkPermissionsAndLoadItems();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Future<void> _loadDownloadedItems() async {
     setState(() {
@@ -225,21 +297,36 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
   Future<void> _collectItems(Directory dir, List<FileSystemEntity> items) async {
     try {
-      // Use recursive listing for Images preset, non-recursive for folder presets
-      final entities = await dir.list(recursive: _currentPreset == ViewPreset.images).toList();
-      for (var entity in entities) {
-        final name = entity.path.split('/').last;
-        if (name.startsWith('.trashed-')) continue;
-
-        if (_currentPreset == ViewPreset.images && entity is File) {
-          final extension = entity.path.toLowerCase().split('.').last;
-          if (['jpg', 'jpeg', 'png'].contains(extension)) {
-            items.add(entity);
+      if (_currentPreset == ViewPreset.galleriesFolder) {
+        // For galleriesFolder, collect subfolders (galleries) within each top-level celebrity folder
+        final topLevelEntities = await dir.list(recursive: false).toList();
+        for (var entity in topLevelEntities) {
+          if (entity is Directory) {
+            final subDir = Directory(entity.path);
+            final subEntities = await subDir.list(recursive: false).toList();
+            for (var subEntity in subEntities) {
+              final name = subEntity.path.split('/').last;
+              if (subEntity is Directory && !name.startsWith('.trashed-')) {
+                items.add(subEntity);
+              }
+            }
           }
-        } else if (_currentPreset == ViewPreset.galleriesFolder && entity is Directory) {
-          items.add(entity); // Include all top-level directories
-        } else if (_currentPreset == ViewPreset.celebrityAlbum && entity is Directory) {
-          items.add(entity); // Include all top-level directories
+        }
+      } else {
+        // Existing logic for other presets
+        final entities = await dir.list(recursive: _currentPreset == ViewPreset.images).toList();
+        for (var entity in entities) {
+          final name = entity.path.split('/').last;
+          if (name.startsWith('.trashed-')) continue;
+
+          if (_currentPreset == ViewPreset.images && entity is File) {
+            final extension = entity.path.toLowerCase().split('.').last;
+            if (['jpg', 'jpeg', 'png'].contains(extension)) {
+              items.add(entity);
+            }
+          } else if (_currentPreset == ViewPreset.celebrityAlbum && entity is Directory) {
+            items.add(entity); // Include all top-level directories
+          }
         }
       }
     } catch (e) {
@@ -308,6 +395,18 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     });
 
     try {
+      // Re-check permissions before file operations
+      final permissionsGranted = await _checkAndRequestPermissions();
+      if (!permissionsGranted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot move items: Permission denied')),
+        );
+        return;
+      }
+
       final deleteCount = _selectedItems.length;
       final List<FileSystemEntity> toDelete = _selectedItems.map((index) => _filteredItems[index]).toList();
       final List<String> trashedPaths = [];
@@ -333,8 +432,12 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                 _isLoading = true;
               });
               for (var trashedPath in trashedPaths) {
-                final originalPath = trashedPath.replaceFirst(RegExp(r'^\.trashed-\d+-'), '', trashedPath.lastIndexOf('/'));
-                await (trashedPath.endsWith('.jpg') ? File(trashedPath) : Directory(trashedPath)).rename(originalPath);
+                final originalPath = trashedPath.replaceFirst(RegExp(r'\.trashed-\d+-'), '', trashedPath.lastIndexOf('/'));
+                try {
+                  await (trashedPath.endsWith('.jpg') ? File(trashedPath) : Directory(trashedPath)).rename(originalPath);
+                } catch (e) {
+                  print('Failed to restore $trashedPath: $e');
+                }
               }
               await _loadDownloadedItems();
               if (mounted) {
@@ -353,6 +456,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           SnackBar(content: Text('Failed to move items: $e')),
         );
       }
+    } finally {
       setState(() {
         _isLoading = false;
       });
@@ -627,27 +731,66 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     final crossAxisCount = Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
 
     if (_isLoading) {
-      return ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
-            child: ListTile(
-              leading: Container(
-                width: 48,
-                height: 48,
-                color: Colors.grey[300],
+      if (_viewType == ViewType.grid || _currentPreset == ViewPreset.images) {
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            childAspectRatio: 0.75,
+          ),
+          itemCount: 6,
+          itemBuilder: (context, index) {
+            return Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: Card(
+                elevation: 2,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        color: Colors.grey[300],
+                      ),
+                    ),
+                    Container(
+                      color: Colors.black54,
+                      padding: const EdgeInsets.all(4),
+                      child: Container(
+                        height: 12,
+                        color: Colors.grey[300],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              title: Container(
-                height: 12,
-                color: Colors.grey[300],
+            );
+          },
+        );
+      } else {
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: 6,
+          itemBuilder: (context, index) {
+            return Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: ListTile(
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  color: Colors.grey[300],
+                ),
+                title: Container(
+                  height: 12,
+                  color: Colors.grey[300],
+                ),
               ),
-            ),
-          );
-        },
-      );
+            );
+          },
+        );
+      }
     }
 
     if (_errorMessage != null) {
@@ -692,6 +835,61 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
           'No items found.',
           style: TextStyle(fontSize: 16),
         ),
+      );
+    }
+
+    if (_currentPreset == ViewPreset.images && _viewType == ViewType.list) {
+      return ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: _filteredItems.length,
+        itemBuilder: (context, index) {
+          final item = _filteredItems[index];
+          final isSelected = _selectedItems.contains(index);
+          final isImage = item is File;
+
+          return ListTile(
+            leading: isImage
+                ? SizedBox(
+              width: 48,
+              height: 48,
+              child: Image.file(
+                File(item.path),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.broken_image,
+                  size: 48,
+                  color: Theme.of(context).iconTheme.color,
+                ),
+              ),
+            )
+                : Icon(
+              Icons.folder,
+              size: 48,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            title: Text(
+              item.path.split('/').last,
+              style: const TextStyle(fontSize: 16),
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: isImage
+                ? Text(
+              '${(File(item.path).lengthSync() / 1024).toStringAsFixed(1)} KB',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            )
+                : null,
+            trailing: isSelected
+                ? Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.onPrimary,
+            )
+                : null,
+            onTap: _isLoading ? null : () => _openItem(index),
+            onLongPress: () => _toggleSelection(index),
+            selected: isSelected,
+            selectedTileColor: Colors.blue.withOpacity(0.1),
+          );
+        },
       );
     }
 

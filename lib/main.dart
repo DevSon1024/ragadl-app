@@ -414,6 +414,21 @@ class _HomePageState extends State<HomePage> {
     return SingleChildScrollView(
       child: Column(
         children: [
+          // Add draggable region for Windows
+          if (Platform.isWindows)
+            GestureDetector(
+              onPanStart: (_) => windowManager.startDragging(),
+              child: Container(
+                height: 40,
+                color: Colors.transparent,
+                child: const Center(
+                  child: Text(
+                    'Drag here to move window',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -451,6 +466,22 @@ class _HomePageState extends State<HomePage> {
                 _saveSectionOrder();
               });
             },
+            proxyDecorator: (child, index, animation) {
+              return Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: child,
+                ),
+              );
+            },
             children: sections.map((section) {
               return Card(
                 key: ValueKey(section['title']),
@@ -461,7 +492,10 @@ class _HomePageState extends State<HomePage> {
                     color: Theme.of(context).primaryColor,
                   ),
                   title: Text(section['title']),
-                  trailing: Icon(
+                  // Remove explicit drag handle to avoid duplication
+                  trailing: Platform.isWindows
+                      ? null
+                      : Icon(
                     Icons.drag_handle,
                     color: Theme.of(context).iconTheme.color,
                   ),
@@ -471,6 +505,13 @@ class _HomePageState extends State<HomePage> {
                       MaterialPageRoute(builder: (_) => section['page']),
                     );
                   },
+                  // Enable dragging with long press on Windows
+                  onLongPress: Platform.isWindows
+                      ? () {
+                    // Provide visual feedback for drag start
+                    setState(() {});
+                  }
+                      : null,
                 ),
               );
             }).toList(),

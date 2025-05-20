@@ -13,20 +13,30 @@ class RecyclePage extends StatefulWidget {
   _RecyclePageState createState() => _RecyclePageState();
 }
 
-class _RecyclePageState extends State<RecyclePage> {
+class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStateMixin {
   List<FileSystemEntity> _trashedImages = [];
+  List<FileSystemEntity> _trashedFolders = [];
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSelectionMode = false;
   Set<int> _selectedImages = {};
+  Set<int> _selectedFolders = {};
   int _autoDeleteDays = 7; // Default to 7 days
   static const List<int> _autoDeleteOptions = [7, 15, 30]; // Options: 7 days, 15 days, 30 days
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadPreferences();
-    _loadTrashedImages();
+    _loadTrashedItems();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPreferences() async {
@@ -41,12 +51,13 @@ class _RecyclePageState extends State<RecyclePage> {
     await prefs.setInt('autoDeleteDays', _autoDeleteDays);
   }
 
-  Future<void> _loadTrashedImages() async {
+  Future<void> _loadTrashedItems() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _isSelectionMode = false;
       _selectedImages.clear();
+      _selectedFolders.clear();
     });
 
     try {
@@ -70,55 +81,75 @@ class _RecyclePageState extends State<RecyclePage> {
       if (baseDir == null || !await baseDir.exists()) {
         setState(() {
           _trashedImages = [];
-          _errorMessage = 'No trashed images found.';
+          _trashedFolders = [];
+          _errorMessage = 'No trashed items found.';
           _isLoading = false;
         });
         return;
       }
 
-      final List<FileSystemEntity> trashedFiles = [];
-      await _collectTrashedImages(baseDir, trashedFiles);
+      final List<FileSystemEntity> trashedImages = [];
+      final List<FileSystemEntity> trashedFolders = [];
+      await _collectTrashedItems(baseDir, trashedImages, trashedFolders);
 
-      // Filter out images that are past their deletion date and delete them
+      // Filter out items past their deletion date and delete them
       final now = DateTime.now();
-      final List<FileSystemEntity> validTrashedFiles = [];
-      for (var file in trashedFiles) {
+      final List<FileSystemEntity> validTrashedImages = [];
+      final List<FileSystemEntity> validTrashedFolders = [];
+
+      for (var file in trashedImages) {
         final trashedTime = _getTrashedTime(file);
         final daysSinceTrashed = now.difference(trashedTime).inDays;
         if (daysSinceTrashed >= _autoDeleteDays) {
           await File(file.path).delete();
         } else {
-          validTrashedFiles.add(file);
+          validTrashedImages.add(file);
         }
       }
 
-      validTrashedFiles.sort((a, b) => _getTrashedTime(b).compareTo(_getTrashedTime(a)));
+      for (var folder in trashedFolders) {
+        final trashedTime = _getTrashedTime(folder);
+        final daysSinceTrashed = now.difference(trashedTime).inDays;
+        if (daysSinceTrashed >= _autoDeleteDays) {
+          await Directory(folder.path).delete(recursive: true);
+        } else {
+          validTrashedFolders.add(folder);
+        }
+      }
+
+      validTrashedImages.sort((a, b) => _getTrashedTime(b).compareTo(_getTrashedTime(a)));
+      validTrashedFolders.sort((a, b) => _getTrashedTime(b).compareTo(_getTrashedTime(a)));
 
       setState(() {
-        _trashedImages = validTrashedFiles;
-        _errorMessage = validTrashedFiles.isEmpty ? 'No trashed images found.' : null;
+        _trashedImages = validTrashedImages;
+        _trashedFolders = validTrashedFolders;
+        _errorMessage = validTrashedImages.isEmpty && validTrashedFolders.isEmpty ? 'No trashed items found.' : null;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _trashedImages = [];
-        _errorMessage = 'Error loading trashed images: $e';
+        _trashedFolders = [];
+        _errorMessage = 'Error loading trashed items: $e';
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _collectTrashedImages(Directory dir, List<FileSystemEntity> trashedFiles) async {
+  Future<void> _collectTrashedItems(Directory dir, List<FileSystemEntity> trashedImages, List<FileSystemEntity> trashedFolders) async {
     try {
       final entities = await dir.list(recursive: false).toList();
       for (var entity in entities) {
-        if (entity is File && entity.path.toLowerCase().endsWith('.jpg')) {
-          final fileName = entity.path.split('/').last;
-          if (fileName.startsWith('.trashed-') && RegExp(r'^\.trashed-\d+-.*\.jpg$').hasMatch(fileName)) {
-            trashedFiles.add(entity);
+        final entityName = entity.path.split('/').last;
+        if (entityName.startsWith('.trashed-')) {
+          if (entity is File && entity.path.toLowerCase().endsWith('.jpg') && RegExp(r'^\.trashed-\d+-.*\.jpg$').hasMatch(entityName)) {
+            trashedImages.add(entity);
+          } else if (entity is Directory && RegExp(r'^\.trashed-\d+-').hasMatch(entityName)) {
+            trashedFolders.add(entity);
           }
-        } else if (entity is Directory) {
-          await _collectTrashedImages(entity, trashedFiles);
+        }
+        if (entity is Directory) {
+          await _collectTrashedItems(entity, trashedImages, trashedFolders);
         }
       }
     } catch (e) {
@@ -126,10 +157,10 @@ class _RecyclePageState extends State<RecyclePage> {
     }
   }
 
-  DateTime _getTrashedTime(FileSystemEntity file) {
-    final fileName = file.path.split('/').last;
+  DateTime _getTrashedTime(FileSystemEntity entity) {
+    final entityName = entity.path.split('/').last;
     final regex = RegExp(r'^\.trashed-(\d+)-');
-    final match = regex.firstMatch(fileName);
+    final match = regex.firstMatch(entityName);
     if (match != null) {
       final timestamp = int.parse(match.group(1)!);
       return DateTime.fromMillisecondsSinceEpoch(timestamp);
@@ -137,39 +168,49 @@ class _RecyclePageState extends State<RecyclePage> {
     return DateTime.now();
   }
 
-  void _toggleSelection(int index) {
+  void _toggleSelection(int index, bool isImage) {
     setState(() {
-      if (_selectedImages.contains(index)) {
-        _selectedImages.remove(index);
+      if (isImage) {
+        if (_selectedImages.contains(index)) {
+          _selectedImages.remove(index);
+        } else {
+          _selectedImages.add(index);
+        }
       } else {
-        _selectedImages.add(index);
+        if (_selectedFolders.contains(index)) {
+          _selectedFolders.remove(index);
+        } else {
+          _selectedFolders.add(index);
+        }
       }
-      _isSelectionMode = _selectedImages.isNotEmpty;
+      _isSelectionMode = _selectedImages.isNotEmpty || _selectedFolders.isNotEmpty;
     });
   }
 
   void _clearSelection() {
     setState(() {
       _selectedImages.clear();
+      _selectedFolders.clear();
       _isSelectionMode = false;
     });
   }
 
-  Future<void> _restoreSelectedImages() async {
-    if (_selectedImages.isEmpty) {
+  Future<void> _restoreSelectedItems() async {
+    if (_selectedImages.isEmpty && _selectedFolders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No images selected')),
+        const SnackBar(content: Text('No items selected')),
       );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final restoreCount = _selectedImages.length;
-      final List<FileSystemEntity> toRestore = _selectedImages.map((index) => _trashedImages[index]).toList();
+      final restoreCount = _selectedImages.length + _selectedFolders.length;
+      final List<FileSystemEntity> toRestoreImages = _selectedImages.map((index) => _trashedImages[index]).toList();
+      final List<FileSystemEntity> toRestoreFolders = _selectedFolders.map((index) => _trashedFolders[index]).toList();
       final List<String> restoredPaths = [];
 
-      for (var file in toRestore) {
+      for (var file in toRestoreImages) {
         final fileName = file.path.split('/').last;
         final originalFileName = fileName.replaceFirst(RegExp(r'^\.trashed-\d+-'), '');
         final dirPath = file.path.substring(0, file.path.length - fileName.length);
@@ -177,40 +218,55 @@ class _RecyclePageState extends State<RecyclePage> {
 
         final sourceFile = File(file.path);
         if (await sourceFile.exists()) {
-          try {
-            await sourceFile.rename(originalPath);
-            restoredPaths.add(originalPath);
-          } catch (e) {
-            throw Exception('Failed to rename ${file.path}: $e');
-          }
+          await sourceFile.rename(originalPath);
+          restoredPaths.add(originalPath);
         } else {
           throw Exception('File does not exist: ${file.path}');
         }
       }
 
-      await _loadTrashedImages();
+      for (var folder in toRestoreFolders) {
+        final folderName = folder.path.split('/').last;
+        final originalFolderName = folderName.replaceFirst(RegExp(r'^\.trashed-\d+-'), '');
+        final dirPath = folder.path.substring(0, folder.path.length - folderName.length);
+        final originalPath = '$dirPath$originalFolderName';
+
+        final sourceFolder = Directory(folder.path);
+        if (await sourceFolder.exists()) {
+          await sourceFolder.rename(originalPath);
+          restoredPaths.add(originalPath);
+        } else {
+          throw Exception('Folder does not exist: ${folder.path}');
+        }
+      }
+
+      await _loadTrashedItems();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$restoreCount image(s) restored successfully'),
+            content: Text('$restoreCount item(s) restored successfully'),
             action: SnackBarAction(
               label: 'Undo',
               onPressed: () async {
                 setState(() => _isLoading = true);
                 for (var originalPath in restoredPaths) {
-                  final fileName = originalPath.split('/').last;
-                  final dirPath = originalPath.substring(0, originalPath.length - fileName.length);
-                  final trashedPath = '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$fileName';
+                  final entityName = originalPath.split('/').last;
+                  final dirPath = originalPath.substring(0, originalPath.length - entityName.length);
+                  final trashedPath = '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$entityName';
                   try {
-                    await File(originalPath).rename(trashedPath);
+                    if (originalPath.endsWith('.jpg')) {
+                      await File(originalPath).rename(trashedPath);
+                    } else {
+                      await Directory(originalPath).rename(trashedPath);
+                    }
                   } catch (e) {
                     print('Failed to move back $originalPath: $e');
                   }
                 }
-                await _loadTrashedImages();
+                await _loadTrashedItems();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Images moved back to recycle bin')),
+                    const SnackBar(content: Text('Items moved back to recycle bin')),
                   );
                 }
               },
@@ -222,7 +278,7 @@ class _RecyclePageState extends State<RecyclePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to restore images: $e')),
+          SnackBar(content: Text('Failed to restore items: $e')),
         );
       }
     } finally {
@@ -230,10 +286,10 @@ class _RecyclePageState extends State<RecyclePage> {
     }
   }
 
-  Future<void> _permanentlyDeleteSelectedImages() async {
-    if (_selectedImages.isEmpty) {
+  Future<void> _permanentlyDeleteSelectedItems() async {
+    if (_selectedImages.isEmpty && _selectedFolders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No images selected')),
+        const SnackBar(content: Text('No items selected')),
       );
       return;
     }
@@ -241,8 +297,8 @@ class _RecyclePageState extends State<RecyclePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Permanently Delete Images'),
-        content: Text('Are you sure you want to permanently delete ${_selectedImages.length} selected image(s)? This action cannot be undone.'),
+        title: const Text('Permanently Delete Items'),
+        content: Text('Are you sure you want to permanently delete ${_selectedImages.length + _selectedFolders.length} selected item(s)? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -260,10 +316,11 @@ class _RecyclePageState extends State<RecyclePage> {
 
     setState(() => _isLoading = true);
     try {
-      final deleteCount = _selectedImages.length;
-      final List<FileSystemEntity> toDelete = _selectedImages.map((index) => _trashedImages[index]).toList();
+      final deleteCount = _selectedImages.length + _selectedFolders.length;
+      final List<FileSystemEntity> toDeleteImages = _selectedImages.map((index) => _trashedImages[index]).toList();
+      final List<FileSystemEntity> toDeleteFolders = _selectedFolders.map((index) => _trashedFolders[index]).toList();
 
-      for (var file in toDelete) {
+      for (var file in toDeleteImages) {
         final sourceFile = File(file.path);
         if (await sourceFile.exists()) {
           await sourceFile.delete();
@@ -272,16 +329,25 @@ class _RecyclePageState extends State<RecyclePage> {
         }
       }
 
-      await _loadTrashedImages();
+      for (var folder in toDeleteFolders) {
+        final sourceFolder = Directory(folder.path);
+        if (await sourceFolder.exists()) {
+          await sourceFolder.delete(recursive: true);
+        } else {
+          throw Exception('Folder does not exist: ${folder.path}');
+        }
+      }
+
+      await _loadTrashedItems();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$deleteCount image(s) permanently deleted')),
+          SnackBar(content: Text('$deleteCount item(s) permanently deleted')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete images: $e')),
+          SnackBar(content: Text('Failed to delete items: $e')),
         );
       }
     } finally {
@@ -294,7 +360,7 @@ class _RecyclePageState extends State<RecyclePage> {
       _autoDeleteDays = days;
     });
     await _savePreferences();
-    await _loadTrashedImages(); // Reload to apply new deletion period
+    await _loadTrashedItems(); // Reload to apply new deletion period
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Auto-delete period set to $days days')),
@@ -310,7 +376,7 @@ class _RecyclePageState extends State<RecyclePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _isSelectionMode ? 'Selected ${_selectedImages.length}' : 'Recycle Bin',
+          _isSelectionMode ? 'Selected ${_selectedImages.length + _selectedFolders.length}' : 'Recycle Bin',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         leading: _isSelectionMode
@@ -320,6 +386,13 @@ class _RecyclePageState extends State<RecyclePage> {
           tooltip: 'Cancel Selection',
         )
             : null,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Images'),
+            Tab(text: 'Folders'),
+          ],
+        ),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -377,13 +450,14 @@ class _RecyclePageState extends State<RecyclePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_selectedImages.length} selected',
+                    '${_selectedImages.length + _selectedFolders.length} selected',
                     style: const TextStyle(fontSize: 14, color: Colors.blue),
                   ),
                   TextButton(
                     onPressed: () {
                       setState(() {
                         _selectedImages = Set.from(List.generate(_trashedImages.length, (index) => index));
+                        _selectedFolders = Set.from(List.generate(_trashedFolders.length, (index) => index));
                       });
                     },
                     child: const Text('Select All'),
@@ -402,72 +476,150 @@ class _RecyclePageState extends State<RecyclePage> {
                 style: const TextStyle(fontSize: 16),
               ),
             )
-                : _trashedImages.isEmpty
-                ? const Center(
-              child: Text(
-                'No trashed images found.',
-                style: TextStyle(fontSize: 16),
-              ),
-            )
-                : GridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 6,
-                childAspectRatio: 0.75,
-              ),
-              itemCount: _trashedImages.length,
-              itemBuilder: (context, index) {
-                final file = _trashedImages[index];
-                final trashedTime = _getTrashedTime(file);
-                final daysRemaining = _autoDeleteDays - DateTime.now().difference(trashedTime).inDays;
-                final isSelected = _selectedImages.contains(index);
-                return GestureDetector(
-                  onTap: _isLoading ? null : () => _toggleSelection(index),
-                  onLongPress: () => _toggleSelection(index),
-                  child: Card(
-                    elevation: 2,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(
-                          File(file.path),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.broken_image,
-                            size: 48,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        if (isSelected)
-                          Container(
-                            color: Colors.blue.withOpacity(0.3),
-                            child: const Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                              size: 30,
-                            ),
-                          ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: Colors.black54,
-                            padding: const EdgeInsets.all(4),
-                            child: Text(
-                              'Expires in $daysRemaining day${daysRemaining == 1 ? '' : 's'}',
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ],
+                : TabBarView(
+              controller: _tabController,
+              children: [
+                // Images Tab
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: _trashedImages.isEmpty
+                      ? const Center(child: Text('No trashed images'))
+                      : GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 6,
+                      crossAxisSpacing: 6,
+                      childAspectRatio: 0.75,
                     ),
+                    itemCount: _trashedImages.length,
+                    itemBuilder: (context, index) {
+                      final file = _trashedImages[index];
+                      final trashedTime = _getTrashedTime(file);
+                      final daysRemaining = _autoDeleteDays - DateTime.now().difference(trashedTime).inDays;
+                      final isSelected = _selectedImages.contains(index);
+                      return GestureDetector(
+                        onTap: _isLoading ? null : () => _toggleSelection(index, true),
+                        onLongPress: () => _toggleSelection(index, true),
+                        child: Card(
+                          elevation: 2,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                File(file.path),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                  Icons.broken_image,
+                                  size: 48,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              if (isSelected)
+                                Container(
+                                  color: Colors.blue.withOpacity(0.3),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  color: Colors.black54,
+                                  padding: const EdgeInsets.all(4),
+                                  child: Text(
+                                    'Expires in $daysRemaining day${daysRemaining == 1 ? '' : 's'}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+                // Folders Tab
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: _trashedFolders.isEmpty
+                      ? const Center(child: Text('No trashed folders'))
+                      : GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 6,
+                      crossAxisSpacing: 6,
+                      childAspectRatio: 0.75,
+                    ),
+                    itemCount: _trashedFolders.length,
+                    itemBuilder: (context, index) {
+                      final folder = _trashedFolders[index];
+                      final trashedTime = _getTrashedTime(folder);
+                      final daysRemaining = _autoDeleteDays - DateTime.now().difference(trashedTime).inDays;
+                      final isSelected = _selectedFolders.contains(index);
+                      return GestureDetector(
+                        onTap: _isLoading ? null : () => _toggleSelection(index, false),
+                        onLongPress: () => _toggleSelection(index, false),
+                        child: Card(
+                          elevation: 2,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.folder,
+                                    size: 48,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    folder.path.split('/').last.replaceFirst(RegExp(r'^\.trashed-\d+-'), ''),
+                                    style: const TextStyle(fontSize: 12),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                              if (isSelected)
+                                Container(
+                                  color: Colors.blue.withOpacity(0.3),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  color: Colors.black54,
+                                  padding: const EdgeInsets.all(4),
+                                  child: Text(
+                                    'Expires in $daysRemaining day${daysRemaining == 1 ? '' : 's'}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -480,12 +632,12 @@ class _RecyclePageState extends State<RecyclePage> {
             TextButton.icon(
               icon: const Icon(Icons.restore, color: Colors.blue),
               label: const Text('Restore', style: TextStyle(color: Colors.blue)),
-              onPressed: _restoreSelectedImages,
+              onPressed: _restoreSelectedItems,
             ),
             TextButton.icon(
               icon: const Icon(Icons.delete_forever, color: Colors.red),
               label: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onPressed: _permanentlyDeleteSelectedImages,
+              onPressed: _permanentlyDeleteSelectedItems,
             ),
           ],
         ),
