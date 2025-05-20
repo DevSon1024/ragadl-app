@@ -251,8 +251,10 @@ class _MainScreenState extends State<MainScreen> {
         bottomNavigationBar: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 8.0,
-          height: 71.0, // Reduced height
+          height: 71.0,
+          // Reduced height
           color: Theme.of(context).primaryColor,
+
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -277,8 +279,9 @@ class _MainScreenState extends State<MainScreen> {
           },
           shape: const CircleBorder(),
           child: Icon(
-            Icons.add,
+            Icons.download_for_offline_rounded,
             color: Theme.of(context).colorScheme.onPrimary,
+            size: 50.0, // Increased icon size to better fill the button
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -297,6 +300,7 @@ class _MainScreenState extends State<MainScreen> {
             FocusScope.of(context).unfocus();
           });
         },
+        borderRadius: BorderRadius.circular(50), // Circular hover effect
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -305,7 +309,7 @@ class _MainScreenState extends State<MainScreen> {
               color: isSelected
                   ? Theme.of(context).colorScheme.onPrimary
                   : Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
-              size: 24, // Consistent icon size
+              size: 28,
             ),
             Text(
               label,
@@ -313,7 +317,7 @@ class _MainScreenState extends State<MainScreen> {
                 color: isSelected
                     ? Theme.of(context).colorScheme.onPrimary
                     : Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
-                fontSize: 11, // Slightly smaller font for compact look
+                fontSize: 11,
               ),
             ),
           ],
@@ -442,12 +446,6 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   'Welcome to Ragalahari Downloader',
                   style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Browse celebrities or tap the + button to download images',
-                  style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ],

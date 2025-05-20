@@ -228,6 +228,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
   late int _currentIndex;
   bool _isDeleting = false;
   final List<TransformationController> _transformationControllers = [];
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -245,6 +246,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
     for (var controller in _transformationControllers) {
       controller.dispose();
     }
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -330,6 +332,24 @@ class _FullImageViewerState extends State<FullImageViewer> {
     }
   }
 
+  void _navigateToPrevious() {
+    if (_currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _navigateToNext() {
+    if (_currentIndex < widget.images.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentImage = File(widget.images[_currentIndex].path);
@@ -372,32 +392,71 @@ class _FullImageViewerState extends State<FullImageViewer> {
           ),
         ],
       ),
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: widget.images.length,
-        onPageChanged: (index) => setState(() => _currentIndex = index),
-        itemBuilder: (context, index) {
-          final imageFile = File(widget.images[index].path);
-          return InteractiveViewer(
-            transformationController: _transformationControllers[index],
-            minScale: 0.1,
-            maxScale: 4.0,
-            child: Hero(
-              tag: imageFile.path,
-              child: Image.file(
-                imageFile,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Center(
-                  child: Icon(
-                    Icons.broken_image,
-                    size: 48,
-                    color: Theme.of(context).iconTheme.color,
+      body: RawKeyboardListener(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKey: (RawKeyEvent event) {
+          if (event is RawKeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              _navigateToPrevious();
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              _navigateToNext();
+            }
+          }
+        },
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: widget.images.length,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              itemBuilder: (context, index) {
+                final imageFile = File(widget.images[index].path);
+                return InteractiveViewer(
+                  transformationController: _transformationControllers[index],
+                  minScale: 0.1,
+                  maxScale: 4.0,
+                  child: Hero(
+                    tag: imageFile.path,
+                    child: Image.file(
+                      imageFile,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 48,
+                          color: Theme.of(context).iconTheme.color,
+                        ),
+                      ),
+                    ),
                   ),
+                );
+              },
+            ),
+            if (widget.images.length > 1) ...[
+              Positioned(
+                left: 16,
+                top: MediaQuery.of(context).size.height / 2 - 24,
+                child: FloatingActionButton(
+                  mini: true,
+                  onPressed: _currentIndex > 0 ? _navigateToPrevious : null,
+                  backgroundColor: _currentIndex > 0 ? Theme.of(context).primaryColor : Colors.grey,
+                  child: const Icon(Icons.arrow_left),
                 ),
               ),
-            ),
-          );
-        },
+              Positioned(
+                right: 16,
+                top: MediaQuery.of(context).size.height / 2 - 24,
+                child: FloatingActionButton(
+                  mini: true,
+                  onPressed: _currentIndex < widget.images.length - 1 ? _navigateToNext : null,
+                  backgroundColor: _currentIndex < widget.images.length - 1 ? Theme.of(context).primaryColor : Colors.grey,
+                  child: const Icon(Icons.arrow_right),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
