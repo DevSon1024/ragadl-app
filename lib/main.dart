@@ -177,6 +177,7 @@ class _MainScreenState extends State<MainScreen> {
       onWillPop: _onWillPop,
       child: Scaffold(
         key: _scaffoldKey,
+        extendBody: true,
         appBar: AppBar(
           title: const Text(
             'Ragalahari Downloader',
@@ -249,21 +250,23 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8.0,
-          height: 71.0,
-          // Reduced height
+          shape: const CircularNotchedRectangle(), // Curved notch for FAB
+          notchMargin: 10.0, // Adjusted for smooth curve
           color: Theme.of(context).primaryColor,
-
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
-              _buildNavItem(1, Icons.person, Icons.person_outlined, 'Celebrity'),
-              const SizedBox(width: 40), // Adjusted for FAB spacing
-              _buildNavItem(3, Icons.download, Icons.download_outlined, 'Downloads'),
-              _buildNavItem(4, Icons.history, Icons.history_outlined, 'History'),
-            ],
+          elevation: 0, // No shadow to avoid white strip
+          clipBehavior: Clip.antiAlias, // Smooth notch rendering
+          child: SizedBox(
+            height: 71.0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
+                _buildNavItem(1, Icons.person, Icons.person_outlined, 'Celebrity'),
+                const SizedBox(width: 40), // Gap for FAB
+                _buildNavItem(3, Icons.download, Icons.download_outlined, 'Downloads'),
+                _buildNavItem(4, Icons.history, Icons.history_outlined, 'History'),
+              ],
+            ),
           ),
         ),
         floatingActionButton: FloatingActionButton(
@@ -278,10 +281,11 @@ class _MainScreenState extends State<MainScreen> {
             });
           },
           shape: const CircleBorder(),
+          elevation: 4, // Subtle lift for prominence
           child: Icon(
             Icons.download_for_offline_rounded,
             color: Theme.of(context).colorScheme.onPrimary,
-            size: 50.0, // Increased icon size to better fill the button
+            size: 50.0,
           ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

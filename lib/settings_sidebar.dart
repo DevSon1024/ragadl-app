@@ -4,7 +4,8 @@ import 'settings/display_settings_page.dart';
 import 'settings/update_database_page.dart';
 import 'settings/privacy_policy_page.dart';
 import 'settings/storage_settings.dart';
-import 'settings/notification_settings_page.dart'; // Add this import
+import 'settings/notification_settings_page.dart';
+import 'settings/contact_us_page.dart'; // Add this import
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({super.key});
@@ -127,6 +128,20 @@ class SettingsSidebar extends StatelessWidget {
                   ),
                   _buildMenuItem(
                     context,
+                    icon: Icons.contact_support,
+                    title: 'Contact Us',
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ContactUsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
                     icon: Icons.privacy_tip,
                     title: 'Privacy & Policy',
                     onTap: () {
@@ -146,7 +161,7 @@ class SettingsSidebar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Version 2.6.0',
+                'Version 2.6.2',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),

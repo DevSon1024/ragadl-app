@@ -107,6 +107,22 @@ class DisplaySettingsPage extends StatelessWidget {
                     ),
                     _buildThemeContainer(
                       context,
+                      'Cool Theme',
+                      const Color(0xFF2196F3),
+                      themeConfig,
+                      themeName: 'white',
+                      isSelected: themeConfig.currentTheme == 'white',
+                    ),
+                    _buildThemeContainer(
+                      context,
+                      'Clean White Theme',
+                      const Color(0xFF757575),
+                      themeConfig,
+                      themeName: 'cleanWhite',
+                      isSelected: themeConfig.currentTheme == 'cleanWhite',
+                    ),
+                    _buildThemeContainer(
+                      context,
                       'Smooth Theme',
                       Colors.pinkAccent,
                       themeConfig,
@@ -129,14 +145,7 @@ class DisplaySettingsPage extends StatelessWidget {
                       themeName: 'calm',
                       isSelected: themeConfig.currentTheme == 'calm',
                     ),
-                    _buildThemeContainer(
-                      context,
-                      'White Theme',
-                      const Color(0xFF2196F3),
-                      themeConfig,
-                      themeName: 'white',
-                      isSelected: themeConfig.currentTheme == 'white',
-                    ),
+
                   ],
                 ),
               ),
@@ -159,7 +168,7 @@ class DisplaySettingsPage extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: InkWell(
         onTap: () {
-          themeConfig.setTheme(themeName.toLowerCase());
+          themeConfig.setTheme(themeName);
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(

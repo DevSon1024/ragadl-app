@@ -2,20 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeConfig extends ChangeNotifier {
-  // Helper function to lighten a color for containers in light themes
-  Color _lightenColor(Color color, [double amount = 0.8]) {
-    final hsl = HSLColor.fromColor(color);
-    final hslLight = hsl.withLightness((hsl.lightness + amount).clamp(0.9, 1.0));
-    return hslLight.toColor();
-  }
-
-  // Helper function to darken a color for dark themes
-  Color _darkenColor(Color color, [double amount = 0.3]) {
-    final hsl = HSLColor.fromColor(color);
-    final hslDark = hsl.withLightness((hsl.lightness - amount).clamp(0.2, 0.5));
-    return hslDark.toColor();
-  }
-
   // Light Themes
   static ThemeData defaultTheme = ThemeData(
     primarySwatch: Colors.green,
@@ -34,6 +20,31 @@ class ThemeConfig extends ChangeNotifier {
     ),
     iconTheme: const IconThemeData(
       color: Colors.green,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black87,
+      elevation: 0,
+    ),
+  );
+
+  static ThemeData cleanWhiteTheme = ThemeData(
+    primarySwatch: Colors.grey,
+    primaryColor: const Color(0xFF757575), // Neutral grey for accents
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: Colors.white, // Clean white background
+    cardTheme: const CardTheme(
+      elevation: 4,
+      margin: EdgeInsets.all(8),
+      color: Color(0xFFF5F5F5), // Light grey for containers
+    ),
+    textTheme: const TextTheme(
+      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
+      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
+      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+    ),
+    iconTheme: const IconThemeData(
+      color: Color(0xFF757575), // Neutral grey for icons
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
@@ -158,7 +169,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFFFFFFF)).withLightness(0.3).toColor(), // Darkened green for containers
+      color: HSLColor.fromColor(const Color(0xFF2E7D32)).withLightness(0.3).toColor(), // Darkened green for containers
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -167,6 +178,38 @@ class ThemeConfig extends ChangeNotifier {
     ),
     iconTheme: const IconThemeData(
       color: Color(0xFF2E7D32),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF212121),
+      foregroundColor: Color(0xFFFFFFFF),
+      elevation: 0,
+    ),
+  );
+
+  static ThemeData cleanWhiteDarkTheme = ThemeData(
+    primaryColor: const Color(0xFF616161),
+    colorScheme: const ColorScheme.dark(
+      primary: Color(0xFF616161),
+      secondary: Color(0xFF9E9E9E),
+      surface: Color(0xFF424242),
+      onPrimary: Color(0xFFFFFFFF),
+      onSecondary: Color(0xFFFFFFFF),
+      onSurface: Color(0xFFFFFFFF),
+    ),
+    scaffoldBackgroundColor: const Color(0xFF212121),
+    brightness: Brightness.dark,
+    cardTheme: const CardTheme(
+      elevation: 4,
+      margin: EdgeInsets.all(8),
+      color: Color(0xFF424242),
+    ),
+    textTheme: const TextTheme(
+      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
+      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
+      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+    ),
+    iconTheme: const IconThemeData(
+      color: Color(0xFF616161),
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF212121),
@@ -272,21 +315,21 @@ class ThemeConfig extends ChangeNotifier {
   );
 
   static ThemeData whiteDarkTheme = ThemeData(
-    primaryColor: const Color(0xFF1976D2), // Darker blue for dark theme
+    primaryColor: const Color(0xFF1976D2),
     colorScheme: const ColorScheme.dark(
       primary: Color(0xFF1976D2),
-      secondary: Color(0xFF42A5F5), // Lighter blue for accents
+      secondary: Color(0xFF42A5F5),
       surface: Color(0xFF424242),
       onPrimary: Color(0xFFFFFFFF),
       onSecondary: Color(0xFFFFFFFF),
       onSurface: Color(0xFFFFFFFF),
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121), // Dark grey background
+    scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: const Color(0xFF616161), // Grey for containers
+      color: const Color(0xFF616161),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -294,10 +337,10 @@ class ThemeConfig extends ChangeNotifier {
       titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
     ),
     iconTheme: const IconThemeData(
-      color: Color(0xFF1976D2), // Darker blue for icons
+      color: Color(0xFF1976D2),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121), // Dark grey AppBar
+      backgroundColor: Color(0xFF212121),
       foregroundColor: Color(0xFFFFFFFF),
       elevation: 0,
     ),
@@ -369,6 +412,8 @@ class ThemeConfig extends ChangeNotifier {
 
   ThemeData get lightTheme {
     switch (_currentTheme) {
+      case 'cleanWhite':
+        return cleanWhiteTheme;
       case 'smooth':
         return smoothTheme;
       case 'vibrant':
@@ -384,6 +429,8 @@ class ThemeConfig extends ChangeNotifier {
 
   ThemeData get darkTheme {
     switch (_currentTheme) {
+      case 'cleanWhite':
+        return cleanWhiteDarkTheme;
       case 'smooth':
         return smoothDarkTheme;
       case 'vibrant':
