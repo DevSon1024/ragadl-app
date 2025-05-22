@@ -37,18 +37,44 @@ class DisplaySettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Consumer<ThemeConfig>(
-              builder: (context, themeConfig, child) => Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              builder: (context, themeConfig, child) => Column(
                 children: [
-                  Text(
-                    'Dark Mode',
-                    style: Theme.of(context).textTheme.bodyLarge,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Use System Theme',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      Switch(
+                        value: themeConfig.useSystemTheme,
+                        onChanged: (value) {
+                          themeConfig.setUseSystemTheme(value);
+                        },
+                      ),
+                    ],
                   ),
-                  Switch(
-                    value: themeConfig.currentThemeMode == ThemeMode.dark,
-                    onChanged: (value) {
-                      themeConfig.toggleTheme();
-                    },
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Dark Mode',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: themeConfig.useSystemTheme
+                              ? Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.5)
+                              : Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                      Switch(
+                        value: themeConfig.currentThemeMode == ThemeMode.dark,
+                        onChanged: themeConfig.useSystemTheme
+                            ? null // Disable switch when system theme is enabled
+                            : (value) {
+                          themeConfig.toggleTheme();
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -99,11 +125,11 @@ class DisplaySettingsPage extends StatelessWidget {
                   children: [
                     _buildThemeContainer(
                       context,
-                      'Default Theme',
-                      Colors.green,
+                      'Saffron Theme',
+                      const Color(0xFFFF4500),
                       themeConfig,
-                      themeName: 'default',
-                      isSelected: themeConfig.currentTheme == 'default',
+                      themeName: 'saffron',
+                      isSelected: themeConfig.currentTheme == 'saffron',
                     ),
                     _buildThemeContainer(
                       context,
@@ -115,11 +141,11 @@ class DisplaySettingsPage extends StatelessWidget {
                     ),
                     _buildThemeContainer(
                       context,
-                      'Clean White Theme',
-                      const Color(0xFF757575),
+                      'Nature Theme',
+                      Colors.green,
                       themeConfig,
-                      themeName: 'cleanWhite',
-                      isSelected: themeConfig.currentTheme == 'cleanWhite',
+                      themeName: 'nature',
+                      isSelected: themeConfig.currentTheme == 'nature',
                     ),
                     _buildThemeContainer(
                       context,
@@ -145,7 +171,6 @@ class DisplaySettingsPage extends StatelessWidget {
                       themeName: 'calm',
                       isSelected: themeConfig.currentTheme == 'calm',
                     ),
-
                   ],
                 ),
               ),

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeConfig extends ChangeNotifier {
   // Light Themes
-  static ThemeData defaultTheme = ThemeData(
+  static ThemeData natureTheme = ThemeData(
     primarySwatch: Colors.green,
     primaryColor: Colors.green,
     brightness: Brightness.light,
@@ -11,7 +11,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.green).withLightness(0.95).toColor(), // Fainted green
+      color: HSLColor.fromColor(Colors.green).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
@@ -28,15 +28,15 @@ class ThemeConfig extends ChangeNotifier {
     ),
   );
 
-  static ThemeData cleanWhiteTheme = ThemeData(
-    primarySwatch: Colors.grey,
-    primaryColor: const Color(0xFF757575), // Neutral grey for accents
+  static ThemeData saffronTheme = ThemeData(
+    primarySwatch: Colors.deepOrange,
+    primaryColor: const Color(0xFFFF4500),
     brightness: Brightness.light,
-    scaffoldBackgroundColor: Colors.white, // Clean white background
-    cardTheme: const CardTheme(
+    scaffoldBackgroundColor: Colors.white,
+    cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: Color(0xFFF5F5F5), // Light grey for containers
+      color: HSLColor.fromColor(const Color(0xFFFF4500)).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
@@ -44,7 +44,7 @@ class ThemeConfig extends ChangeNotifier {
       titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
     ),
     iconTheme: const IconThemeData(
-      color: Color(0xFF757575), // Neutral grey for icons
+      color: Color(0xFFFF4500),
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
@@ -61,7 +61,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.pinkAccent).withLightness(0.95).toColor(), // Fainted pink
+      color: HSLColor.fromColor(Colors.pinkAccent).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
@@ -86,7 +86,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.orange).withLightness(0.95).toColor(), // Fainted orange
+      color: HSLColor.fromColor(Colors.orange).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
@@ -111,7 +111,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.teal).withLightness(0.95).toColor(), // Fainted teal
+      color: HSLColor.fromColor(Colors.teal).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
@@ -136,7 +136,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: const CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: Color(0xFFE3F2FD), // Fainted blue
+      color: Color(0xFFE3F2FD),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
@@ -154,7 +154,7 @@ class ThemeConfig extends ChangeNotifier {
   );
 
   // Dark Themes
-  static ThemeData defaultDarkTheme = ThemeData(
+  static ThemeData natureDarkTheme = ThemeData(
     primaryColor: const Color(0xFF2E7D32),
     colorScheme: const ColorScheme.dark(
       primary: Color(0xFF2E7D32),
@@ -169,7 +169,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFF2E7D32)).withLightness(0.3).toColor(), // Darkened green for containers
+      color: HSLColor.fromColor(const Color(0xFF2E7D32)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -186,11 +186,11 @@ class ThemeConfig extends ChangeNotifier {
     ),
   );
 
-  static ThemeData cleanWhiteDarkTheme = ThemeData(
-    primaryColor: const Color(0xFF616161),
+  static ThemeData saffronDarkTheme = ThemeData(
+    primaryColor: const Color(0xFFCE3F08),
     colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF616161),
-      secondary: Color(0xFF9E9E9E),
+      primary: Color(0xFFCE3F08),
+      secondary: Color(0xFFFF6F00),
       surface: Color(0xFF424242),
       onPrimary: Color(0xFFFFFFFF),
       onSecondary: Color(0xFFFFFFFF),
@@ -198,10 +198,10 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: const CardTheme(
+    cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: Color(0xFF424242),
+      color: HSLColor.fromColor(const Color(0xFFCE3F08)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -209,7 +209,7 @@ class ThemeConfig extends ChangeNotifier {
       titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
     ),
     iconTheme: const IconThemeData(
-      color: Color(0xFF616161),
+      color: Color(0xFFCE3F08),
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF212121),
@@ -233,7 +233,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFC2185B)).withLightness(0.3).toColor(), // Darkened pink for containers
+      color: HSLColor.fromColor(const Color(0xFFC2185B)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -265,7 +265,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFF57C00)).withLightness(0.3).toColor(), // Darkened orange for containers
+      color: HSLColor.fromColor(const Color(0xFFF57C00)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -297,7 +297,7 @@ class ThemeConfig extends ChangeNotifier {
     cardTheme: CardTheme(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFF00695C)).withLightness(0.3).toColor(), // Darkened teal for containers
+      color: HSLColor.fromColor(const Color(0xFF00695C)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -346,14 +346,16 @@ class ThemeConfig extends ChangeNotifier {
     ),
   );
 
-  ThemeMode _currentThemeMode = ThemeMode.system;
-  String _currentTheme = 'default'; // Set default theme
+  ThemeMode _currentThemeMode = ThemeMode.light; // Default to light for manual mode
+  bool _useSystemTheme = true; // Default to follow system theme
+  String _currentTheme = 'saffron'; // Default to Saffron theme
 
   // Add keys for SharedPreferences
   static const String _themeModeKey = 'theme_mode';
   static const String _themeNameKey = 'theme_name';
-  int _gridColumns = 2; // Default to 2 columns
+  static const String _useSystemThemeKey = 'use_system_theme';
   static const String _gridColumnsKey = 'grid_columns';
+  int _gridColumns = 2; // Default to 2 columns
 
   ThemeConfig() {
     _loadTheme();
@@ -365,11 +367,15 @@ class ThemeConfig extends ChangeNotifier {
     if (themeModeIndex != null) {
       _currentThemeMode = ThemeMode.values[themeModeIndex];
     }
+    final useSystem = prefs.getBool(_useSystemThemeKey);
+    if (useSystem != null) {
+      _useSystemTheme = useSystem;
+    }
     final themeName = prefs.getString(_themeNameKey);
     if (themeName != null) {
       _currentTheme = themeName;
     } else {
-      _currentTheme = 'default'; // Ensure default theme if no saved theme
+      _currentTheme = 'saffron';
     }
     final gridCols = prefs.getInt(_gridColumnsKey);
     if (gridCols != null) {
@@ -381,6 +387,7 @@ class ThemeConfig extends ChangeNotifier {
   Future<void> _saveTheme() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themeModeKey, _currentThemeMode.index);
+    await prefs.setBool(_useSystemThemeKey, _useSystemTheme);
     await prefs.setString(_themeNameKey, _currentTheme);
     await prefs.setInt(_gridColumnsKey, _gridColumns);
   }
@@ -395,11 +402,18 @@ class ThemeConfig extends ChangeNotifier {
     }
   }
 
-  ThemeMode get currentThemeMode => _currentThemeMode;
+  ThemeMode get currentThemeMode => _useSystemTheme ? ThemeMode.system : _currentThemeMode;
   String get currentTheme => _currentTheme;
+  bool get useSystemTheme => _useSystemTheme;
 
   void toggleTheme() {
     _currentThemeMode = _currentThemeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _saveTheme();
+    notifyListeners();
+  }
+
+  void setUseSystemTheme(bool value) {
+    _useSystemTheme = value;
     _saveTheme();
     notifyListeners();
   }
@@ -412,8 +426,10 @@ class ThemeConfig extends ChangeNotifier {
 
   ThemeData get lightTheme {
     switch (_currentTheme) {
-      case 'cleanWhite':
-        return cleanWhiteTheme;
+      case 'nature':
+        return natureTheme;
+      case 'saffron':
+        return saffronTheme;
       case 'smooth':
         return smoothTheme;
       case 'vibrant':
@@ -423,14 +439,16 @@ class ThemeConfig extends ChangeNotifier {
       case 'white':
         return whiteTheme;
       default:
-        return defaultTheme;
+        return saffronTheme;
     }
   }
 
   ThemeData get darkTheme {
     switch (_currentTheme) {
-      case 'cleanWhite':
-        return cleanWhiteDarkTheme;
+      case 'nature':
+        return natureDarkTheme;
+      case 'saffron':
+        return saffronDarkTheme;
       case 'smooth':
         return smoothDarkTheme;
       case 'vibrant':
@@ -440,7 +458,7 @@ class ThemeConfig extends ChangeNotifier {
       case 'white':
         return whiteDarkTheme;
       default:
-        return defaultDarkTheme;
+        return saffronDarkTheme;
     }
   }
 }

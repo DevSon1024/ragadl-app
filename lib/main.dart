@@ -420,159 +420,159 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Add draggable region for Windows
-          if (Platform.isWindows)
-            GestureDetector(
-              onPanStart: (_) => windowManager.startDragging(),
-              child: Container(
-                height: 40,
-                color: Colors.transparent,
-                child: const Center(
-                  child: Text(
-                    'Drag here to move window',
-                    style: TextStyle(color: Colors.grey),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 80.0), // Add bottom padding to clear BottomAppBar
+        child: Column(
+          children: [
+            // Add draggable region for Windows
+            if (Platform.isWindows)
+              GestureDetector(
+                onPanStart: (_) => windowManager.startDragging(),
+                child: Container(
+                  height: 40,
+                  color: Colors.transparent,
+                  child: const Center(
+                    child: Text(
+                      'Drag here to move window',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
                 ),
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.photo_library,
-                  size: 80,
-                  color: Theme.of(context).primaryColor,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Welcome to Ragalahari Downloader',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          ReorderableListView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            onReorder: (oldIndex, newIndex) {
-              setState(() {
-                if (newIndex > oldIndex) {
-                  newIndex -= 1;
-                }
-                final section = sections.removeAt(oldIndex);
-                sections.insert(newIndex, section);
-                _saveSectionOrder();
-              });
-            },
-            proxyDecorator: (child, index, animation) {
-              return Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context).primaryColor,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: child,
-                ),
-              );
-            },
-            children: sections.map((section) {
-              return Card(
-                key: ValueKey(section['title']),
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: Icon(
-                    section['icon'],
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.photo_library,
+                    size: 80,
                     color: Theme.of(context).primaryColor,
                   ),
-                  title: Text(section['title']),
-                  // Remove explicit drag handle to avoid duplication
-                  trailing: Platform.isWindows
-                      ? null
-                      : Icon(
-                    Icons.drag_handle,
-                    color: Theme.of(context).iconTheme.color,
+                  const SizedBox(height: 16),
+                  Text(
+                    'Welcome to Ragalahari Downloader',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
                   ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => section['page']),
-                    );
-                  },
-                  // Enable dragging with long press on Windows
-                  onLongPress: Platform.isWindows
-                      ? () {
-                    // Provide visual feedback for drag start
-                    setState(() {});
+                ],
+              ),
+            ),
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) {
+                    newIndex -= 1;
                   }
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Follow Ragalahari on',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  final section = sections.removeAt(oldIndex);
+                  sections.insert(newIndex, section);
+                  _saveSectionOrder();
+                });
+              },
+              proxyDecorator: (child, index, animation) {
+                return Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: child,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _buildSocialMediaItem(
-                      context,
-                      Icons.facebook,
-                      'Facebook',
-                      'https://www.facebook.com/ragalahari',
-                      Colors.blue,
+                );
+              },
+              children: sections.map((section) {
+                return Card(
+                  key: ValueKey(section['title']),
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: Icon(
+                      section['icon'],
+                      color: Theme.of(context).primaryColor,
                     ),
-                    _buildSocialMediaItem(
-                      context,
-                      Icons.alternate_email,
-                      'Twitter',
-                      'https://twitter.com/ragalahari',
-                      Colors.lightBlue,
+                    title: Text(section['title']),
+                    trailing: Platform.isWindows
+                        ? null
+                        : Icon(
+                      Icons.drag_handle,
+                      color: Theme.of(context).iconTheme.color,
                     ),
-                    _buildSocialMediaItem(
-                      context,
-                      Icons.camera_alt,
-                      'Instagram',
-                      'https://www.instagram.com/ragalahari',
-                      Colors.purple,
-                    ),
-                  ],
-                ),
-              ],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => section['page']),
+                      );
+                    },
+                    onLongPress: Platform.isWindows
+                        ? () {
+                      setState(() {});
+                    }
+                        : null,
+                  ),
+                );
+              }).toList(),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Follow Ragalahari on',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSocialMediaItem(
+                        context,
+                        Icons.facebook,
+                        'Facebook',
+                        'https://www.facebook.com/ragalahari',
+                        Colors.blue,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildSocialMediaItem(
+                        context,
+                        Icons.alternate_email,
+                        'Twitter',
+                        'https://twitter.com/ragalahari',
+                        Colors.lightBlue,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildSocialMediaItem(
+                        context,
+                        Icons.camera_alt,
+                        'Instagram',
+                        'https://www.instagram.com/ragalahari',
+                        Colors.purple,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
