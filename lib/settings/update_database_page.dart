@@ -359,7 +359,7 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Scrapes data from ragalahari.com and updates local JSON and CSV with new star names and URLs.',
+              '''Click on 'Update Database' to Add Newly Added Celebrity to Your App.''',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),

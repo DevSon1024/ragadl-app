@@ -25,7 +25,6 @@
 <img src="screenshots/history.jpg" width="30%" />
 <img src="screenshots/link_history.jpg" width="30%" />
 <img src="screenshots/display_setting.jpg" width="30%" />
-<img src="screenshots/link_history.jpg" width="30%" />
 
 </div>
 
