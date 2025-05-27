@@ -1,119 +1,126 @@
+<div align="center">
 
-# 📸 Ragalahari Image Gallery Downloader - Flutter App
+<img src="assets/logo.png" width="160" height="160" />
 
-This Flutter-based Android app allows users to download image galleries from [Ragalahari.com](https://www.ragalahari.com). It offers gallery previews, individual/bulk image downloads, favorite celebrity tracking, a smart download manager, history viewer, theme customization, and more — all with a mobile-first design approach!
+# 📸 Ragalahari Image Gallery Downloader
+
+### Flutter App to Download Celeb Albums from Ragalahari.com
+
+[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragalahari_downloader_2025?label=Release&logo=github)](https://github.com/DevSon1024/ragalahari_downloader_2025/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragalahari_downloader_2025/total?logo=github)](https://github.com/DevSon1024/ragalahari_downloader_2025/releases)
+[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragalahari_downloader_2025)](LICENSE)
+
+</div>
 
 ---
 
-## 🚀 Features
+## 📱 Screenshots
+
+<div align="center">
+<img src="screenshots/home.jpg" width="30%" />
+<img src="screenshots/celebrity.jpg" width="30%" />
+<img src="screenshots/downloader.jpg" width="30%" />
+<img src="screenshots/history.jpg" width="30%" />
+<img src="screenshots/favourites.jpg" width="30%" />
+<img src="screenshots/themes.jpg" width="30%" />
+</div>
+
+---
+
+## ✨ Overview
+
+**Ragalahari Gallery Downloader** is a Flutter-based Android app that lets you explore and download image galleries of your favorite celebrities from [Ragalahari.com](https://www.ragalahari.com).
+
+This app supports gallery previews, celebrity management via CSV, bulk downloads, and download history — all built with a **mobile-first approach** and sleek UI.
+
+---
+
+## 🌟 Features
 
 - 🔥 **Latest Celebrity Albums** with preview
 - 👩‍🎤 **Celebrity Explorer** – Browse by actress/model
 - 📥 **Gallery Downloader** – Paste a gallery URL and download all images
-- ✅ Select individual images before downloading (If Wanted)
+- ✅ Select individual images before downloading (optional)
 - 📊 **Download Manager** – Pause, resume, cancel downloads
-- 🕘 **History Page** – View, sort, delete, and share downloaded albums
+- 🕘 **History Viewer** – Sort, delete, and share past downloads
 - ❤️ **Favorites Tab** – Save your favorite celebrities and albums
-- 🎨 **Themes & Display Settings** – Light/Dark mode with color themes
-- 💾 **Storage Settings** – Set your custom download folder
-- 📁 **Database Updater** – Update celebrity CSV data
+- 🎨 **Themes & Display Settings** – Light/Dark mode with color customization
+- 💾 **Storage Settings** – Set your download folder
 - 📎 **CSV-based Celebrity Management**
+- 🔃 **Database Updater** – Easily update celebrity list
 
 ---
 
-## 📸 Screenshots
+## 🧪 How It Works
 
-| Home Page | Celebrity Page | Downloader |
-|-----------|----------------|------------|
-| ![Home](screenshots/home.jpg) | ![Celebrity](screenshots/celebrity.jpg) | ![Downloader](screenshots/downloader.jpg) |
-
-| History Page | Favourites | Themes |
-|--------------|------------|--------|
-| ![History](screenshots/history.jpg) | ![Favourites](screenshots/favourites.jpg) | ![Themes](screenshots/themes.jpg) |
----
-
-## 🛠️ Setup & Installation
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/DevSon1024/ragalahari_downloader_2025.git
-cd ragalahari_downloader_2025
-```
-
-### 2. Install dependencies
-```bash
-flutter pub get
-```
-
-### 3. Run the app
-```bash
-flutter run
-```
-
-> ✅ Ensure that your emulator or Android device is connected.
+1. Paste a gallery URL from Ragalahari into the downloader.
+2. The app fetches all image previews.
+3. Select individual or all images and hit download.
+4. Manage, view, or share downloads from the History tab.
 
 ---
 
-## 🧩 Dependencies
+## 🛠 Tech Stack
 
-Key Flutter packages used:
-- `http`
-- `html`
-- `permission_handler`
-- `path_provider`
-- `dio`
-- `provider`
-- `url_launcher`
-- `file_picker`
-- `csv`
-
-*(You can check full list in `pubspec.yaml`)*
+- **Flutter & Dart**
+- **Dio, Http, HTML Parsing**
+- **Provider for State Management**
+- **Permission Handler & Path Provider**
+- **CSV & File Picker**
+- **Mobile-First Responsive UI**
 
 ---
 
-## 📁 Folder Structure (Important Screens & Pages)
+## 📁 Folder Structure
 
 ```text
 /lib
 │
-├── main.dart                          # Entry point/# Latest albums and social links
+├── main.dart
 ├── settings_sidebar.dart
 ├── pages/
-│   ├──celebrity_list_page.dart        # All celebrity listing
-│   ├──download_mangager_page.dart     # Shows download status (pause/resume)
-│   ├──history_page.dart               # Downloaded image history
-│   ├──latest_celebrity.dart
-│   ├──ragalahari_downloader.dart      # Input gallery URL + download
+│   ├── celebrity_list_page.dart
+│   ├── download_mangager_page.dart
+│   ├── history_page.dart
+│   ├── latest_celebrity.dart
+│   ├── ragalahari_downloader.dart
 ├── screens/
-│   ├──ragalahari_downloader_screen.dart    
+│   ├── ragalahari_downloader_screen.dart
 ├── widgets/
-│   ├──navbar.dart
-│   ├──theme_config.dart         
+│   ├── navbar.dart
+│   ├── theme_config.dart
 ├── settings/
 │   ├── display_settings_page.dart
 │   ├── storage_settings.dart
 │   ├── favourite_page.dart
-│   └── privacy_policy_page.dart
-│   ├──update_database_page.dart
+│   ├── privacy_policy_page.dart
+│   └── update_database_page.dart
 ```
 
+---
+
+## ⬇️ Download
+
+- [GitHub Releases](https://github.com/DevSon1024/ragalahari_downloader_2025/releases)
+- F-Droid / Play Store (Coming soon)
 
 ---
 
-## 🧠 Author
+## 💬 Feedback & Contributions
 
-**Devson** – Flutter & Python Developer  
-📧 *dpsonawane789@gmail.com*  
-🌐 [Ragalahari.com (reference site)](https://www.ragalahari.com)
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Found a bug or have a feature request?  
+Open an [issue](https://github.com/DevSon1024/ragalahari_downloader_2025/issues) on GitHub.
 
 ---
 
-## 🌟 Show Some Love!
+## 📄 License
 
-If you like this app, don’t forget to ⭐ the repo and share it!
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="right">
+
+[↑ Back to Top](#📸-ragalahari-image-gallery-downloader)
+
+</div>
