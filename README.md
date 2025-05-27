@@ -18,11 +18,12 @@
 
 <div align="center">
 <img src="screenshots/home.jpg" width="30%" />
-<img src="screenshots/celebrity.jpg" width="30%" />
+<img src="screenshots/celebrities.jpg" width="30%" />
+<img src="screenshots/celebrity_galleries.jpg" width="30%" />
 <img src="screenshots/downloader.jpg" width="30%" />
-<img src="screenshots/history.jpg" width="30%" />
 <img src="screenshots/favourites.jpg" width="30%" />
-<img src="screenshots/themes.jpg" width="30%" />
+<img src="screenshots/history.jpg" width="30%" />
+<img src="screenshots/link_history.jpg" width="30%" />
 </div>
 
 ---
