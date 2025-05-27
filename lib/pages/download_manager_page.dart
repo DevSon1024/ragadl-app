@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
@@ -60,12 +59,23 @@ class DownloadManager {
 
   final Map<String, DownloadTask> _activeDownloads = {};
   final Dio _dio = Dio();
-  int _batchDownloadCount = 0; // Track number of downloads in current batch
-  int _completedDownloads = 0; // Track completed downloads in batch
-  int _failedDownloads = 0; // Track failed downloads in batch
-  String? _currentBatchId; // Identify current batch
+  int _batchDownloadCount = 0;
+  int _completedDownloads = 0;
+  int _failedDownloads = 0;
+  String? _currentBatchId;
 
   Map<String, DownloadTask> get activeDownloads => Map.unmodifiable(_activeDownloads);
+
+  // Get only downloads that should be visible (failed and paused)
+  Map<String, DownloadTask> get visibleDownloads {
+    return Map.fromEntries(
+        _activeDownloads.entries.where((entry) =>
+        entry.value.status == DownloadStatus.failed ||
+            entry.value.status == DownloadStatus.paused ||
+            entry.value.status == DownloadStatus.downloading
+        )
+    );
+  }
 
   Future<void> addDownload({
     required String url,
@@ -73,7 +83,7 @@ class DownloadManager {
     required String subFolder,
     required void Function(double progress) onProgress,
     required void Function(bool success) onComplete,
-    String? batchId, // Optional batch ID to group downloads
+    String? batchId,
   }) async {
     if (_activeDownloads.containsKey(url)) {
       final task = _activeDownloads[url]!;
@@ -102,7 +112,6 @@ class DownloadManager {
 
       _activeDownloads[url] = task;
 
-      // Increment batch counter if part of a batch
       if (batchId != null) {
         if (_currentBatchId == null || _currentBatchId != batchId) {
           _currentBatchId = batchId;
@@ -113,7 +122,6 @@ class DownloadManager {
         _batchDownloadCount++;
       }
 
-      // Send initial batch notification only for the first download in a batch
       if (batchId != null && _batchDownloadCount == 1) {
         await AwesomeNotifications().createNotification(
           content: NotificationContent(
@@ -128,7 +136,6 @@ class DownloadManager {
       }
 
       _download(task, onProgress, (success) async {
-        // Update batch counters
         if (batchId != null) {
           if (success) {
             _completedDownloads++;
@@ -136,7 +143,6 @@ class DownloadManager {
             _failedDownloads++;
           }
 
-          // Check if all downloads in the batch are complete
           if (_completedDownloads + _failedDownloads == _batchDownloadCount) {
             await AwesomeNotifications().createNotification(
               content: NotificationContent(
@@ -149,14 +155,12 @@ class DownloadManager {
                 locked: false,
               ),
             );
-            // Reset batch counters
             _currentBatchId = null;
             _batchDownloadCount = 0;
             _completedDownloads = 0;
             _failedDownloads = 0;
           }
         } else {
-          // For single downloads, show completion notification
           await AwesomeNotifications().createNotification(
             content: NotificationContent(
               id: url.hashCode,
@@ -171,6 +175,14 @@ class DownloadManager {
             ),
           );
         }
+
+        // Auto-remove completed downloads after a short delay
+        if (success) {
+          Future.delayed(const Duration(seconds: 2), () {
+            _activeDownloads.remove(url);
+          });
+        }
+
         onComplete(success);
       });
     } catch (e) {
@@ -188,7 +200,6 @@ class DownloadManager {
               locked: false,
             ),
           );
-          // Reset batch counters
           _currentBatchId = null;
           _batchDownloadCount = 0;
           _completedDownloads = 0;
@@ -353,8 +364,6 @@ class DownloadManager {
   }
 }
 
-// Rest of download_manager_page.dart remains unchanged
-
 class DownloadManagerPage extends StatefulWidget {
   const DownloadManagerPage({super.key});
 
@@ -369,9 +378,8 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
   @override
   void initState() {
     super.initState();
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
 
-    // Set up periodic refresh
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
         _refreshDownloads();
@@ -382,30 +390,27 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
   void _refreshDownloads() {
     if (mounted) {
       setState(() {
-        _downloadTasks = _downloadManager.activeDownloads;
+        _downloadTasks = _downloadManager.visibleDownloads; // Use visibleDownloads instead
       });
 
-      // Schedule next refresh
       Future.delayed(const Duration(seconds: 1), () {
         _refreshDownloads();
       });
     }
   }
 
-  void _loadActiveDownloads() {
+  void _loadVisibleDownloads() {
     setState(() {
-      _downloadTasks = _downloadManager.activeDownloads;
+      _downloadTasks = _downloadManager.visibleDownloads; // Use visibleDownloads instead
     });
   }
 
   void _cancelAllDownloadsAndDeleteFolder() async {
-    // Cancel all active downloads
     final urls = _downloadTasks.keys.toList();
     for (final url in urls) {
       _downloadManager.cancelDownload(url);
     }
 
-    // Delete the folder if it exists
     final prefs = await SharedPreferences.getInstance();
     String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
     for (var task in _downloadTasks.values) {
@@ -415,11 +420,10 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
       }
     }
 
-    // Clear the download tasks and refresh
     setState(() {
       _downloadTasks.clear();
     });
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('All downloads cancelled and folders deleted')),
     );
@@ -432,57 +436,61 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
         title: const Text(
           'Download Manager',
           style: TextStyle(
-            // color: Colors.white, // Change this to your desired color
-            fontWeight: FontWeight.bold, // Optional: Enhance visibility
+            fontWeight: FontWeight.bold,
           ),
         ),
-
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            // gradient: LinearGradient(
-            //   colors: [Colors.black, Colors.white],
-            //   begin: Alignment.topLeft,
-            //   end: Alignment.bottomRight,
-            // ),
-            // borderRadius: BorderRadius.vertical(
-            //   top: Radius.circular(30),
-            //   bottom: Radius.circular(30), // Adjust the radius as needed
-            // ),
-          ),
+          decoration: const BoxDecoration(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-                 Icons.delete_sweep,
-                // color: Colors.green,
-            ),
-            onPressed: _clearCompleted,
-            tooltip: 'Clear Completed Downloads',
+            icon: const Icon(Icons.delete_sweep),
+            onPressed: _clearFailedAndPaused,
+            tooltip: 'Clear Failed & Paused Downloads',
           ),
           IconButton(
-            icon: const Icon(
-                Icons.cancel,
-                // color: Colors.green,
-            ),
+            icon: const Icon(Icons.cancel),
             onPressed: _cancelAllDownloadsAndDeleteFolder,
             tooltip: 'Cancel All Downloads and Delete Folders',
           ),
         ],
       ),
       body: _downloadTasks.isEmpty
-          ? const Center(child: Text('No active downloads'))
+          ? const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.download_done,
+              size: 64,
+              color: Colors.grey,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'No active downloads',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Failed and paused downloads will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      )
           : ListView(
         children: _downloadTasks.values.map((task) => DownloadItem(
           task: task,
           onPause: () => _pauseDownload(task.url),
           onResume: () => _resumeDownload(task.url),
           onCancel: () => _cancelDownload(task.url),
-          onOpen: task.status == DownloadStatus.completed
-              ? () => _openFile(task.savePath)
-              : null,
-          onRemove: (task.status == DownloadStatus.completed || task.status == DownloadStatus.failed)
-              ? () => _removeDownload(task.url)
-              : null,
+          onRemove: () => _removeDownload(task.url),
           onRedownload: task.status == DownloadStatus.failed
               ? () => _redownloadFailed(task.url)
               : null,
@@ -493,38 +501,47 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
 
   void _pauseDownload(String url) {
     _downloadManager.pauseDownload(url);
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
   }
 
   void _resumeDownload(String url) {
     _downloadManager.resumeDownload(url);
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
   }
 
   void _cancelDownload(String url) {
     _downloadManager.cancelDownload(url);
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
   }
 
   void _removeDownload(String url) {
     _downloadManager.removeCompletedDownload(url);
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
   }
 
-  void _clearCompleted() {
-    final completedUrls = _downloadTasks.keys
-        .where((url) => _downloadTasks[url]!.status == DownloadStatus.completed)
+  void _clearFailedAndPaused() {
+    final urlsToRemove = _downloadTasks.keys
+        .where((url) =>
+    _downloadTasks[url]!.status == DownloadStatus.failed ||
+        _downloadTasks[url]!.status == DownloadStatus.paused)
         .toList();
-    for (final url in completedUrls) {
+
+    for (final url in urlsToRemove) {
       _downloadManager.removeCompletedDownload(url);
     }
-    _loadActiveDownloads();
+    _loadVisibleDownloads();
+
+    if (urlsToRemove.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cleared ${urlsToRemove.length} downloads')),
+      );
+    }
   }
 
   void _redownloadFailed(String url) {
     final task = _downloadTasks[url];
     if (task != null && task.status == DownloadStatus.failed) {
-      _downloadManager.removeCompletedDownload(url); // Remove failed task
+      _downloadManager.removeCompletedDownload(url);
       _downloadManager.addDownload(
         url: task.url,
         folder: task.folder,
@@ -537,25 +554,16 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
         onComplete: (success) {
           setState(() {
             if (success) {
-              _downloadTasks[url] = task.copyWith(status: DownloadStatus.completed, progress: 1.0);
+              // Remove from visible downloads when completed
+              _downloadTasks.remove(url);
             } else {
               _downloadTasks[url] = task.copyWith(status: DownloadStatus.failed);
             }
           });
         },
       );
-      _loadActiveDownloads();
+      _loadVisibleDownloads();
     }
-  }
-
-  void _openFile(String path) {
-    // Uncomment the below code after adding open_filex package
-    OpenFilex.open(path);
-
-    // For now just show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening file: $path')),
-    );
   }
 }
 
@@ -564,7 +572,6 @@ class DownloadItem extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onCancel;
-  final VoidCallback? onOpen;
   final VoidCallback? onRemove;
   final VoidCallback? onRedownload;
 
@@ -574,7 +581,6 @@ class DownloadItem extends StatelessWidget {
     required this.onPause,
     required this.onResume,
     required this.onCancel,
-    this.onOpen,
     this.onRemove,
     this.onRedownload,
   });
@@ -643,20 +649,12 @@ class DownloadItem extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (onOpen != null)
-                        IconButton(
-                          icon: const Icon(Icons.folder_open),
-                          onPressed: onOpen,
-                          tooltip: 'Open file',
-                          iconSize: 20,
-                        ),
-                      if (onRemove != null)
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: onRemove,
-                          tooltip: 'Remove from list',
-                          iconSize: 20,
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: onRemove,
+                        tooltip: 'Remove from list',
+                        iconSize: 20,
+                      ),
                       if (task.status == DownloadStatus.failed)
                         IconButton(
                           icon: const Icon(Icons.refresh),

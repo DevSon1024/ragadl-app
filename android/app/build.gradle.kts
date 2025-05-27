@@ -37,8 +37,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
         targetSdk = 35
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = 262 // update this version to 264 when update version to 2.6.4
+        versionName = "2.6.2"
         multiDexEnabled = true
     }
 

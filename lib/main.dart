@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 import 'pages/ragalahari_downloader.dart';
 import 'pages/history/history_page.dart';
 import 'pages/download_manager_page.dart';
@@ -106,7 +107,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     currentUrl = widget.initialUrl;
     currentFolder = widget.initialFolder;
-    currentGalleryTitle = widget.initialFolder;
+    currentGalleryTitle = widget.galleryTitle;
     if (widget.initialFolder != null) {
       _folderController.text = widget.initialFolder!;
       if (widget.galleryTitle != null) {
@@ -250,11 +251,11 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(), // Curved notch for FAB
-          notchMargin: 10.0, // Adjusted for smooth curve
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 10.0,
           color: Theme.of(context).primaryColor,
-          elevation: 0, // No shadow to avoid white strip
-          clipBehavior: Clip.antiAlias, // Smooth notch rendering
+          elevation: 0,
+          clipBehavior: Clip.antiAlias,
           child: SizedBox(
             height: 71.0,
             child: Row(
@@ -262,7 +263,7 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
                 _buildNavItem(1, Icons.person, Icons.person_outlined, 'Celebrity'),
-                const SizedBox(width: 40), // Gap for FAB
+                const SizedBox(width: 40),
                 _buildNavItem(3, Icons.download, Icons.download_outlined, 'Downloads'),
                 _buildNavItem(4, Icons.history, Icons.history_outlined, 'History'),
               ],
@@ -281,7 +282,7 @@ class _MainScreenState extends State<MainScreen> {
             });
           },
           shape: const CircleBorder(),
-          elevation: 4, // Subtle lift for prominence
+          elevation: 4,
           child: Icon(
             Icons.download_for_offline_rounded,
             color: Theme.of(context).colorScheme.onPrimary,
@@ -304,7 +305,7 @@ class _MainScreenState extends State<MainScreen> {
             FocusScope.of(context).unfocus();
           });
         },
-        borderRadius: BorderRadius.circular(50), // Circular hover effect
+        borderRadius: BorderRadius.circular(50),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -348,10 +349,16 @@ class _HomePageState extends State<HomePage> {
     {'title': 'Actress', 'icon': Icons.person_outline, 'page': const ActressPage()},
   ];
 
+  String _websiteStatus = 'Checking...';
+  Color _statusColor = Colors.grey;
+  int? _statusCode;
+  bool _isChecking = false;
+
   @override
   void initState() {
     super.initState();
     _loadSectionOrder();
+    _checkWebsiteStatus();
   }
 
   Future<void> _loadSectionOrder() async {
@@ -375,6 +382,52 @@ class _HomePageState extends State<HomePage> {
     await prefs.setStringList('section_order', order);
   }
 
+  Future<void> _checkWebsiteStatus() async {
+    if (_isChecking) return;
+    setState(() {
+      _isChecking = true;
+      _websiteStatus = 'Checking...';
+      _statusColor = Colors.grey;
+    });
+
+    try {
+      final response = await http.get(Uri.parse('https://www.ragalahari.com/')).timeout(const Duration(seconds: 5));
+      setState(() {
+        _statusCode = response.statusCode;
+        switch (_statusCode) {
+          case 200:
+            _websiteStatus = 'Website is Online';
+            _statusColor = Colors.green;
+            break;
+          case 404:
+            _websiteStatus = 'Page Not Found (404)';
+            _statusColor = Colors.red;
+            break;
+          case 502:
+            _websiteStatus = 'Bad Gateway (502)';
+            _statusColor = Colors.red;
+            break;
+          case 410:
+            _websiteStatus = 'Gone (410)';
+            _statusColor = Colors.red;
+            break;
+          default:
+            _websiteStatus = 'Error (Code: ${_statusCode})';
+            _statusColor = Colors.red;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _websiteStatus = 'Failed to Connect';
+        _statusColor = Colors.red;
+      });
+    } finally {
+      setState(() {
+        _isChecking = false;
+      });
+    }
+  }
+
   Future<void> _launchUrl(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -387,8 +440,7 @@ class _HomePageState extends State<HomePage> {
       IconData icon,
       String platform,
       String url,
-      Color color,
-      ) {
+      Color color) {
     return InkWell(
       onTap: () => _launchUrl(url),
       borderRadius: BorderRadius.circular(12),
@@ -421,10 +473,9 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 80.0), // Add bottom padding to clear BottomAppBar
+        padding: const EdgeInsets.only(bottom: 80.0),
         child: Column(
           children: [
-            // Add draggable region for Windows
             if (Platform.isWindows)
               GestureDetector(
                 onPanStart: (_) => windowManager.startDragging(),
@@ -443,17 +494,48 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.photo_library,
-                    size: 80,
-                    color: Theme.of(context).primaryColor,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _statusColor.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _statusCode == 200 ? Icons.check_circle : Icons.error,
+                          color: _statusColor,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _websiteStatus,
+                            style: TextStyle(
+                              color: _statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: _isChecking ? null : _checkWebsiteStatus,
+                          child: Icon(
+                            Icons.refresh,
+                            color: _isChecking
+                                ? Colors.grey
+                                : Theme.of(context).primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Welcome to Ragalahari Downloader',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
-                  ),
                 ],
               ),
             ),

@@ -1,6 +1,7 @@
 name: ragalahari_downloader
 description: "A simple image downloader app for Ragalahari"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+versionCode: 262 # update this version to 264 when update version to 2.6.4
 version: 2.6.2+2
 
 environment:

@@ -69,7 +69,7 @@ class DisplaySettingsPage extends StatelessWidget {
                       Switch(
                         value: themeConfig.currentThemeMode == ThemeMode.dark,
                         onChanged: themeConfig.useSystemTheme
-                            ? null // Disable switch when system theme is enabled
+                            ? null
                             : (value) {
                           themeConfig.toggleTheme();
                         },
@@ -125,19 +125,19 @@ class DisplaySettingsPage extends StatelessWidget {
                   children: [
                     _buildThemeContainer(
                       context,
-                      'Saffron Theme',
-                      const Color(0xFFFF4500),
-                      themeConfig,
-                      themeName: 'saffron',
-                      isSelected: themeConfig.currentTheme == 'saffron',
-                    ),
-                    _buildThemeContainer(
-                      context,
                       'Cool Theme',
                       const Color(0xFF2196F3),
                       themeConfig,
                       themeName: 'white',
                       isSelected: themeConfig.currentTheme == 'white',
+                    ),
+                    _buildThemeContainer(
+                      context,
+                      'Saffron Theme',
+                      const Color(0xFFFF4500),
+                      themeConfig,
+                      themeName: 'saffron',
+                      isSelected: themeConfig.currentTheme == 'saffron',
                     ),
                     _buildThemeContainer(
                       context,

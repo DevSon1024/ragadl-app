@@ -8,9 +8,9 @@ class ThemeConfig extends ChangeNotifier {
     primaryColor: Colors.green,
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(Colors.green).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
@@ -33,9 +33,9 @@ class ThemeConfig extends ChangeNotifier {
     primaryColor: const Color(0xFFFF4500),
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(const Color(0xFFFF4500)).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
@@ -58,9 +58,9 @@ class ThemeConfig extends ChangeNotifier {
     primaryColor: Colors.pinkAccent,
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(Colors.pinkAccent).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
@@ -83,9 +83,9 @@ class ThemeConfig extends ChangeNotifier {
     primaryColor: Colors.orange,
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(Colors.orange).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
@@ -108,9 +108,9 @@ class ThemeConfig extends ChangeNotifier {
     primaryColor: Colors.teal,
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(Colors.teal).withLightness(0.95).toColor(),
     ),
     textTheme: const TextTheme(
@@ -133,7 +133,7 @@ class ThemeConfig extends ChangeNotifier {
     primaryColor: const Color(0xFF2196F3),
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: const CardTheme(
+    cardTheme: const CardThemeData(
       elevation: 4,
       margin: EdgeInsets.all(8),
       color: Color(0xFFE3F2FD),
@@ -166,9 +166,9 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(const Color(0xFF2E7D32)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
@@ -198,9 +198,9 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(const Color(0xFFCE3F08)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
@@ -230,9 +230,9 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(const Color(0xFFC2185B)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
@@ -262,9 +262,9 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(const Color(0xFFF57C00)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
@@ -294,9 +294,9 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 4,
-      margin: EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8),
       color: HSLColor.fromColor(const Color(0xFF00695C)).withLightness(0.3).toColor(),
     ),
     textTheme: const TextTheme(
@@ -326,10 +326,10 @@ class ThemeConfig extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF212121),
     brightness: Brightness.dark,
-    cardTheme: CardTheme(
+    cardTheme: const CardThemeData(
       elevation: 4,
       margin: EdgeInsets.all(8),
-      color: const Color(0xFF616161),
+      color: Color(0xFF616161),
     ),
     textTheme: const TextTheme(
       bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
@@ -346,16 +346,14 @@ class ThemeConfig extends ChangeNotifier {
     ),
   );
 
-  ThemeMode _currentThemeMode = ThemeMode.light; // Default to light for manual mode
-  bool _useSystemTheme = true; // Default to follow system theme
-  String _currentTheme = 'saffron'; // Default to Saffron theme
-
-  // Add keys for SharedPreferences
+  ThemeMode _currentThemeMode = ThemeMode.light;
+  bool _useSystemTheme = true;
+  String _currentTheme = 'white';
   static const String _themeModeKey = 'theme_mode';
   static const String _themeNameKey = 'theme_name';
   static const String _useSystemThemeKey = 'use_system_theme';
   static const String _gridColumnsKey = 'grid_columns';
-  int _gridColumns = 2; // Default to 2 columns
+  int _gridColumns = 2;
 
   ThemeConfig() {
     _loadTheme();
@@ -375,7 +373,7 @@ class ThemeConfig extends ChangeNotifier {
     if (themeName != null) {
       _currentTheme = themeName;
     } else {
-      _currentTheme = 'saffron';
+      _currentTheme = 'white';
     }
     final gridCols = prefs.getInt(_gridColumnsKey);
     if (gridCols != null) {
@@ -439,7 +437,7 @@ class ThemeConfig extends ChangeNotifier {
       case 'white':
         return whiteTheme;
       default:
-        return saffronTheme;
+        return whiteTheme;
     }
   }
 
@@ -458,7 +456,7 @@ class ThemeConfig extends ChangeNotifier {
       case 'white':
         return whiteDarkTheme;
       default:
-        return saffronDarkTheme;
+        return whiteDarkTheme;
     }
   }
 }
