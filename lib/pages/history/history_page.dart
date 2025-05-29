@@ -896,7 +896,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     if (_currentPreset == ViewPreset.galleriesFolder || _currentPreset == ViewPreset.celebrityAlbum) {
       if (_viewType == ViewType.list) {
         return ListView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.only(bottom: 90),
           itemCount: _filteredItems.length,
           itemBuilder: (context, index) {
             final item = _filteredItems[index];
@@ -967,7 +967,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
         );
       } else {
         return GridView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.only(bottom: 90),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 6,
