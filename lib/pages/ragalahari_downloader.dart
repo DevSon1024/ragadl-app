@@ -244,7 +244,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       timestamp: DateTime.now(),
     );
 
-    // Avoid duplicates by checking URL and celebrityName
     if (!history.any((item) => item.url == url && item.celebrityName == mainFolderName)) {
       history.add(historyItem);
       await prefs.setStringList(
@@ -321,7 +320,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       });
 
       final downloadManager = DownloadManager();
-      final batchId = DateTime.now().millisecondsSinceEpoch.toString(); // Unique batch ID
+      final batchId = DateTime.now().millisecondsSinceEpoch.toString();
       for (int i = 0; i < imageUrls.length; i++) {
         final imageUrl = imageUrls[i].originalUrl;
 
@@ -329,7 +328,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
-          batchId: batchId, // Pass batch ID
+          batchId: batchId,
           onProgress: (progress) {},
           onComplete: (success) {
             setState(() {
@@ -372,7 +371,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       });
 
       final downloadManager = DownloadManager();
-      final batchId = DateTime.now().millisecondsSinceEpoch.toString(); // Unique batch ID
+      final batchId = DateTime.now().millisecondsSinceEpoch.toString();
       for (int index in selectedImages) {
         final imageUrl = imageUrls[index].originalUrl;
 
@@ -380,7 +379,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
-          batchId: batchId, // Pass batch ID
+          batchId: batchId,
           onProgress: (progress) {},
           onComplete: (success) {
             setState(() {
@@ -433,6 +432,23 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
         'RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
     final themeConfig = Provider.of<ThemeConfig>(context);
     return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Downloader',
+          style: TextStyle(
+            // color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        // flexibleSpace: Container(
+        //   decoration: BoxDecoration(
+        //     color: Theme.of(context).primaryColor,
+        //     borderRadius: const BorderRadius.vertical(
+        //       bottom: Radius.circular(15),
+        //     ),
+        //   ),
+        // ),
+      ),
       resizeToAvoidBottomInset: true,
       floatingActionButton: Stack(
         children: [
