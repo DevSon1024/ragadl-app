@@ -2,347 +2,545 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeConfig extends ChangeNotifier {
-  // Light Themes
+  // Light Themes with Material 3 Color Schemes
   static ThemeData natureTheme = ThemeData(
-    primarySwatch: Colors.green,
-    primaryColor: Colors.green,
-    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.green,
+      brightness: Brightness.light,
+      primary: Colors.green[700],
+      secondary: Colors.green[300],
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.black87,
+      onSurface: Colors.black87,
+    ),
+    useMaterial3: true,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.green).withLightness(0.95).toColor(),
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
-      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Colors.green,
+    iconTheme: IconThemeData(
+      color: Colors.green[700],
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: Colors.black87,
       elevation: 0,
+      surfaceTintColor: Colors.white,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData saffronTheme = ThemeData(
-    primarySwatch: Colors.deepOrange,
-    primaryColor: const Color(0xFFFF4500),
-    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.deepOrange,
+      brightness: Brightness.light,
+      primary: Colors.deepOrange[700],
+      secondary: Colors.deepOrange[300],
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.black87,
+      onSurface: Colors.black87,
+    ),
+    useMaterial3: true,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFFF4500)).withLightness(0.95).toColor(),
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
-      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFFFF4500),
+    iconTheme: IconThemeData(
+      color: Colors.deepOrange[700],
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: Colors.black87,
       elevation: 0,
+      surfaceTintColor: Colors.white,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData smoothTheme = ThemeData(
-    primarySwatch: Colors.pink,
-    primaryColor: Colors.pinkAccent,
-    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.pink,
+      brightness: Brightness.light,
+      primary: Colors.pink[700],
+      secondary: Colors.pink[300],
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.black87,
+      onSurface: Colors.black87,
+    ),
+    useMaterial3: true,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.pinkAccent).withLightness(0.95).toColor(),
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
-      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Colors.pinkAccent,
+    iconTheme: IconThemeData(
+      color: Colors.pink[700],
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: Colors.black87,
       elevation: 0,
+      surfaceTintColor: Colors.white,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData vibrantTheme = ThemeData(
-    primarySwatch: Colors.orange,
-    primaryColor: Colors.orange,
-    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.orange,
+      brightness: Brightness.light,
+      primary: Colors.orange[700],
+      secondary: Colors.orange[300],
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.black87,
+      onSurface: Colors.black87,
+    ),
+    useMaterial3: true,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.orange).withLightness(0.95).toColor(),
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
-      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Colors.orange,
+    iconTheme: IconThemeData(
+      color: Colors.orange[700],
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: Colors.black87,
       elevation: 0,
+      surfaceTintColor: Colors.white,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData calmTheme = ThemeData(
-    primarySwatch: Colors.teal,
-    primaryColor: Colors.teal,
-    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.teal,
+      brightness: Brightness.light,
+      primary: Colors.teal[700],
+      secondary: Colors.teal[300],
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.black87,
+      onSurface: Colors.black87,
+    ),
+    useMaterial3: true,
     scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(Colors.teal).withLightness(0.95).toColor(),
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
-      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Colors.teal,
+    iconTheme: IconThemeData(
+      color: Colors.teal[700],
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: Colors.black87,
       elevation: 0,
+      surfaceTintColor: Colors.white,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData whiteTheme = ThemeData(
-    primarySwatch: Colors.blue,
-    primaryColor: const Color(0xFF2196F3),
-    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: Brightness.light,
+      primary: Colors.blue[700],
+      secondary: Colors.blue[300],
+      surface: Colors.white,
+      onPrimary: Colors.white,
+      onSecondary: Colors.black87,
+      onSurface: Colors.black87,
+    ),
+    useMaterial3: true,
     scaffoldBackgroundColor: Colors.white,
     cardTheme: const CardThemeData(
-      elevation: 4,
+      elevation: 2,
       margin: EdgeInsets.all(8),
-      color: Color(0xFFE3F2FD),
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-      bodySmall: TextStyle(fontSize: 14, color: Colors.black54),
-      titleLarge: TextStyle(fontSize: 20, color: Colors.black87),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFF2196F3),
+    iconTheme: IconThemeData(
+      color: Colors.blue[700],
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: Colors.black87,
       elevation: 0,
+      surfaceTintColor: Colors.white,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
-  // Dark Themes
+  // Dark Themes with Material 3 Color Schemes
   static ThemeData natureDarkTheme = ThemeData(
-    primaryColor: const Color(0xFF2E7D32),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF2E7D32),
-      secondary: Color(0xFF4CAF50),
-      surface: Color(0xFF424242),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFFFFFFFF),
-      onSurface: Color(0xFFFFFFFF),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.green,
+      brightness: Brightness.dark,
+      primary: Colors.green[900],
+      secondary: Colors.green[700],
+      surface: Colors.grey[900],
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121),
-    brightness: Brightness.dark,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFF2E7D32)).withLightness(0.3).toColor(),
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[900],
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.grey,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
-      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFF2E7D32),
+    iconTheme: IconThemeData(
+      color: Colors.green[700],
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121),
-      foregroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.grey,
+      foregroundColor: Colors.white,
       elevation: 0,
+      surfaceTintColor: Colors.grey,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData saffronDarkTheme = ThemeData(
-    primaryColor: const Color(0xFFCE3F08),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFFCE3F08),
-      secondary: Color(0xFFFF6F00),
-      surface: Color(0xFF424242),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFFFFFFFF),
-      onSurface: Color(0xFFFFFFFF),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.deepOrange,
+      brightness: Brightness.dark,
+      primary: Colors.deepOrange[900],
+      secondary: Colors.deepOrange[700],
+      surface: Colors.grey[900],
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121),
-    brightness: Brightness.dark,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFCE3F08)).withLightness(0.3).toColor(),
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[900],
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.grey,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
-      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFFCE3F08),
+    iconTheme: IconThemeData(
+      color: Colors.deepOrange[700],
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121),
-      foregroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.grey,
+      foregroundColor: Colors.white,
       elevation: 0,
+      surfaceTintColor: Colors.grey,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData smoothDarkTheme = ThemeData(
-    primaryColor: const Color(0xFFC2185B),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFFC2185B),
-      secondary: Color(0xFFF06292),
-      surface: Color(0xFF424242),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFFFFFFFF),
-      onSurface: Color(0xFFFFFFFF),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.pink,
+      brightness: Brightness.dark,
+      primary: Colors.pink[900],
+      secondary: Colors.pink[700],
+      surface: Colors.grey[900],
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121),
-    brightness: Brightness.dark,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFC2185B)).withLightness(0.3).toColor(),
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[900],
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.grey,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
-      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFFC2185B),
+    iconTheme: IconThemeData(
+      color: Colors.pink[700],
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121),
-      foregroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.grey,
+      foregroundColor: Colors.white,
       elevation: 0,
+      surfaceTintColor: Colors.grey,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData vibrantDarkTheme = ThemeData(
-    primaryColor: const Color(0xFFF57C00),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFFF57C00),
-      secondary: Color(0xFFFFA726),
-      surface: Color(0xFF424242),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFFFFFFFF),
-      onSurface: Color(0xFFFFFFFF),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.orange,
+      brightness: Brightness.dark,
+      primary: Colors.orange[900],
+      secondary: Colors.orange[700],
+      surface: Colors.grey[900],
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121),
-    brightness: Brightness.dark,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFFF57C00)).withLightness(0.3).toColor(),
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[900],
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.grey,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
-      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFFF57C00),
+    iconTheme: IconThemeData(
+      color: Colors.orange[700],
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121),
-      foregroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.grey,
+      foregroundColor: Colors.white,
       elevation: 0,
+      surfaceTintColor: Colors.grey,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData calmDarkTheme = ThemeData(
-    primaryColor: const Color(0xFF00695C),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF00695C),
-      secondary: Color(0xFF26A69A),
-      surface: Color(0xFF424242),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFFFFFFFF),
-      onSurface: Color(0xFFFFFFFF),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.teal,
+      brightness: Brightness.dark,
+      primary: Colors.teal[900],
+      secondary: Colors.teal[700],
+      surface: Colors.grey[900],
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121),
-    brightness: Brightness.dark,
-    cardTheme: CardThemeData(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      color: HSLColor.fromColor(const Color(0xFF00695C)).withLightness(0.3).toColor(),
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[900],
+    cardTheme: const CardThemeData(
+      elevation: 2,
+      margin: EdgeInsets.all(8),
+      surfaceTintColor: Colors.grey,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
-      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFF00695C),
+    iconTheme: IconThemeData(
+      color: Colors.teal[700],
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121),
-      foregroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.grey,
+      foregroundColor: Colors.white,
       elevation: 0,
+      surfaceTintColor: Colors.grey,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 
   static ThemeData whiteDarkTheme = ThemeData(
-    primaryColor: const Color(0xFF1976D2),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF1976D2),
-      secondary: Color(0xFF42A5F5),
-      surface: Color(0xFF424242),
-      onPrimary: Color(0xFFFFFFFF),
-      onSecondary: Color(0xFFFFFFFF),
-      onSurface: Color(0xFFFFFFFF),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: Brightness.dark,
+      primary: Colors.blue[900],
+      secondary: Colors.blue[700],
+      surface: Colors.grey[900],
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: const Color(0xFF212121),
-    brightness: Brightness.dark,
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[900],
     cardTheme: const CardThemeData(
-      elevation: 4,
+      elevation: 2,
       margin: EdgeInsets.all(8),
-      color: Color(0xFF616161),
+      surfaceTintColor: Colors.grey,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
     ),
     textTheme: const TextTheme(
-      bodyMedium: TextStyle(fontSize: 16, color: Color(0xFFFFFFFF)),
-      bodySmall: TextStyle(fontSize: 14, color: Color(0xFFB0B0B0)),
-      titleLarge: TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 1.25),
     ),
-    iconTheme: const IconThemeData(
-      color: Color(0xFF1976D2),
+    iconTheme: IconThemeData(
+      color: Colors.blue[700],
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF212121),
-      foregroundColor: Color(0xFFFFFFFF),
+      backgroundColor: Colors.grey,
+      foregroundColor: Colors.white,
       elevation: 0,
+      surfaceTintColor: Colors.grey,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        letterSpacing: 0.15,
+      ),
     ),
   );
 

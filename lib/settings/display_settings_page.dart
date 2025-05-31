@@ -7,166 +7,183 @@ class DisplaySettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Display Settings',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+        title: const Text('Display Settings'),
+        centerTitle: true,
+        titleTextStyle: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurface,
         ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(20),
-            ),
-          ),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Theme Settings',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Theme Settings Section
+              Text(
+                'Theme',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Consumer<ThemeConfig>(
-              builder: (context, themeConfig, child) => Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 12),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Consumer<ThemeConfig>(
+                  builder: (context, themeConfig, child) => Column(
                     children: [
-                      Text(
-                        'Use System Theme',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      Switch(
-                        value: themeConfig.useSystemTheme,
-                        onChanged: (value) {
-                          themeConfig.setUseSystemTheme(value);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Dark Mode',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: themeConfig.useSystemTheme
-                              ? Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.5)
-                              : Theme.of(context).textTheme.bodyLarge?.color,
+                      ListTile(
+                        title: Text(
+                          'Use System Theme',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                        trailing: Switch(
+                          value: themeConfig.useSystemTheme,
+                          onChanged: (value) {
+                            themeConfig.setUseSystemTheme(value);
+                          },
+                          activeColor: theme.colorScheme.primary,
                         ),
                       ),
-                      Switch(
-                        value: themeConfig.currentThemeMode == ThemeMode.dark,
-                        onChanged: themeConfig.useSystemTheme
-                            ? null
-                            : (value) {
-                          themeConfig.toggleTheme();
-                        },
+                      ListTile(
+                        title: Text(
+                          'Dark Mode',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: themeConfig.useSystemTheme
+                                ? theme.colorScheme.onSurface.withOpacity(0.5)
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        trailing: Switch(
+                          value: themeConfig.currentThemeMode == ThemeMode.dark,
+                          onChanged: themeConfig.useSystemTheme
+                              ? null
+                              : (value) {
+                            themeConfig.toggleTheme();
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Grid View Settings',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 24),
+
+              // Grid View Settings Section
+              Text(
+                'Grid View',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Consumer<ThemeConfig>(
-              builder: (context, themeConfig, child) => Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Grid Columns',
-                    style: Theme.of(context).textTheme.bodyLarge,
+              const SizedBox(height: 12),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Consumer<ThemeConfig>(
+                  builder: (context, themeConfig, child) => ListTile(
+                    title: Text(
+                      'Grid Columns',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    trailing: DropdownButton<int>(
+                      value: themeConfig.gridColumns,
+                      items: const [
+                        DropdownMenuItem(value: 1, child: Text('Full Width')),
+                        DropdownMenuItem(value: 2, child: Text('2 Columns')),
+                        DropdownMenuItem(value: 3, child: Text('3 Columns')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          themeConfig.setGridColumns(value);
+                        }
+                      },
+                      style: theme.textTheme.bodyLarge,
+                      underline: Container(),
+                      icon: Icon(Icons.arrow_drop_down, color: theme.colorScheme.onSurface),
+                    ),
                   ),
-                  DropdownButton<int>(
-                    value: themeConfig.gridColumns,
-                    items: const [
-                      DropdownMenuItem(value: 1, child: Text('Full Width')),
-                      DropdownMenuItem(value: 2, child: Text('2 Columns')),
-                      DropdownMenuItem(value: 3, child: Text('3 Columns')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeConfig.setGridColumns(value);
-                      }
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Theme Options',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 24),
+
+              // Theme Options Section
+              Text(
+                'Theme Options',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Consumer<ThemeConfig>(
-                builder: (context, themeConfig, child) => ListView(
+              const SizedBox(height: 12),
+              Consumer<ThemeConfig>(
+                builder: (context, themeConfig, child) => Column(
                   children: [
-                    _buildThemeContainer(
+                    _buildThemeTile(
                       context,
                       'Cool Theme',
-                      const Color(0xFF2196F3),
+                      Colors.blue[700]!,
                       themeConfig,
                       themeName: 'white',
                       isSelected: themeConfig.currentTheme == 'white',
                     ),
-                    _buildThemeContainer(
+                    _buildThemeTile(
                       context,
                       'Saffron Theme',
-                      const Color(0xFFFF4500),
+                      Colors.deepOrange[700]!,
                       themeConfig,
                       themeName: 'saffron',
                       isSelected: themeConfig.currentTheme == 'saffron',
                     ),
-                    _buildThemeContainer(
+                    _buildThemeTile(
                       context,
                       'Nature Theme',
-                      Colors.green,
+                      Colors.green[700]!,
                       themeConfig,
                       themeName: 'nature',
                       isSelected: themeConfig.currentTheme == 'nature',
                     ),
-                    _buildThemeContainer(
+                    _buildThemeTile(
                       context,
                       'Smooth Theme',
-                      Colors.pinkAccent,
+                      Colors.pink[700]!,
                       themeConfig,
                       themeName: 'smooth',
                       isSelected: themeConfig.currentTheme == 'smooth',
                     ),
-                    _buildThemeContainer(
+                    _buildThemeTile(
                       context,
                       'Vibrant Theme',
-                      Colors.orange,
+                      Colors.orange[700]!,
                       themeConfig,
                       themeName: 'vibrant',
                       isSelected: themeConfig.currentTheme == 'vibrant',
                     ),
-                    _buildThemeContainer(
+                    _buildThemeTile(
                       context,
                       'Calm Theme',
-                      Colors.teal,
+                      Colors.teal[700]!,
                       themeConfig,
                       themeName: 'calm',
                       isSelected: themeConfig.currentTheme == 'calm',
@@ -174,14 +191,14 @@ class DisplaySettingsPage extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildThemeContainer(
+  Widget _buildThemeTile(
       BuildContext context,
       String displayName,
       Color color,
@@ -189,45 +206,39 @@ class DisplaySettingsPage extends StatelessWidget {
         required String themeName,
         bool isSelected = false,
       }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: InkWell(
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected ? color : theme.colorScheme.outlineVariant,
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
         onTap: () {
           themeConfig.setTheme(themeName);
         },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
+        leading: Container(
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            border: Border.all(
-              color: isSelected ? color : Colors.grey,
-              width: isSelected ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-            color: color.withOpacity(0.1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  displayName,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+            color: color,
+            shape: BoxShape.circle,
           ),
         ),
+        title: Text(
+          displayName,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: isSelected
+            ? Icon(Icons.check_circle, color: color)
+            : null,
       ),
     );
   }

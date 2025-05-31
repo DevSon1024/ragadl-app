@@ -233,7 +233,7 @@ class _MainScreenState extends State<MainScreen> {
           elevation: 0,
           clipBehavior: Clip.antiAlias,
           child: SizedBox(
-            height: 71.0,
+            height: 56.0,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
