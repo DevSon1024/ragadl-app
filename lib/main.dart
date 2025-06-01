@@ -326,8 +326,8 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> sections = [
     {'title': 'Latest All Celebrities', 'icon': Icons.star, 'page': const LatestCelebrityPage()},
     {'title': 'Favorites', 'icon': Icons.favorite, 'page': const FavouritePage()},
-    {'title': 'Actors', 'icon': Icons.person, 'page': const ActorPage()},
-    {'title': 'Actress', 'icon': Icons.person_outline, 'page': const ActressPage()},
+    {'title': 'Latest Actors', 'icon': Icons.person, 'page': const ActorPage()},
+    {'title': 'Latest Actress', 'icon': Icons.person_outline, 'page': const ActressPage()},
   ];
 
   String _websiteStatus = 'Checking...';

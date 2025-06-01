@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_Preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../screens/ragalahari_downloader_screen.dart';
-import '../pages/celebrity/celebrity_list_page.dart'; // Import to reuse FavoriteItem and navigate
+import '../pages/ragalahari_downloader.dart';
+import '../pages/celebrity/gallery_links_page.dart';
+import '../pages/celebrity/celebrity_utils.dart';
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});
@@ -68,7 +69,11 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
       _favorites = favorites;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${item.name} removed from favorites')));
+      SnackBar(
+        content: Text('${item.name} removed from favorites'),
+        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+      ),
+    );
   }
 
   void _onReorder(int oldIndex, int newIndex, String type) {
@@ -78,7 +83,6 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
       final item = items[oldIndex];
       items.removeAt(oldIndex);
       items.insert(newIndex, item);
-      // Rebuild _favorites with reordered items
       _favorites = [
         if (type == 'celebrity') ...items,
         if (type == 'gallery') ..._favorites.where((item) => item.type == 'celebrity'),
@@ -91,14 +95,24 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final celebrities = _favorites.where((item) => item.type == 'celebrity').toList();
     final galleries = _favorites.where((item) => item.type == 'gallery').toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favourites'),
+        title: const Text(
+          'Favourites',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
+        elevation: 2,
         bottom: TabBar(
           controller: _tabController,
+          labelColor: theme.colorScheme.primary,
+          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+          indicatorColor: theme.colorScheme.primary,
           tabs: const [
             Tab(text: 'Celebrities'),
             Tab(text: 'Galleries'),
@@ -110,19 +124,36 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
         children: [
           // Celebrities Tab
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: celebrities.isEmpty
-                ? const Center(child: Text('No favorite celebrities'))
+                ? Center(
+              child: Text(
+                'No favorite celebrities',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
                 : ReorderableListView(
               onReorder: (oldIndex, newIndex) => _onReorder(oldIndex, newIndex, 'celebrity'),
               children: List.generate(celebrities.length, (index) {
                 final item = celebrities[index];
                 return Card(
                   key: ValueKey(item.url),
-                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  surfaceTintColor: theme.colorScheme.surfaceTint,
                   child: ListTile(
-                    title: Text(item.name),
-                    hoverColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    title: Text(
+                      item.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -135,7 +166,10 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
                       );
                     },
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete),
+                      icon: Icon(
+                        Icons.delete,
+                        color: theme.colorScheme.error,
+                      ),
                       onPressed: () => _removeFavorite(item),
                       tooltip: 'Remove from favorites',
                     ),
@@ -146,37 +180,67 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
           ),
           // Galleries Tab
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: galleries.isEmpty
-                ? const Center(child: Text('No favorite galleries'))
+                ? Center(
+              child: Text(
+                'No favorite galleries',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
                 : ReorderableListView(
               onReorder: (oldIndex, newIndex) => _onReorder(oldIndex, newIndex, 'gallery'),
               children: List.generate(galleries.length, (index) {
                 final item = galleries[index];
                 return Card(
                   key: ValueKey(item.url),
-                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  surfaceTintColor: theme.colorScheme.surfaceTint,
                   child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     leading: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
                         ? ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(8),
                       child: Image.network(
                         item.thumbnailUrl!,
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image, size: 60),
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.broken_image,
+                          size: 60,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     )
-                        : const Icon(Icons.image, size: 60),
-                    title: Text(item.name),
-                    subtitle: Text('Celebrity: ${item.celebrityName ?? 'Unknown'}'),
+                        : Icon(
+                      Icons.image,
+                      size: 60,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    title: Text(
+                      item.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Celebrity: ${item.celebrityName ?? 'Unknown'}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => RagalahariDownloaderScreen(
+                          builder: (_) => RagalahariDownloader(
                             initialUrl: item.url,
                             initialFolder: item.celebrityName,
                           ),
@@ -184,7 +248,10 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
                       );
                     },
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete),
+                      icon: Icon(
+                        Icons.delete,
+                        color: theme.colorScheme.error,
+                      ),
                       onPressed: () => _removeFavorite(item),
                       tooltip: 'Remove from favorites',
                     ),

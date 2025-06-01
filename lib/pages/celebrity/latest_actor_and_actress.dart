@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../screens/ragalahari_downloader_screen.dart';
-
+// import '../../screens/ragalahari_downloader_screen.dart';
+import '../ragalahari_downloader.dart';
 class ActorPage extends StatefulWidget {
   const ActorPage({super.key});
 
@@ -92,7 +92,7 @@ class _ActorPageState extends State<ActorPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RagalahariDownloaderScreen(
+                  builder: (_) => RagalahariDownloader(
                     initialUrl: url,
                     initialFolder: name,
                   ),
@@ -333,7 +333,7 @@ class _ActressPageState extends State<ActressPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RagalahariDownloaderScreen(
+                  builder: (_) => RagalahariDownloader(
                     initialUrl: url,
                     initialFolder: name,
                   ),

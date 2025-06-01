@@ -58,7 +58,11 @@ class _StoragePageState extends State<StoragePage> {
       _isDefaultPath = path == '/storage/emulated/0/Download';
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Download path set to: $path')),
+      SnackBar(
+        content: Text('Download path set to: $path'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
@@ -91,7 +95,11 @@ class _StoragePageState extends State<StoragePage> {
     await prefs.clear();
     await _loadSavedPath();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cache cleared successfully')),
+      SnackBar(
+        content: const Text('Cache cleared successfully'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
@@ -104,7 +112,11 @@ class _StoragePageState extends State<StoragePage> {
         if (storagePermission != PermissionStatus.granted &&
             manageStoragePermission != PermissionStatus.granted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Storage permission denied')),
+            SnackBar(
+              content: const Text('Storage permission denied'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           );
           return;
         }
@@ -155,7 +167,11 @@ class _StoragePageState extends State<StoragePage> {
       String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
       if (selectedDirectory == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No folder selected for backup')),
+          SnackBar(
+            content: const Text('No folder selected for backup'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
         return;
       }
@@ -172,13 +188,21 @@ class _StoragePageState extends State<StoragePage> {
         final appDir = await getExternalStorageDirectory();
         if (appDir == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unable to access storage')),
+            SnackBar(
+              content: const Text('Unable to access storage'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           );
           return;
         }
         finalDirectory = appDir.path;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Selected folder inaccessible, using: $finalDirectory')),
+          SnackBar(
+            content: Text('Selected folder inaccessible, using: $finalDirectory'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
 
@@ -192,7 +216,11 @@ class _StoragePageState extends State<StoragePage> {
 
       if (zipData == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create ZIP file')),
+          SnackBar(
+            content: const Text('Failed to create ZIP file'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
         return;
       }
@@ -201,11 +229,19 @@ class _StoragePageState extends State<StoragePage> {
       await zipFile.writeAsBytes(zipData);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup saved to: $zipPath')),
+        SnackBar(
+          content: Text('Backup saved to: $zipPath'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error during backup: $e')),
+        SnackBar(
+          content: Text('Error during backup: $e'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     }
   }
@@ -246,7 +282,11 @@ class _StoragePageState extends State<StoragePage> {
 
     await _loadSavedPath();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Data restored successfully')),
+      SnackBar(
+        content: const Text('Data restored successfully'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
@@ -258,87 +298,187 @@ class _StoragePageState extends State<StoragePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Storage Settings')),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text(
+          'Storage Settings',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
+        elevation: 2,
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Set Download Location',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              'Storage Settings',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Choose a base directory for downloads. The structure will be: '
-                  '[Your Path]/Ragalahari Downloads/[folder]/[subfolder]',
-              style: TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _pathController,
-              decoration: const InputDecoration(
-                labelText: 'Base Download Path',
-                border: OutlineInputBorder(),
-              ),
-              readOnly: true,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickFolder,
-                    icon: const Icon(Icons.folder_open),
-                    label: const Text('Pick Folder'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isDefaultPath ? null : _resetToDefault,
-                    icon: const Icon(Icons.restore),
-                    label: const Text('Reset to Default'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _exportData,
-                    icon: const Icon(Icons.backup),
-                    label: const Text('Backup Data'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _importData,
-                    icon: const Icon(Icons.restore),
-                    label: const Text('Restore Data'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _clearCache,
-              icon: const Icon(Icons.delete_forever),
-              label: const Text('Clear Cache'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 16),
             Text(
-              'Current Path: $_baseDownloadPath/Ragalahari Downloads/[folder]/[subfolder]',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              'Configure download location and manage app data.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
+            const SizedBox(height: 20),
+
+            // Single Container with all settings
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              surfaceTintColor: theme.colorScheme.surfaceTint,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Download Path Section
+                    Text(
+                      'Download Path',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _pathController,
+                      decoration: InputDecoration(
+                        labelText: 'Base Download Path',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainer,
+                        prefixIcon: const Icon(Icons.folder),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      readOnly: true,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // All Action Buttons in Grid
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      childAspectRatio: 3,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _pickFolder,
+                          icon: const Icon(Icons.folder_open, size: 18),
+                          label: const Text('Pick Folder', style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 1,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _isDefaultPath ? null : _resetToDefault,
+                          icon: const Icon(Icons.restore, size: 18),
+                          label: const Text('Reset Default', style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.secondary,
+                            foregroundColor: theme.colorScheme.onSecondary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 1,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _exportData,
+                          icon: const Icon(Icons.backup, size: 18),
+                          label: const Text('Backup', style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.tertiary,
+                            foregroundColor: theme.colorScheme.onTertiary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 1,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _importData,
+                          icon: const Icon(Icons.restore, size: 18),
+                          label: const Text('Restore', style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.tertiary,
+                            foregroundColor: theme.colorScheme.onTertiary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Clear Cache Button (full width)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _clearCache,
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text('Clear Cache'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Current Path Info (simplified)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 14,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Path: $_baseDownloadPath',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20), // Bottom padding for scroll
           ],
         ),
       ),

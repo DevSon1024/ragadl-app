@@ -245,7 +245,6 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
           });
         }
 
-        // Fetch both categories concurrently
         var actorDataFuture = _fetchLinksFromAlpha(letter, 'actor');
         var actressDataFuture = _fetchLinksFromAlpha(letter, 'actress');
         var results = await Future.wait([actorDataFuture, actressDataFuture]);
@@ -343,10 +342,16 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Update Database'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text(
+          'Update Database',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
+        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -355,40 +360,56 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
           children: [
             Text(
               'Database Updater',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              '''Click on 'Update Database' to Add Newly Added Celebrity to Your App.''',
-              style: Theme.of(context).textTheme.bodyMedium,
+              'Click on "Update Database" to add newly added celebrities to your app.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                const Text('Auto-update: '),
-                DropdownButton<String>(
-                  value: _updateFrequency,
-                  items: ['Every 24 Hours', 'Every Week', 'Every Month']
-                      .map((String value) => DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  ))
-                      .toList(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _updateFrequency = newValue;
-                      });
-                      _startAutoUpdate();
-                    }
-                  },
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              surfaceTintColor: theme.colorScheme.surfaceTint,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Text('Auto-update: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    DropdownButton<String>(
+                      value: _updateFrequency,
+                      items: ['Every 24 Hours', 'Every Week', 'Every Month']
+                          .map((String value) => DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      ))
+                          .toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _updateFrequency = newValue;
+                          });
+                          _startAutoUpdate();
+                        }
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Last updated: $_lastUpdateText',
-              style: const TextStyle(fontStyle: FontStyle.italic),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -396,50 +417,80 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
               icon: const Icon(Icons.cloud_download),
               label: Text(_isLoading ? 'Updating...' : 'Update Database'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 2,
               ),
             ),
             const SizedBox(height: 24),
             if (_isLoading || _progress > 0)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_statusText, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                surfaceTintColor: theme.colorScheme.surfaceTint,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _statusText,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: _progress,
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                        minHeight: 8,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             const SizedBox(height: 16),
             Text(
               'Log:',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _logMessages.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        _logMessages[index],
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                      ),
-                    );
-                  },
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                surfaceTintColor: theme.colorScheme.surfaceTint,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _logMessages.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          _logMessages[index],
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

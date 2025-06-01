@@ -35,20 +35,16 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Notification Settings',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(20),
-            ),
-          ),
-        ),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
+        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -57,30 +53,58 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
           children: [
             Text(
               'Notification Preferences',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Enable Notifications'),
-              subtitle: const Text('Receive notifications for download progress and completion'),
-              value: _enableNotifications,
-              onChanged: (value) async {
-                setState(() {
-                  _enableNotifications = value;
-                });
-                await _saveNotificationSettings(value);
-              },
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              surfaceTintColor: theme.colorScheme.surfaceTint,
+              child: SwitchListTile(
+                title: Text(
+                  'Enable Notifications',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Text(
+                  'Receive notifications for download progress and completion',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                value: _enableNotifications,
+                onChanged: (value) async {
+                  setState(() {
+                    _enableNotifications = value;
+                  });
+                  await _saveNotificationSettings(value);
+                },
+                activeColor: theme.colorScheme.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
                 await AwesomeNotifications().cancelAll();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All notifications cleared')),
+                  SnackBar(
+                    content: const Text('All notifications cleared'),
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                  ),
                 );
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 2,
+              ),
               child: const Text('Clear All Notifications'),
             ),
           ],
