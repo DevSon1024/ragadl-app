@@ -1,11 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// import '../../screens/ragalahari_downloader_screen.dart';
+import 'package:ragalahari_downloader/widgets/grid_utils.dart';
 import '../ragalahari_downloader.dart';
+
 class ActorPage extends StatefulWidget {
   const ActorPage({super.key});
 
@@ -113,7 +113,6 @@ class _ActorPageState extends State<ActorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final crossAxisCount = Platform.isWindows ? 4 : 2;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Latest Actors')),
@@ -121,7 +120,7 @@ class _ActorPageState extends State<ActorPage> {
           ? GridView.builder(
         padding: const EdgeInsets.all(10),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
+          crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.7,
@@ -176,7 +175,7 @@ class _ActorPageState extends State<ActorPage> {
           : GridView.builder(
         padding: const EdgeInsets.all(10),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
+          crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.7,
@@ -354,7 +353,6 @@ class _ActressPageState extends State<ActressPage> {
 
   @override
   Widget build(BuildContext context) {
-    final crossAxisCount = Platform.isWindows ? 4 : 2;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Latest Actresses')),
@@ -362,7 +360,7 @@ class _ActressPageState extends State<ActressPage> {
           ? GridView.builder(
         padding: const EdgeInsets.all(10),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
+          crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.7,
@@ -417,7 +415,7 @@ class _ActressPageState extends State<ActressPage> {
           : GridView.builder(
         padding: const EdgeInsets.all(10),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
+          crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.7,

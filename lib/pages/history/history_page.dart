@@ -3,16 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:provider/provider.dart';
-import '../../widgets/theme_config.dart';
 import 'recycle_page.dart';
-import 'dart:math';
 import '../../permissions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'history_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sub_folder_page.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:ragalahari_downloader/widgets/grid_utils.dart';
 
 enum SortOption {
   newest,
@@ -511,9 +509,6 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final themeConfig = Provider.of<ThemeConfig>(context);
-    final crossAxisCount =
-    Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
 
     return Scaffold(
       appBar: AppBar(
@@ -704,7 +699,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 ],
               ),
             ),
-          Expanded(child: _buildContent(crossAxisCount: crossAxisCount)),
+          Expanded(child: _buildContent(crossAxisCount: calculateGridColumns(context))),
         ],
       ),
       bottomNavigationBar: _isSelectionMode
@@ -738,7 +733,7 @@ class _HistoryPageState extends State<HistoryPage> {
         return GridView.builder(
           padding: const EdgeInsets.all(8),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
+            crossAxisCount: calculateGridColumns(context),
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
             childAspectRatio: 0.75,
@@ -971,7 +966,7 @@ class _HistoryPageState extends State<HistoryPage> {
         return GridView.builder(
           padding: const EdgeInsets.only(bottom: 90),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
+            crossAxisCount: calculateGridColumns(context),
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
             childAspectRatio: 0.75,
@@ -1057,7 +1052,7 @@ class _HistoryPageState extends State<HistoryPage> {
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
+        crossAxisCount: calculateGridColumns(context),
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
         childAspectRatio: 0.75,

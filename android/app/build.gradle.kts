@@ -35,10 +35,10 @@ android {
         applicationId = "com.devson.ragalahari_downloader"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 24
+        minSdk = 25
         targetSdk = 35
-        versionCode = 262 // update this version to 264 when update version to 2.6.4
-        versionName = "2.6.2"
+        versionCode = 2264 // update this version to 266 when update version to 2.6.6
+        versionName = "2.6.4"
         multiDexEnabled = true
     }
 

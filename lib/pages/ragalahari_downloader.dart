@@ -6,13 +6,12 @@ import 'package:shimmer/shimmer.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'download_manager_page.dart';
-import 'package:provider/provider.dart';
-import '../widgets/theme_config.dart';
 import 'package:ragalahari_downloader/main.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
 import '../permissions.dart';
+import '../widgets/grid_utils.dart';
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -430,7 +429,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     super.build(context);
     print(
         'RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
-    final themeConfig = Provider.of<ThemeConfig>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -440,14 +438,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
             fontWeight: FontWeight.bold,
           ),
         ),
-        // flexibleSpace: Container(
-        //   decoration: BoxDecoration(
-        //     color: Theme.of(context).primaryColor,
-        //     borderRadius: const BorderRadius.vertical(
-        //       bottom: Radius.circular(15),
-        //     ),
-        //   ),
-        // ),
       ),
       resizeToAvoidBottomInset: true,
       floatingActionButton: Stack(
@@ -708,7 +698,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                     child: Center(child: Text('No images to display')))
                     : SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: themeConfig.gridColumns,
+                    crossAxisCount: calculateGridColumns(context),
                     crossAxisSpacing: 4.0,
                     mainAxisSpacing: 4.0,
                     childAspectRatio: 0.75,

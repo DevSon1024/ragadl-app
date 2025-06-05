@@ -2,9 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
-import '../../widgets/theme_config.dart';
-import 'dart:math';
+import 'package:ragalahari_downloader/widgets/grid_utils.dart';
 
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
@@ -370,9 +368,6 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    final themeConfig = Provider.of<ThemeConfig>(context);
-    final crossAxisCount = Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -487,7 +482,7 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
                       : GridView.builder(
                     padding: const EdgeInsets.all(8),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
+                      crossAxisCount: calculateGridColumns(context),
                       mainAxisSpacing: 6,
                       crossAxisSpacing: 6,
                       childAspectRatio: 0.75,
@@ -553,7 +548,7 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
                       : GridView.builder(
                     padding: const EdgeInsets.all(8),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
+                      crossAxisCount: calculateGridColumns(context),
                       mainAxisSpacing: 6,
                       crossAxisSpacing: 6,
                       childAspectRatio: 0.75,

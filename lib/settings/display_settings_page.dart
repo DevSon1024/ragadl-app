@@ -85,49 +85,6 @@ class DisplaySettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Grid View Settings Section
-              Text(
-                'Grid View',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceContainer,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Consumer<ThemeConfig>(
-                  builder: (context, themeConfig, child) => ListTile(
-                    title: Text(
-                      'Grid Columns',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                    trailing: DropdownButton<int>(
-                      value: themeConfig.gridColumns,
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('Full Width')),
-                        DropdownMenuItem(value: 2, child: Text('2 Columns')),
-                        DropdownMenuItem(value: 3, child: Text('3 Columns')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          themeConfig.setGridColumns(value);
-                        }
-                      },
-                      style: theme.textTheme.bodyLarge,
-                      underline: Container(),
-                      icon: Icon(Icons.arrow_drop_down, color: theme.colorScheme.onSurface),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // Theme Options Section
               Text(
                 'Theme Options',

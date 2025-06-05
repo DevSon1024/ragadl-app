@@ -9,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'celebrity_utils.dart';
 import '../ragalahari_downloader.dart';
+import 'package:ragalahari_downloader/widgets/grid_utils.dart';
 
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;
@@ -352,8 +353,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   Widget _buildShimmerLoading() {
     return GridView.builder(
       padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: calculateGridColumns(context),
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
         childAspectRatio: 0.75,
@@ -476,8 +477,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
             child: GridView.builder(
               padding: const EdgeInsets.all(8),
               gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+               SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: calculateGridColumns(context),
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
                 childAspectRatio: 0.75,

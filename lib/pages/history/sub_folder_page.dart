@@ -1,11 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../widgets/theme_config.dart';
 import 'history_settings.dart';
 import 'history_page.dart';
-import 'dart:math';
 import 'package:shimmer/shimmer.dart';
+import 'package:ragalahari_downloader/widgets/grid_utils.dart';
 
 class SubFolderPage extends StatefulWidget {
   final FileSystemEntity directory;
@@ -181,8 +179,6 @@ class _SubFolderPageState extends State<SubFolderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final themeConfig = Provider.of<ThemeConfig>(context);
-    final crossAxisCount = Platform.isWindows ? max(themeConfig.gridColumns, 2) : themeConfig.gridColumns;
 
     return Scaffold(
       appBar: AppBar(
@@ -256,7 +252,7 @@ class _SubFolderPageState extends State<SubFolderPage> {
                 ? GridView.builder(
               padding: const EdgeInsets.all(8),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
+                crossAxisCount: calculateGridColumns(context),
                 mainAxisSpacing: 6,
                 crossAxisSpacing: 6,
                 childAspectRatio: 0.75,
@@ -299,7 +295,7 @@ class _SubFolderPageState extends State<SubFolderPage> {
                 : GridView.builder(
               padding: const EdgeInsets.all(8),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
+                crossAxisCount: calculateGridColumns(context),
                 mainAxisSpacing: 6,
                 crossAxisSpacing: 6,
                 childAspectRatio: 0.75,
