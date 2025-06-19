@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // Added for image caching
 import 'pages/ragalahari_downloader.dart';
 import 'pages/history/history_page.dart';
 import 'pages/download_manager_page.dart';
 import 'pages/celebrity/celebrity_list_page.dart';
-import 'settings_page.dart'; // Updated import
+import 'settings_page.dart';
+import 'package:flutter/services.dart';
 import 'pages/celebrity/latest_celebrity.dart';
 import 'pages/celebrity/latest_actor_and_actress.dart';
 import 'settings/favourite_page.dart';
@@ -17,9 +20,18 @@ import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'permissions.dart';
+import 'firebase_options.dart';
+
+import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isAndroid || Platform.isIOS) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
   await AwesomeNotifications().initialize(
     null,
@@ -330,16 +342,10 @@ class _HomePageState extends State<HomePage> {
     {'title': 'Latest Actress', 'icon': Icons.person_outline, 'page': const ActressPage()},
   ];
 
-  String _websiteStatus = 'Checking...';
-  Color _statusColor = Colors.grey;
-  int? _statusCode;
-  bool _isChecking = false;
-
   @override
   void initState() {
     super.initState();
     _loadSectionOrder();
-    _checkWebsiteStatus();
   }
 
   Future<void> _loadSectionOrder() async {
@@ -361,52 +367,6 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     final order = sections.map((s) => s['title'] as String).toList();
     await prefs.setStringList('section_order', order);
-  }
-
-  Future<void> _checkWebsiteStatus() async {
-    if (_isChecking) return;
-    setState(() {
-      _isChecking = true;
-      _websiteStatus = 'Checking...';
-      _statusColor = Colors.grey;
-    });
-
-    try {
-      final response = await http.get(Uri.parse('https://www.ragalahari.com/')).timeout(const Duration(seconds: 5));
-      setState(() {
-        _statusCode = response.statusCode;
-        switch (_statusCode) {
-          case 200:
-            _websiteStatus = 'Website is Online';
-            _statusColor = Colors.green;
-            break;
-          case 404:
-            _websiteStatus = 'Page Not Found (404)';
-            _statusColor = Colors.red;
-            break;
-          case 502:
-            _websiteStatus = 'Bad Gateway (502)';
-            _statusColor = Colors.red;
-            break;
-          case 410:
-            _websiteStatus = 'Gone (410)';
-            _statusColor = Colors.red;
-            break;
-          default:
-            _websiteStatus = 'Error (Code: ${_statusCode})';
-            _statusColor = Colors.red;
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _websiteStatus = 'Failed to Connect';
-        _statusColor = Colors.red;
-      });
-    } finally {
-      setState(() {
-        _isChecking = false;
-      });
-    }
   }
 
   Future<void> _launchUrl(String url) async {
@@ -443,6 +403,53 @@ class _HomePageState extends State<HomePage> {
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileContainer(String message, String? imageUrl) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FullImagePage(imageUrl: imageUrl),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: 200, // Increased height for full-size display
+                    placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                    errorWidget: (context, error, stackTrace) => Container(), // Show nothing on error
+                  ),
+                ),
+              ),
+            if (imageUrl != null && imageUrl.isNotEmpty) const SizedBox(height: 16),
+            Text(
+              message,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -512,46 +519,25 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      surfaceTintColor: theme.colorScheme.surfaceTint,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _statusCode == 200 ? Icons.check_circle : Icons.error,
-                              color: _statusColor,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _websiteStatus,
-                                style: TextStyle(
-                                  color: _statusColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: _isChecking ? null : _checkWebsiteStatus,
-                              child: Icon(
-                                Icons.refresh,
-                                color: _isChecking
-                                    ? Colors.grey
-                                    : theme.colorScheme.primary,
-                                size: 24,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('admin_content')
+                          .doc('status_content')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (!snapshot.hasData || snapshot.hasError) {
+                          return _buildProfileContainer('No message available', null);
+                        }
+
+                        final data = snapshot.data!.data() as Map<String, dynamic>?;
+                        final adminMessage = data?['message'] as String? ?? 'No message available';
+                        final adminImageUrl = data?['imageUrl'] as String?;
+
+                        return _buildProfileContainer(adminMessage, adminImageUrl);
+                      },
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -676,6 +662,89 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FullImagePage extends StatefulWidget {
+  final String imageUrl;
+
+  const FullImagePage({super.key, required this.imageUrl});
+
+  @override
+  _FullImagePageState createState() => _FullImagePageState();
+}
+
+class _FullImagePageState extends State<FullImagePage> {
+  bool _isDownloading = false;
+
+  Future<void> _downloadImage(String imageUrl) async {
+    setState(() => _isDownloading = true);
+    try {
+      final downloadManager = DownloadManager();
+      downloadManager.addDownload(
+        url: imageUrl,
+        folder: "SingleImages",
+        subFolder: DateTime.now().toString().split(' ')[0],
+        onProgress: (progress) {},
+        onComplete: (success) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(success
+                    ? 'Added to download manager'
+                    : 'Failed to add download')));
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to download: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('View Image'),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: widget.imageUrl));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Image URL copied to clipboard')));
+            },
+          ),
+          IconButton(
+            icon: _isDownloading
+                ? const CircularProgressIndicator()
+                : const Icon(Icons.download),
+            onPressed: _isDownloading
+                ? null
+                : () => _downloadImage(widget.imageUrl),
+          ),
+        ],
+      ),
+      body: InteractiveViewer(
+        minScale: 0.1,
+        maxScale: 4.0,
+        child: Center(
+          child: CachedNetworkImage(
+            imageUrl: widget.imageUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+            errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
         ),
       ),

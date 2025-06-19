@@ -4,13 +4,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:share_plus/share_plus.dart';
 import 'recycle_page.dart';
-import '../../permissions.dart';
+import 'package:ragalahari_downloader/permissions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'history_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sub_folder_page.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:ragalahari_downloader/widgets/grid_utils.dart';
+import 'history_full_image_viewer.dart';
 
 enum SortOption {
   newest,
@@ -517,6 +518,7 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
         centerTitle: true,
         titleTextStyle: theme.textTheme.headlineSmall?.copyWith(
+          fontSize: 23,
           fontWeight: FontWeight.w600,
           color: theme.colorScheme.onSurface,
         ),

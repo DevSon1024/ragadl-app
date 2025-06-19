@@ -3,6 +3,9 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -37,7 +40,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 25
         targetSdk = 35
-        versionCode = 2264 // update this version to 266 when update version to 2.6.6
+        versionCode = 2264 // update this version to 2266 when update version to 2.6.6
         versionName = "2.6.4"
         multiDexEnabled = true
     }

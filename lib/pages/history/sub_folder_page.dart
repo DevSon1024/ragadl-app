@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'history_settings.dart';
+import 'history_full_image_viewer.dart';
 import 'history_page.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ragalahari_downloader/widgets/grid_utils.dart';

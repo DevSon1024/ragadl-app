@@ -13,10 +13,7 @@
 
     <application
         android:label="Ragalahari Downloader"
-
         android:icon="@mipmap/ic_launcher">
-
-
         <activity
             android:name=".MainActivity"
             android:exported="true"

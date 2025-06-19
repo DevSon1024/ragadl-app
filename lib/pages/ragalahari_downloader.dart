@@ -10,7 +10,7 @@ import 'package:ragalahari_downloader/main.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
-import '../permissions.dart';
+import 'package:ragalahari_downloader/permissions.dart';
 import '../widgets/grid_utils.dart';
 
 class RagalahariDownloader extends StatefulWidget {
