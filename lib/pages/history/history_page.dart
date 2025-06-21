@@ -522,8 +522,8 @@ class _HistoryPageState extends State<HistoryPage> {
           fontWeight: FontWeight.w600,
           color: theme.colorScheme.onSurface,
         ),
-        backgroundColor: theme.colorScheme.surface, // Fixed: Removed incorrect 'of'
-        surfaceTintColor: theme.colorScheme.surfaceTint, // Fixed: Removed incorrect 'of'
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
         elevation: 0,
         leading: _isSelectionMode
             ? IconButton(
@@ -687,7 +687,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     '${_selectedItems.length} selected',
                     style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary) ??
-                        TextStyle(color: theme.colorScheme.primary), // Fixed: Null check
+                        TextStyle(color: theme.colorScheme.primary),
                   ),
                   TextButton(
                     onPressed: () {
@@ -733,12 +733,12 @@ class _HistoryPageState extends State<HistoryPage> {
     if (_isLoading) {
       if (_viewType == ViewType.grid || _currentPreset == ViewPreset.images) {
         return GridView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(4),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: calculateGridColumns(context),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 0.75,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            childAspectRatio: 1.0,
           ),
           itemCount: 6,
           itemBuilder: (context, index) {
@@ -748,22 +748,8 @@ class _HistoryPageState extends State<HistoryPage> {
               child: Card(
                 elevation: 0,
                 color: theme.colorScheme.surfaceContainer,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Container(color: theme.colorScheme.surface),
-                    ),
-                    Container(
-                      color: theme.colorScheme.surfaceContainer,
-                      padding: const EdgeInsets.all(4),
-                      child: Container(
-                        height: 12,
-                        color: theme.colorScheme.surface,
-                      ),
-                    ),
-                  ],
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                child: Container(color: theme.colorScheme.surface),
               ),
             );
           },
@@ -828,6 +814,56 @@ class _HistoryPageState extends State<HistoryPage> {
     if (_filteredItems.isEmpty) {
       return Center(
           child: Text('No items found.', style: theme.textTheme.bodyLarge));
+    }
+
+    if (_currentPreset == ViewPreset.images) {
+      return GridView.builder(
+        padding: const EdgeInsets.all(4),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: calculateGridColumns(context),
+          mainAxisSpacing: 4,
+          crossAxisSpacing: 4,
+          childAspectRatio: 1.0,
+        ),
+        itemCount: _filteredItems.length,
+        itemBuilder: (context, index) {
+          final item = _filteredItems[index];
+          final isSelected = _selectedItems.contains(index);
+          final isImage = item is File;
+
+          return GestureDetector(
+            onTap: _isLoading ? null : () => _openItem(index),
+            onLongPress: () => _toggleSelection(index),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (isImage)
+                    Image.file(
+                      File(item.path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: theme.colorScheme.surfaceContainer,
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 48,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  if (isSelected)
+                    Container(
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      child: Icon(Icons.check_circle,
+                          color: theme.colorScheme.onPrimary, size: 30),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
     }
 
     if (_currentPreset == ViewPreset.images && _viewType == ViewType.list) {
@@ -970,7 +1006,7 @@ class _HistoryPageState extends State<HistoryPage> {
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: calculateGridColumns(context),
             mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
+            crossAxisSpacing: 4,
             childAspectRatio: 0.75,
           ),
           itemCount: _filteredItems.length,
@@ -982,8 +1018,7 @@ class _HistoryPageState extends State<HistoryPage> {
               future: item is Directory
                   ? _getFolderDetails(item,
                   countSubfolders: _currentPreset == ViewPreset.celebrityAlbum)
-                  : Future.value(
-                  {'imageCount': 0, 'totalSize': 0, 'latestImage': null}),
+                  : null,
               builder: (context, snapshot) {
                 final imageCount = snapshot.data?['imageCount'] ?? 0;
                 final folderCount = snapshot.data?['folderCount'] ?? 0;
@@ -1011,8 +1046,8 @@ class _HistoryPageState extends State<HistoryPage> {
                   onLongPress: () => _toggleSelection(index),
                   child: Card(
                     elevation: 0,
-                    color: theme.colorScheme.surfaceContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    color: theme.colorScheme.background,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -1052,12 +1087,12 @@ class _HistoryPageState extends State<HistoryPage> {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(4),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: calculateGridColumns(context),
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.75,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: 1.0,
       ),
       itemCount: _filteredItems.length,
       itemBuilder: (context, index) {
@@ -1070,8 +1105,8 @@ class _HistoryPageState extends State<HistoryPage> {
           onLongPress: () => _toggleSelection(index),
           child: Card(
             elevation: 0,
-            color: theme.colorScheme.surfaceContainer,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            color: theme.colorScheme.background,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             child: Stack(
               fit: StackFit.expand,
               children: [

@@ -261,18 +261,11 @@ class DownloadManager {
         return;
       } catch (e) {
         attempt++;
+        print('Download error for ${task.url}: $e'); // Add logging
         if (e is DioException && CancelToken.isCancel(e)) {
-          final currentTask = _activeDownloads[task.url];
-          if (currentTask != null && currentTask.status == DownloadStatus.paused) {
-            return;
-          } else if (task.status == DownloadStatus.paused) {
-            return;
-          } else {
-            _activeDownloads.remove(task.url);
-          }
-          return;
-        }
-        if (attempt == maxRetries) {
+          // Handle cancellation
+        } else if (attempt == maxRetries) {
+          print('Failed after $maxRetries attempts for ${task.url}');
           _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.failed);
           onComplete(false);
         } else {
@@ -284,16 +277,13 @@ class DownloadManager {
 
   Future<Directory> _getDownloadDirectory(String folder, String subFolder) async {
     Directory directory;
-    final prefs = await SharedPreferences.getInstance();
-    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
-
     if (Platform.isAndroid) {
-      directory = Directory('$basePath/Ragalahari Downloads/$folder/$subFolder');
+      directory = await getExternalStorageDirectory() ?? Directory('/storage/emulated/0/Download');
+      directory = Directory('${directory.path}/Ragalahari Downloads/$folder/$subFolder');
     } else {
       directory = await getApplicationDocumentsDirectory();
       directory = Directory('${directory.path}/Ragalahari Downloads/$folder/$subFolder');
     }
-
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
@@ -390,9 +380,8 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
   void _refreshDownloads() {
     if (mounted) {
       setState(() {
-        _downloadTasks = _downloadManager.visibleDownloads; // Use visibleDownloads instead
+        _downloadTasks = _downloadManager.activeDownloads; // Use activeDownloads for debugging
       });
-
       Future.delayed(const Duration(seconds: 1), () {
         _refreshDownloads();
       });
