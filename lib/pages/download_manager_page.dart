@@ -66,15 +66,12 @@ class DownloadManager {
 
   Map<String, DownloadTask> get activeDownloads => Map.unmodifiable(_activeDownloads);
 
-  // Get only downloads that should be visible (failed and paused)
   Map<String, DownloadTask> get visibleDownloads {
     return Map.fromEntries(
         _activeDownloads.entries.where((entry) =>
         entry.value.status == DownloadStatus.failed ||
             entry.value.status == DownloadStatus.paused ||
-            entry.value.status == DownloadStatus.downloading
-        )
-    );
+            entry.value.status == DownloadStatus.downloading));
   }
 
   Future<void> addDownload({
@@ -176,7 +173,6 @@ class DownloadManager {
           );
         }
 
-        // Auto-remove completed downloads after a short delay
         if (success) {
           Future.delayed(const Duration(seconds: 2), () {
             _activeDownloads.remove(url);
@@ -224,8 +220,7 @@ class DownloadManager {
   Future<void> _download(
       DownloadTask task,
       void Function(double progress) onProgress,
-      void Function(bool success) onComplete,
-      ) async {
+      void Function(bool success) onComplete) async {
     const maxRetries = 3;
     int attempt = 0;
 
@@ -239,7 +234,6 @@ class DownloadManager {
             final progress = total > 0 ? received / total : 0.0;
             _activeDownloads[task.url] = task.copyWith(progress: progress);
             onProgress(progress);
-            // Skip progress notifications to reduce performance impact
           },
           options: Options(
             headers: {
@@ -261,7 +255,7 @@ class DownloadManager {
         return;
       } catch (e) {
         attempt++;
-        print('Download error for ${task.url}: $e'); // Add logging
+        print('Download error for ${task.url}: $e');
         if (e is DioException && CancelToken.isCancel(e)) {
           // Handle cancellation
         } else if (attempt == maxRetries) {
@@ -276,14 +270,17 @@ class DownloadManager {
   }
 
   Future<Directory> _getDownloadDirectory(String folder, String subFolder) async {
+    final prefs = await SharedPreferences.getInstance();
+    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
     Directory directory;
+
     if (Platform.isAndroid) {
-      directory = await getExternalStorageDirectory() ?? Directory('/storage/emulated/0/Download');
-      directory = Directory('${directory.path}/Ragalahari Downloads/$folder/$subFolder');
+      directory = Directory('$basePath/$folder/$subFolder');
     } else {
       directory = await getApplicationDocumentsDirectory();
-      directory = Directory('${directory.path}/Ragalahari Downloads/$folder/$subFolder');
+      directory = Directory('${directory.path}/$folder/$subFolder');
     }
+
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
@@ -380,7 +377,7 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
   void _refreshDownloads() {
     if (mounted) {
       setState(() {
-        _downloadTasks = _downloadManager.activeDownloads; // Use activeDownloads for debugging
+        _downloadTasks = _downloadManager.activeDownloads;
       });
       Future.delayed(const Duration(seconds: 1), () {
         _refreshDownloads();
@@ -390,7 +387,7 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
 
   void _loadVisibleDownloads() {
     setState(() {
-      _downloadTasks = _downloadManager.visibleDownloads; // Use visibleDownloads instead
+      _downloadTasks = _downloadManager.visibleDownloads;
     });
   }
 
@@ -403,7 +400,7 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
     final prefs = await SharedPreferences.getInstance();
     String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
     for (var task in _downloadTasks.values) {
-      final folderPath = Directory('$basePath/Ragalahari Downloads/${task.folder}/${task.subFolder}');
+      final folderPath = Directory('$basePath/${task.folder}/${task.subFolder}');
       if (await folderPath.exists()) {
         await folderPath.delete(recursive: true);
       }
@@ -543,7 +540,6 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
         onComplete: (success) {
           setState(() {
             if (success) {
-              // Remove from visible downloads when completed
               _downloadTasks.remove(url);
             } else {
               _downloadTasks[url] = task.copyWith(status: DownloadStatus.failed);

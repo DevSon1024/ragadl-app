@@ -68,7 +68,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     } else {
       print('RagalahariDownloader TextField lost focus');
     }
-    setState(() {}); // Trigger rebuild to update FAB visibility
+    setState(() {});
   }
 
   @override
@@ -273,6 +273,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       }
 
       subFolderName = "$mainFolderName-$galleryId";
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('base_download_path', '/storage/emulated/0/Download/Ragalahari Downloads');
       totalPages = await _getTotalPages(baseUrl);
       final Set<ImageData> allImageUrls = {};
       for (int i = 0; i < totalPages; i++) {
@@ -434,7 +436,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
         title: const Text(
           'Downloader',
           style: TextStyle(
-            // color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -830,9 +831,7 @@ class _FullImagePageState extends State<FullImagePage> {
         url: imageUrl,
         folder: "SingleImages",
         subFolder: DateTime.now().toString().split(' ')[0],
-        onProgress: (progress) {
-          // Progress is handled by the download manager
-        },
+        onProgress: (progress) {},
         onComplete: (success) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
