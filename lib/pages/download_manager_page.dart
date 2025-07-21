@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'download_manager_page_widgets/download_manager_app_bar.dart';
+import 'download_manager_page_widgets/empty_download_view.dart';
+import 'download_manager_page_widgets/download_item_card.dart';
 
 enum DownloadStatus { downloading, paused, completed, failed }
 
@@ -415,96 +417,6 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Download Manager',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            onPressed: _clearFailedAndPaused,
-            tooltip: 'Clear Failed & Paused Downloads',
-          ),
-          IconButton(
-            icon: const Icon(Icons.cancel),
-            onPressed: _cancelAllDownloadsAndDeleteFolder,
-            tooltip: 'Cancel All Downloads and Delete Folders',
-          ),
-        ],
-      ),
-      body: _downloadTasks.isEmpty
-          ? const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.download_done,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'No active downloads',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Failed and paused downloads will appear here',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      )
-          : ListView(
-        children: _downloadTasks.values.map((task) => DownloadItem(
-          task: task,
-          onPause: () => _pauseDownload(task.url),
-          onResume: () => _resumeDownload(task.url),
-          onCancel: () => _cancelDownload(task.url),
-          onRemove: () => _removeDownload(task.url),
-          onRedownload: task.status == DownloadStatus.failed
-              ? () => _redownloadFailed(task.url)
-              : null,
-        )).toList(),
-      ),
-    );
-  }
-
-  void _pauseDownload(String url) {
-    _downloadManager.pauseDownload(url);
-    _loadVisibleDownloads();
-  }
-
-  void _resumeDownload(String url) {
-    _downloadManager.resumeDownload(url);
-    _loadVisibleDownloads();
-  }
-
-  void _cancelDownload(String url) {
-    _downloadManager.cancelDownload(url);
-    _loadVisibleDownloads();
-  }
-
-  void _removeDownload(String url) {
-    _downloadManager.removeCompletedDownload(url);
-    _loadVisibleDownloads();
-  }
-
   void _clearFailedAndPaused() {
     final urlsToRemove = _downloadTasks.keys
         .where((url) =>
@@ -550,188 +462,48 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
       _loadVisibleDownloads();
     }
   }
-}
-
-class DownloadItem extends StatelessWidget {
-  final DownloadTask task;
-  final VoidCallback onPause;
-  final VoidCallback onResume;
-  final VoidCallback onCancel;
-  final VoidCallback? onRemove;
-  final VoidCallback? onRedownload;
-
-  const DownloadItem({
-    super.key,
-    required this.task,
-    required this.onPause,
-    required this.onResume,
-    required this.onCancel,
-    this.onRemove,
-    this.onRedownload,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: () {
-        if (task.status == DownloadStatus.failed || task.status == DownloadStatus.paused) {
-          _copyImageUrlToClipboard(task.url, context);
-        }
-      },
-      child: Card(
-        margin: const EdgeInsets.all(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          task.fileName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${task.folder}/${task.subFolder}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildStatusChip(task.status),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: task.progress,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _getColorForStatus(task.status),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${(task.progress * 100).toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: onRemove,
-                        tooltip: 'Remove from list',
-                        iconSize: 20,
-                      ),
-                      if (task.status == DownloadStatus.failed)
-                        IconButton(
-                          icon: const Icon(Icons.refresh),
-                          onPressed: () => onRedownload?.call(),
-                          tooltip: 'Retry download',
-                          iconSize: 20,
-                        ),
-                      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
-                        IconButton(
-                          icon: Icon(
-                            task.status == DownloadStatus.paused ? Icons.play_arrow : Icons.pause,
-                          ),
-                          onPressed: task.status == DownloadStatus.paused ? onResume : onPause,
-                          tooltip: task.status == DownloadStatus.paused ? 'Resume' : 'Pause',
-                          iconSize: 20,
-                        ),
-                      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
-                        IconButton(
-                          icon: const Icon(Icons.cancel),
-                          onPressed: onCancel,
-                          tooltip: 'Cancel',
-                          iconSize: 20,
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+    return Scaffold(
+      appBar: DownloadManagerAppBar(
+        onClearFailedAndPaused: _clearFailedAndPaused,
+        onCancelAllAndDelete: _cancelAllDownloadsAndDeleteFolder,
+      ),
+      body: _downloadTasks.isEmpty
+          ? const EmptyDownloadView()
+          : ListView(
+        children: _downloadTasks.values.map((task) => DownloadItemCard(
+          task: task,
+          onPause: () => _pauseDownload(task.url),
+          onResume: () => _resumeDownload(task.url),
+          onCancel: () => _cancelDownload(task.url),
+          onRemove: () => _removeDownload(task.url),
+          onRedownload: task.status == DownloadStatus.failed
+              ? () => _redownloadFailed(task.url)
+              : null,
+        )).toList(),
       ),
     );
   }
 
-  void _copyImageUrlToClipboard(String url, BuildContext context) {
-    Clipboard.setData(ClipboardData(text: url));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Image URL copied to clipboard')),
-    );
+  void _pauseDownload(String url) {
+    _downloadManager.pauseDownload(url);
+    _loadVisibleDownloads();
   }
 
-  Widget _buildStatusChip(DownloadStatus status) {
-    String label;
-    Color color;
-
-    switch (status) {
-      case DownloadStatus.downloading:
-        label = 'Downloading';
-        color = Colors.blue;
-        break;
-      case DownloadStatus.paused:
-        label = 'Paused';
-        color = Colors.orange;
-        break;
-      case DownloadStatus.completed:
-        label = 'Completed';
-        color = Colors.green;
-        break;
-      case DownloadStatus.failed:
-        label = 'Failed';
-        color = Colors.red;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+  void _resumeDownload(String url) {
+    _downloadManager.resumeDownload(url);
+    _loadVisibleDownloads();
   }
 
-  Color _getColorForStatus(DownloadStatus status) {
-    switch (status) {
-      case DownloadStatus.downloading:
-        return Colors.blue;
-      case DownloadStatus.paused:
-        return Colors.orange;
-      case DownloadStatus.completed:
-        return Colors.green;
-      case DownloadStatus.failed:
-        return Colors.red;
-    }
+  void _cancelDownload(String url) {
+    _downloadManager.cancelDownload(url);
+    _loadVisibleDownloads();
+  }
+
+  void _removeDownload(String url) {
+    _downloadManager.removeCompletedDownload(url);
+    _loadVisibleDownloads();
   }
 }

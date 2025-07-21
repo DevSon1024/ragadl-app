@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' show parse;
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'download_manager_page.dart';
 import 'package:ragalahari_downloader/main.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
 import 'package:ragalahari_downloader/permissions.dart';
-import '../widgets/grid_utils.dart';
+import 'ragalahari_downloader_widgets/downloader_app_bar.dart';
+import 'ragalahari_downloader_widgets/input_fields.dart';
+import 'ragalahari_downloader_widgets/action_buttons.dart';
+import 'ragalahari_downloader_widgets/custom_progress_indicator.dart';
+import 'ragalahari_downloader_widgets/image_grid.dart';
+import 'ragalahari_downloader_widgets/full_image_viewer.dart';
+
+class ImageData {
+  final String thumbnailUrl;
+  final String originalUrl;
+
+  ImageData({required this.thumbnailUrl, required this.originalUrl});
+}
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -432,14 +442,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     print(
         'RagalahariDownloader build, urlFocus: ${_urlFocusNode.hasFocus}, folderFocus: ${_folderFocusNode.hasFocus}');
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Downloader',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      appBar: const DownloaderAppBar(),
       resizeToAvoidBottomInset: true,
       floatingActionButton: Stack(
         children: [
@@ -465,9 +468,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -476,433 +477,89 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
-                    TextField(
-                      controller: _folderController,
-                      decoration: InputDecoration(
-                        labelText: 'Enter Main Folder Name',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.add_box_rounded),
-                          onPressed: () {
-                            setState(() {
-                              mainFolderName =
-                              _folderController.text.trim().isEmpty
-                                  ? 'RagalahariDownloads'
-                                  : _folderController.text.trim();
-                            });
-                            _showSnackBar('Main Folder Set To: $mainFolderName');
-                          },
-                        ),
-                      ),
-                      autofocus: false,
-                      enableSuggestions: false,
-                      autocorrect: false,
-                      keyboardType: TextInputType.text,
-                      onTap: () {
-                        print('Folder TextField tapped');
+                    InputFields(
+                      urlController: _urlController,
+                      folderController: _folderController,
+                      urlFocusNode: _urlFocusNode,
+                      folderFocusNode: _folderFocusNode,
+                      onPaste: _pasteFromClipboard,
+                      onSetFolder: () {
+                        setState(() {
+                          mainFolderName = _folderController.text.trim().isEmpty
+                              ? 'RagalahariDownloads'
+                              : _folderController.text.trim();
+                        });
+                        _showSnackBar('Main Folder Set To: $mainFolderName');
                       },
+                      isValidUrl: _isValidRagalahariUrl(_urlController.text),
+                      onClearUrl: () => _urlController.clear(),
                     ),
                     const SizedBox(height: 8.0),
-                    TextField(
-                      controller: _urlController,
-                      focusNode: _urlFocusNode,
-                      decoration: InputDecoration(
-                        labelText: 'Enter Ragalahari Gallery URL',
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _urlController.text.isNotEmpty &&
-                                !_isValidRagalahariUrl(_urlController.text)
-                                ? Colors.red
-                                : Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _urlController.text.isNotEmpty &&
-                                !_isValidRagalahariUrl(_urlController.text)
-                                ? Colors.red
-                                : Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        errorBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red),
-                        ),
-                        focusedErrorBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red),
-                        ),
-                        errorText: _urlController.text.isNotEmpty &&
-                            !_isValidRagalahariUrl(_urlController.text)
-                            ? 'URL must start with https://www.ragalahari.com'
-                            : null,
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.content_copy, size: 20),
-                                onPressed: () {
-                                  if (_urlController.text.isNotEmpty) {
-                                    Clipboard.setData(ClipboardData(
-                                        text: _urlController.text));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('URL copied to clipboard')),
-                                    );
-                                  }
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(Icons.clear, size: 20),
-                                onPressed: () => _urlController.clear(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      autofocus: false,
-                      enableSuggestions: false,
-                      autocorrect: false,
-                      keyboardType: TextInputType.url,
-                      onTap: () {
-                        print('URL TextField tapped');
+                    ActionButtons(
+                      isLoading: isLoading,
+                      isDownloading: isDownloading,
+                      hasImages: imageUrls.isNotEmpty,
+                      mainFolderName: mainFolderName,
+                      onFetchImages: () {
+                        final url = _urlController.text.trim();
+                        if (url.isEmpty) {
+                          _showSnackBar('Please enter a URL');
+                          return;
+                        }
+                        if (!_isValidRagalahariUrl(url)) {
+                          _showSnackBar('Invalid URL: Must start with https://www.ragalahari.com');
+                          return;
+                        }
+                        _processGallery(url);
                       },
-                      onChanged: (value) {
-                        setState(() {});
-                      },
+                      onDownloadAll: _downloadAllImages,
+                      onClearAll: _clearAll,
+                      isSelectionMode: isSelectionMode,
+                      selectedCount: selectedImages.length,
+                      onDownloadSelected: _downloadSelectedImages,
                     ),
-                    const SizedBox(height: 8.0),
-                    Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: (isLoading ||
-                                    isDownloading ||
-                                    mainFolderName.isEmpty)
-                                    ? null
-                                    : () {
-                                  final url = _urlController.text.trim();
-                                  if (url.isEmpty) {
-                                    _showSnackBar('Please enter a URL');
-                                    return;
-                                  }
-                                  if (!_isValidRagalahariUrl(url)) {
-                                    _showSnackBar(
-                                        'Invalid URL: Must start with https://www.ragalahari.com');
-                                    return;
-                                  }
-                                  _processGallery(url);
-                                },
-                                icon: const Icon(Icons.search),
-                                label: const Text('Fetch Images'),
-                              ),
-                            ),
-                            const SizedBox(width: 8.0),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: (isLoading ||
-                                    isDownloading ||
-                                    imageUrls.isEmpty ||
-                                    mainFolderName.isEmpty)
-                                    ? null
-                                    : _downloadAllImages,
-                                icon: const Icon(Icons.download),
-                                label: const Text('Download All'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8.0),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _clearAll,
-                            icon: const Icon(Icons.clear_all),
-                            label: const Text('Clear All'),
-                          ),
-                        ),
-                        if (isSelectionMode)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Selected ${selectedImages.length} images',
-                              style: const TextStyle(fontSize: 12, color: Colors.blue),
-                            ),
-                          ),
-                      ],
+                    CustomProgressIndicator(
+                      isLoading: isLoading,
+                      isDownloading: isDownloading,
+                      currentPage: currentPage,
+                      totalPages: totalPages,
+                      downloadsSuccessful: downloadsSuccessful,
+                      downloadsFailed: downloadsFailed,
+                      totalImages: imageUrls.length,
+                      successMessage: _successMessage,
+                      error: _error,
                     ),
-                    if (isLoading || isDownloading)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Column(
-                          children: [
-                            LinearProgressIndicator(
-                              value: isLoading
-                                  ? (currentPage / totalPages)
-                                  : (downloadsSuccessful + downloadsFailed) /
-                                  imageUrls.length,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              isLoading
-                                  ? 'Fetching page $currentPage of $totalPages...'
-                                  : 'Downloaded: $downloadsSuccessful, Failed: $downloadsFailed',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (_successMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          _successMessage!,
-                          style: const TextStyle(color: Colors.green),
-                        ),
-                      ),
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
                   ],
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                switchInCurve: Curves.easeIn,
-                switchOutCurve: Curves.easeOut,
-                child: isLoading
-                    ? const Center(
-                  key: ValueKey('loader'),
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-                    : const SizedBox.shrink(key: ValueKey('grid')),
-              ),
+            ImageGrid(
+              imageUrls: imageUrls,
+              isLoading: isLoading,
+              selectedImages: selectedImages,
+              isSelectionMode: isSelectionMode,
+              onToggleSelection: _toggleSelection,
+              onImageTap: (index) {
+                if (isSelectionMode) {
+                  _toggleSelection(index);
+                } else {
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, __, ___) => FullImageViewer(
+                        imageUrls: imageUrls,
+                        initialIndex: index,
+                      ),
+                      transitionsBuilder: (_, anim, __, child) =>
+                          FadeTransition(opacity: anim, child: child),
+                      transitionDuration: const Duration(milliseconds: 300),
+                    ),
+                  );
+                }
+              },
             ),
-            if (!isLoading)
-              SliverPadding(
-                padding: const EdgeInsets.all(8.0),
-                sliver: imageUrls.isEmpty
-                    ? const SliverToBoxAdapter(
-                    child: Center(child: Text('No images to display')))
-                    : SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: calculateGridColumns(context),
-                    crossAxisSpacing: 4.0,
-                    mainAxisSpacing: 4.0,
-                    childAspectRatio: 0.75,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final imageData = imageUrls[index];
-                      final isSelected = selectedImages.contains(index);
-                      return GestureDetector(
-                        onTap: () {
-                          if (isSelectionMode) {
-                            _toggleSelection(index);
-                          } else {
-                            Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (_, __, ___) => FullImagePage(
-                                  imageUrls: imageUrls,
-                                  initialIndex: index,
-                                ),
-                                transitionsBuilder: (_, anim, __, child) =>
-                                    FadeTransition(opacity: anim, child: child),
-                                transitionDuration:
-                                const Duration(milliseconds: 300),
-                              ),
-                            );
-                          }
-                        },
-                        onLongPress: () => _toggleSelection(index),
-                        child: Card(
-                          elevation: 3,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Hero(
-                                tag: imageData.originalUrl,
-                                child: CachedNetworkImage(
-                                  imageUrl: imageData.thumbnailUrl,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) =>
-                                      Shimmer.fromColors(
-                                        baseColor: Colors.grey[300]!,
-                                        highlightColor: Colors.grey[100]!,
-                                        child: Container(color: Colors.grey[300]),
-                                      ),
-                                  errorWidget: (context, url, error) =>
-                                  const Icon(Icons.error),
-                                ),
-                              ),
-                              if (isSelected)
-                                Container(
-                                  color: Colors.blue.withOpacity(0.3),
-                                  child: const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                ),
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  color: Colors.black54,
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  child: Text(
-                                    'Image ${index + 1}',
-                                    style: const TextStyle(color: Colors.white),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    childCount: imageUrls.length,
-                  ),
-                ),
-              ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class FullImagePage extends StatefulWidget {
-  final List<ImageData> imageUrls;
-  final int initialIndex;
-
-  const FullImagePage({super.key, required this.imageUrls, required this.initialIndex});
-
-  @override
-  _FullImagePageState createState() => _FullImagePageState();
-}
-
-class _FullImagePageState extends State<FullImagePage> {
-  late PageController _pageController;
-  late int _currentIndex;
-  bool _isDownloading = false;
-  final List<TransformationController> _transformationControllers = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
-    for (int i = 0; i < widget.imageUrls.length; i++) {
-      _transformationControllers.add(TransformationController());
-    }
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    for (var controller in _transformationControllers) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  Future<void> _downloadImage(String imageUrl) async {
-    setState(() => _isDownloading = true);
-    try {
-      final downloadManager = DownloadManager();
-      downloadManager.addDownload(
-        url: imageUrl,
-        folder: "SingleImages",
-        subFolder: DateTime.now().toString().split(' ')[0],
-        onProgress: (progress) {},
-        onComplete: (success) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(success
-                    ? 'Added to download manager'
-                    : 'Failed to add download')));
-          }
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to download: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isDownloading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentImageData = widget.imageUrls[_currentIndex];
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Image ${_currentIndex + 1} of ${widget.imageUrls.length}'),
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.copy),
-            onPressed: () {
-              Clipboard.setData(
-                  ClipboardData(text: currentImageData.originalUrl));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Image URL copied to clipboard')));
-            },
-          ),
-          IconButton(
-            icon: _isDownloading
-                ? const CircularProgressIndicator()
-                : const Icon(Icons.download),
-            onPressed: _isDownloading
-                ? null
-                : () => _downloadImage(currentImageData.originalUrl),
-          ),
-        ],
-      ),
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: widget.imageUrls.length,
-        onPageChanged: (index) => setState(() => _currentIndex = index),
-        itemBuilder: (context, index) {
-          final imageData = widget.imageUrls[index];
-          return InteractiveViewer(
-            transformationController: _transformationControllers[index],
-            minScale: 0.1,
-            maxScale: 4.0,
-            child: Hero(
-              tag: imageData.originalUrl,
-              child: CachedNetworkImage(
-                imageUrl: imageData.originalUrl,
-                fit: BoxFit.contain,
-                placeholder: (context, url) =>
-                const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) =>
-                const Icon(Icons.error),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'settings/favourite_page.dart';
 import 'settings/display_settings_page.dart';
 import 'settings/update_database_page.dart';
-import 'settings/privacy_policy_page.dart';
 import 'settings/storage_settings.dart';
 import 'settings/notification_settings_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'settings/contact_us_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -100,6 +100,14 @@ class SettingsPage extends StatelessWidget {
               const SizedBox(height: 8),
               _buildMenuItem(
                 context,
+                icon: Icons.privacy_tip_rounded,
+                title: 'Privacy Policy',
+                subtitle: 'View app privacy policy and terms',
+                onTap: () => _launchPrivacyPolicy(context),
+              ),
+              const SizedBox(height: 8),
+              _buildMenuItem(
+                context,
                 icon: Icons.contact_support,
                 title: 'Contact Us',
                 subtitle: 'Reach out for support',
@@ -108,20 +116,6 @@ class SettingsPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ContactUsPage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
-                context,
-                icon: Icons.privacy_tip,
-                title: 'Privacy & Policy',
-                subtitle: 'View privacy information',
-                onTap: () {
-                  FocusScope.of(context).unfocus();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
                   );
                 },
               ),
@@ -141,6 +135,50 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _launchPrivacyPolicy(BuildContext context) async {
+    final Uri url = Uri.parse('https://sites.google.com/view/ragalahari-dl-privacy-policy');
+    try {
+      // Try different launch modes
+      bool launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        // Fallback to platform default mode
+        launched = await launchUrl(url, mode: LaunchMode.platformDefault);
+      }
+
+      if (!launched) {
+        // Last fallback - try without specifying mode
+        launched = await launchUrl(url);
+      }
+
+      if (!launched) {
+        debugPrint('Failed to launch URL with all methods');
+        // Show user-friendly error message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to open browser. Please check if you have a browser app installed.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error opening privacy policy. Please try again.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMenuItem(
