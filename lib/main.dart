@@ -11,7 +11,6 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'permissions.dart';
-import 'firebase_options.dart';
 import 'home_page.dart';
 
 import 'dart:io' show Platform;
