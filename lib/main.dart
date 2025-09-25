@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'pages/ragalahari_downloader.dart';
 import 'pages/history/history_page.dart';
 import 'pages/download_manager_page.dart';
@@ -13,6 +13,10 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'permissions.dart';
 import 'home_page.dart';
 import 'widgets/theme_notifier.dart';
+
+final themeNotifierProvider = ChangeNotifierProvider<ThemeNotifier>((ref) {
+  return ThemeNotifier();
+});
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,29 +44,25 @@ void main() async {
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeNotifier(),
-      child: const MyApp(),
+    const ProviderScope(
+      child: MyApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<ThemeNotifier>(
-      builder: (context, themeNotifier, child) {
-        return MaterialApp(
-          title: 'Ragalahari Downloader',
-          theme: themeNotifier.getThemeData(),
-          darkTheme: themeNotifier.getThemeData(isDark: true),
-          themeMode: themeNotifier.themeMode,
-          home: const MainScreen(),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeNotifier = ref.watch(themeNotifierProvider);
+    return MaterialApp(
+      title: 'Ragalahari Downloader',
+      theme: themeNotifier.getThemeData(),
+      darkTheme: themeNotifier.getThemeData(isDark: true),
+      themeMode: themeNotifier.themeMode,
+      home: const MainScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -234,18 +234,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Container(
+                child: SizedBox(
                   height: 80,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildModernNavItem(0),
-                      _buildModernNavItem(1),
-                      const SizedBox(width: 64), // Space for FAB
-                      _buildModernNavItem(2),
-                      _buildModernNavItem(3),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildModernNavItem(0),
+                        _buildModernNavItem(1),
+                        const SizedBox(width: 64), // Space for FAB
+                        _buildModernNavItem(2),
+                        _buildModernNavItem(3),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -274,7 +276,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(16),
             splashColor: theme.colorScheme.primary.withOpacity(0.1),
             highlightColor: theme.colorScheme.primary.withOpacity(0.05),
-            child: Container(
+            child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

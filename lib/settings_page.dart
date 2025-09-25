@@ -1,209 +1,184 @@
 import 'package:flutter/material.dart';
-import 'settings/favourite_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ragalahari_downloader/main.dart';
 import 'settings/display_settings_page.dart';
-import 'settings/update_database_page.dart';
-import 'settings/privacy_policy_page.dart';
 import 'settings/storage_settings.dart';
 import 'settings/notification_settings_page.dart';
+import 'settings/privacy_policy_page.dart';
 import 'settings/contact_us_page.dart';
+import 'package:ragalahari_downloader/settings/update_database_page.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Settings',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Settings'),
         backgroundColor: theme.colorScheme.surface,
         surfaceTintColor: theme.colorScheme.surfaceTint,
-        elevation: 2,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
+      body: ListView(
+        children: [
+          _buildSettingsSection(
+            context,
+            title: 'General',
             children: [
-              _buildMenuItem(
-                context,
-                icon: Icons.favorite,
-                title: 'Favourites',
-                subtitle: 'Manage your favorite items',
-                onTap: () {
-                  FocusScope.of(context).unfocus();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FavouritePage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
+              _buildSettingsItem(
                 context,
                 icon: Icons.display_settings,
-                title: 'Display Settings',
-                subtitle: 'Customize theme and appearance',
+                title: 'Display',
+                subtitle: 'Theme, font size, etc.',
                 onTap: () {
-                  FocusScope.of(context).unfocus();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const DisplaySettingsPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const DisplaySettingsPage(),
+                    ),
                   );
                 },
               ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
-                context,
-                icon: Icons.cloud_download,
-                title: 'Update Database',
-                subtitle: 'Sync and update data',
-                onTap: () {
-                  FocusScope.of(context).unfocus();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const UpdateDatabasePage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
+              _buildSettingsItem(
                 context,
                 icon: Icons.storage,
-                title: 'Storage Settings',
-                subtitle: 'Backup, restore & cache management',
+                title: 'Storage',
+                subtitle: 'Manage downloads and cache',
                 onTap: () {
-                  FocusScope.of(context).unfocus();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const StoragePage()),
+                    MaterialPageRoute(
+                      builder: (_) => const StoragePage(),
+                    ),
                   );
                 },
               ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
+              _buildSettingsItem(
                 context,
                 icon: Icons.notifications,
-                title: 'Notification Settings',
-                subtitle: 'Manage notification preferences',
+                title: 'Notifications',
+                subtitle: 'Notification preferences',
                 onTap: () {
-                  FocusScope.of(context).unfocus();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const NotificationSettingsPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationSettingsPage(),
+                    ),
                   );
                 },
-              ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
-                context,
-                icon: Icons.contact_support,
-                title: 'Contact Us',
-                subtitle: 'Reach out for support',
-                onTap: () {
-                  FocusScope.of(context).unfocus();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ContactUsPage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              _buildMenuItem(
-                context,
-                icon: Icons.privacy_tip,
-                title: 'Privacy & Policy',
-                subtitle: 'View privacy information',
-                onTap: () {
-                  FocusScope.of(context).unfocus();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Version 2.6.4',
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
               ),
             ],
           ),
-        ),
+          _buildSettingsSection(
+            context,
+            title: 'Data',
+            children: [
+              _buildSettingsItem(
+                context,
+                icon: Icons.update,
+                title: 'Update Database',
+                subtitle: 'Fetch the latest celebrity data',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UpdateDatabasePage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          _buildSettingsSection(
+            context,
+            title: 'About',
+            children: [
+              _buildSettingsItem(
+                context,
+                icon: Icons.privacy_tip,
+                title: 'Privacy Policy',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildSettingsItem(
+                context,
+                icon: Icons.contact_mail,
+                title: 'Contact Us',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ContactUsPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMenuItem(
+  Widget _buildSettingsSection(BuildContext context,
+      {required String title, required List<Widget> children}) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            surfaceTintColor: theme.colorScheme.surfaceTint,
+            child: Column(children: children),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsItem(
       BuildContext context, {
         required IconData icon,
         required String title,
-        required String subtitle,
+        String? subtitle,
         required VoidCallback onTap,
       }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-                child: Icon(
-                  icon,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ],
-          ),
+    final theme = Theme.of(context);
+    return ListTile(
+      leading: Icon(icon, color: theme.colorScheme.primary),
+      title: Text(title),
+      subtitle: subtitle != null
+          ? Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
-      ),
+      )
+          : null,
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
   }
 }

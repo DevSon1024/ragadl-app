@@ -26,7 +26,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-   List<Map<String, dynamic>> sections = [
+  List<Map<String, dynamic>> sections = [
     {'title': 'Latest All Celebrities', 'icon': Icons.star, 'page': const LatestCelebrityPage()},
     {'title': 'Favorites', 'icon': Icons.favorite, 'page': const FavouritePage()},
     {'title': 'Latest Actors', 'icon': Icons.person, 'page': const ActorPage()},
@@ -289,7 +289,7 @@ class _HomePageState extends State<HomePage> {
                     width: double.infinity,
                     height: 200,
                     placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, error, stackTrace) => Container(),
+                    errorWidget: (context, error, stackTrace) => const SizedBox.shrink(),
                   ),
                 ),
               ),

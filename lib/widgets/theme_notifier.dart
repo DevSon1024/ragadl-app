@@ -1,35 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:ragalahari_downloader/widgets/theme_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'theme_config.dart';
 
-class ThemeNotifier with ChangeNotifier {
+class ThemeNotifier extends ChangeNotifier {
+  final String key = "theme";
   ThemeMode _themeMode = ThemeMode.system;
-  ThemeData _lightTheme = ThemeConfig.lightTheme;
-  ThemeData _darkTheme = ThemeConfig.darkTheme;
+  late SharedPreferences _prefs;
 
   ThemeMode get themeMode => _themeMode;
-  ThemeData get lightTheme => _lightTheme;
-  ThemeData get darkTheme => _darkTheme;
 
   ThemeNotifier() {
-    _loadTheme();
+    _loadFromPrefs();
+  }
+
+  void _loadFromPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    final themeIndex = _prefs.getInt(key) ?? ThemeMode.system.index;
+    _themeMode = ThemeMode.values[themeIndex];
+    notifyListeners();
+  }
+
+  void _saveToPrefs(ThemeMode themeMode) {
+    _prefs.setInt(key, themeMode.index);
+  }
+
+  void setThemeMode(ThemeMode themeMode) {
+    if (_themeMode == themeMode) return;
+
+    _themeMode = themeMode;
+    _saveToPrefs(themeMode);
+    notifyListeners();
   }
 
   ThemeData getThemeData({bool isDark = false}) {
-    return isDark ? _darkTheme : _lightTheme;
-  }
-
-  void setThemeMode(ThemeMode mode) async {
-    _themeMode = mode;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setInt('themeMode', mode.index);
-  }
-
-  void _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeModeIndex = prefs.getInt('themeMode') ?? 0;
-    _themeMode = ThemeMode.values[themeModeIndex];
-    notifyListeners();
+    if (isDark) {
+      return ThemeConfig.darkTheme;
+    } else {
+      return ThemeConfig.lightTheme;
+    }
   }
 }
