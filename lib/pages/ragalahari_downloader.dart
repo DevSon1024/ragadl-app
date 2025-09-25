@@ -13,6 +13,13 @@ import 'link_history_page.dart';
 import 'package:ragalahari_downloader/permissions.dart';
 import '../widgets/grid_utils.dart';
 
+class ImageData {
+  final String thumbnailUrl;
+  final String originalUrl;
+
+  ImageData({required this.thumbnailUrl, required this.originalUrl});
+}
+
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
   final String? initialFolder;
