@@ -36,7 +36,7 @@ class _HistoryPageState extends State<HistoryPage> {
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSelectionMode = false;
-  Set<int> _selectedItems = {};
+  final Set<int> _selectedItems = {};
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -123,7 +123,7 @@ class _HistoryPageState extends State<HistoryPage> {
         }
       }
     } catch (e) {
-      print('Error calculating folder details for ${dir.path}: $e');
+      debugPrint('Error calculating folder details for ${dir.path}: $e');
     }
     return {
       'imageCount': imageCount,
@@ -146,44 +146,41 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<bool> _checkAndRequestPermissions() async {
-    if (!Platform.isAndroid) {
-      return await PermissionHandler.checkStoragePermissions() ||
-          await PermissionHandler.requestAllPermissions(context);
-    }
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
 
-    final androidInfo = await DeviceInfoPlugin().androidInfo;
-    final sdkInt = androidInfo.version.sdkInt;
-
-    if (sdkInt >= 30) {
-      final manageStorageStatus = await Permission.manageExternalStorage.status;
-      if (!manageStorageStatus.isGranted) {
-        final result = await Permission.manageExternalStorage.request();
-        if (!result.isGranted) {
-          await _showPermissionDialog();
-          return false;
+      if (sdkInt >= 30) {
+        // Android 11 and above
+        if (!await Permission.manageExternalStorage.isGranted) {
+          final result = await Permission.manageExternalStorage.request();
+          if (!result.isGranted) {
+            await _showPermissionDialog();
+            return false;
+          }
+        }
+      } else {
+        // Android 10 and below
+        if (!await Permission.storage.isGranted) {
+          final result = await Permission.storage.request();
+          if (!result.isGranted) {
+            await _showPermissionDialog();
+            return false;
+          }
         }
       }
     } else {
-      final storageStatus = await Permission.storage.status;
-      if (!storageStatus.isGranted) {
-        final result = await Permission.storage.request();
-        if (!result.isGranted) {
+      // For other platforms like iOS, Windows etc.
+      if (!await Permission.storage.isGranted) {
+        if (await Permission.storage.request().isDenied) {
           await _showPermissionDialog();
           return false;
         }
-      }
-    }
-
-    final mediaPermissions = await PermissionHandler.checkStoragePermissions();
-    if (!mediaPermissions) {
-      final granted = await PermissionHandler.requestAllPermissions(context);
-      if (!granted) {
-        await _showPermissionDialog();
-        return false;
       }
     }
     return true;
   }
+
 
   Future<void> _showPermissionDialog() async {
     await showDialog(
@@ -191,7 +188,7 @@ class _HistoryPageState extends State<HistoryPage> {
       builder: (context) => AlertDialog(
         title: const Text('Permission Required'),
         content: const Text(
-            'This app requires storage permissions. Please grant "Manage All Files" in app settings.'),
+            'This app requires storage permissions to function properly. Please grant the necessary permissions in your device settings.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -201,7 +198,6 @@ class _HistoryPageState extends State<HistoryPage> {
             onPressed: () async {
               await openAppSettings();
               Navigator.pop(context);
-              await _checkPermissionsAndLoadItems();
             },
             child: const Text('Open Settings'),
           ),
@@ -220,23 +216,15 @@ class _HistoryPageState extends State<HistoryPage> {
 
     try {
       Directory? baseDir;
-      if (Platform.isWindows) {
-        baseDir = await getApplicationDocumentsDirectory();
-        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
-      } else if (Platform.isAndroid) {
+      if (Platform.isAndroid) {
         baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
-        if (!await baseDir.exists()) {
-          baseDir = await getExternalStorageDirectory();
-          if (baseDir != null) {
-            baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
-          }
-        }
       } else {
         baseDir = await getApplicationDocumentsDirectory();
         baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
       }
 
-      if (baseDir == null || !await baseDir.exists()) {
+
+      if (!await baseDir.exists()) {
         setState(() {
           _downloadedItems = [];
           _filteredItems = [];
@@ -314,7 +302,7 @@ class _HistoryPageState extends State<HistoryPage> {
         }
       }
     } catch (e) {
-      print('Error scanning directory ${dir.path}: $e');
+      debugPrint('Error scanning directory ${dir.path}: $e');
     }
   }
 
@@ -375,79 +363,25 @@ class _HistoryPageState extends State<HistoryPage> {
 
     if (confirmed != true) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final permissionsGranted = await _checkAndRequestPermissions();
-      if (!permissionsGranted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cannot move items: Permission denied')));
-        return;
-      }
-
-      final deleteCount = _selectedItems.length;
-      final List<FileSystemEntity> toDelete =
-      _selectedItems.map((index) => _filteredItems[index]).toList();
-      final List<String> trashedPaths = [];
-
+      final toDelete = _selectedItems.map((index) => _filteredItems[index]).toList();
       for (var item in toDelete) {
         final name = item.path.split('/').last;
         final dirPath = item.path.substring(0, item.path.length - name.length);
         final trashedPath =
             '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$name';
-        await (item is File ? File(item.path) : Directory(item.path))
+        await (item is File ? item : Directory(item.path))
             .rename(trashedPath);
-        trashedPaths.add(trashedPath);
       }
 
       await _loadDownloadedItems();
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$deleteCount item(s) moved to recycle bin'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () async {
-              setState(() {
-                _isLoading = true;
-              });
-              for (var trashedPath in trashedPaths) {
-                final originalPath = trashedPath.replaceFirst(
-                    RegExp(r'\.trashed-\d+-'), '', trashedPath.lastIndexOf('/'));
-                try {
-                  await (trashedPath.endsWith('.jpg')
-                      ? File(trashedPath)
-                      : Directory(trashedPath))
-                      .rename(originalPath);
-                } catch (e) {
-                  print('Failed to restore $trashedPath: $e');
-                }
-              }
-              await _loadDownloadedItems();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Items restored')));
-              }
-            },
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..showSnackBar(SnackBar(content: Text('Failed to move items: $e')));
-      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to move items: $e')));
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -457,25 +391,12 @@ class _HistoryPageState extends State<HistoryPage> {
           .showSnackBar(const SnackBar(content: Text('No items selected')));
       return;
     }
-    if (Platform.isWindows) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sharing is not supported on Windows')));
-      return;
-    }
-    final List<String> paths = _selectedItems
-        .map((index) => _filteredItems[index])
-        .where((item) => item is File)
-        .map((item) => item.path)
+
+    final paths = _selectedItems
+        .map((index) => _filteredItems[index].path)
         .toList();
-    if (paths.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No images selected for sharing')));
-      return;
-    }
-    await Share.shareFiles(
-      paths,
-      text: 'Sharing items from Ragalahari Downloader',
-    );
+
+    await Share.shareFiles(paths, text: 'Sharing items from Ragalahari Downloader');
   }
 
   void _openItem(int index) {
@@ -514,153 +435,60 @@ class _HistoryPageState extends State<HistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _isSelectionMode ? 'Selected ${_selectedItems.length}' : 'Download History',
+          _isSelectionMode ? '${_selectedItems.length} selected' : 'Download History',
         ),
-        centerTitle: true,
-        titleTextStyle: theme.textTheme.headlineSmall?.copyWith(
-          fontSize: 23,
-          fontWeight: FontWeight.w600,
-          color: theme.colorScheme.onSurface,
-        ),
-        backgroundColor: theme.colorScheme.surface,
-        surfaceTintColor: theme.colorScheme.surfaceTint,
-        elevation: 0,
         leading: _isSelectionMode
             ? IconButton(
-          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
+          icon: const Icon(Icons.close),
           onPressed: _clearSelection,
-          tooltip: 'Cancel Selection',
         )
             : null,
-        actions: [
+        actions: _isSelectionMode
+            ? [
           IconButton(
-            icon: Icon(Icons.view_module, color: theme.colorScheme.onSurface),
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                builder: (context) => Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('View Options',
-                          style: theme.textTheme.headlineSmall),
-                      const SizedBox(height: 16),
-                      Text('Preset', style: theme.textTheme.bodyMedium),
-                      ...ViewPreset.values.map((e) => RadioListTile(
-                        title: Text(e.toString().split('.').last.capitalize(),
-                            style: theme.textTheme.bodyLarge),
-                        value: e,
-                        groupValue: _currentPreset,
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _currentPreset = value;
-                            });
-                            _savePreset(value);
-                            _loadDownloadedItems();
-                            Navigator.pop(context);
-                          }
-                        },
-                      )),
-                      const Divider(),
-                      Text('View Type', style: theme.textTheme.bodyMedium),
-                      ...ViewType.values.map((e) => RadioListTile(
-                        title: Text(e.toString().split('.').last.capitalize(),
-                            style: theme.textTheme.bodyLarge),
-                        value: e,
-                        groupValue: _viewType,
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _viewType = value;
-                            });
-                            _saveViewType(value);
-                            Navigator.pop(context);
-                          }
-                        },
-                      )),
-                    ],
-                  ),
-                ),
-              );
-            },
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _deleteSelectedItems,
+            tooltip: 'Delete Selected',
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            onPressed: _shareSelectedItems,
+            tooltip: 'Share Selected',
+          ),
+        ]
+            : [
+          IconButton(
+            icon: const Icon(Icons.view_module_outlined),
+            onPressed: () => _showViewOptions(context, theme),
             tooltip: 'View Options',
           ),
           IconButton(
-            icon: Icon(Icons.delete_sweep, color: theme.colorScheme.onSurface),
+            icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: () {
               Navigator.push(context,
                   MaterialPageRoute(builder: (context) => const RecyclePage()));
             },
             tooltip: 'Recycle Bin',
           ),
-          PopupMenuButton(
-            icon: Icon(Icons.sort, color: theme.colorScheme.onSurface),
-            onSelected: (value) {
-              FocusScope.of(context).unfocus();
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Sort by'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: SortOption.values.map((option) => RadioListTile(
-                      title: Text(option.toString().split('.').last.capitalize(),
-                          style: theme.textTheme.bodyLarge),
-                      value: option,
-                      groupValue: _currentSort,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _currentSort = value;
-                          });
-                          _loadDownloadedItems();
-                          Navigator.pop(context);
-                        }
-                      },
-                    )).toList(),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'sort',
-                child: Row(
-                  children: [
-                    Icon(Icons.sort, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sort'),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.sort_outlined),
+            onPressed: () => _showSortOptions(context, theme),
+            tooltip: 'Sort Options',
           ),
-          const SizedBox(width: 16),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search items...',
-                prefixIcon:
-                Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
+                prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                  icon: Icon(Icons.clear,
-                      color: theme.colorScheme.onSurfaceVariant),
+                  icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
                     _filterItems();
@@ -672,493 +500,283 @@ class _HistoryPageState extends State<HistoryPage> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainer,
+                fillColor: theme.colorScheme.surface,
               ),
-              style: theme.textTheme.bodyLarge,
             ),
           ),
           if (_isSelectionMode)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    '${_selectedItems.length} selected',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary) ??
-                        TextStyle(color: theme.colorScheme.primary),
-                  ),
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        _selectedItems =
-                            Set.from(List.generate(_filteredItems.length, (index) => index));
+                        _selectedItems.addAll(List.generate(_filteredItems.length, (i) => i));
                       });
                     },
-                    child: Text('Select All', style: theme.textTheme.bodyMedium),
+                    child: const Text('Select All'),
                   ),
                 ],
               ),
             ),
-          Expanded(child: _buildContent(crossAxisCount: calculateGridColumns(context))),
+          Expanded(child: _buildContent(theme)),
         ],
       ),
-      bottomNavigationBar: _isSelectionMode
-          ? BottomAppBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            TextButton.icon(
-              icon: Icon(Icons.delete, color: Colors.red),
-              label: const Text('Delete Selected',
-                  style: TextStyle(color: Colors.red)),
-              onPressed: _deleteSelectedItems,
-            ),
-            TextButton.icon(
-              icon: Icon(Icons.share, color: theme.colorScheme.primary),
-              label: Text('Share Selected',
-                  style: TextStyle(color: theme.colorScheme.primary)),
-              onPressed: _shareSelectedItems,
-            ),
-          ],
-        ),
-      )
-          : null,
     );
   }
 
-  Widget _buildContent({required int crossAxisCount}) {
-    final theme = Theme.of(context);
+  void _showViewOptions(BuildContext context, ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('View Options', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+            const Text('Preset'),
+            ...ViewPreset.values.map((preset) => RadioListTile(
+              title: Text(preset.name.capitalize()),
+              value: preset,
+              groupValue: _currentPreset,
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _currentPreset = value);
+                  _savePreset(value);
+                  _loadDownloadedItems();
+                  Navigator.pop(context);
+                }
+              },
+            )),
+            const Divider(),
+            const Text('View Type'),
+            ...ViewType.values.map((type) => RadioListTile(
+              title: Text(type.name.capitalize()),
+              value: type,
+              groupValue: _viewType,
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _viewType = value);
+                  _saveViewType(value);
+                  Navigator.pop(context);
+                }
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSortOptions(BuildContext context, ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Sort By', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+            ...SortOption.values.map((option) => RadioListTile(
+              title: Text(option.name.capitalize()),
+              value: option,
+              groupValue: _currentSort,
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _currentSort = value);
+                  _loadDownloadedItems();
+                  Navigator.pop(context);
+                }
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(ThemeData theme) {
     if (_isLoading) {
-      if (_viewType == ViewType.grid || _currentPreset == ViewPreset.images) {
-        return GridView.builder(
-          padding: const EdgeInsets.all(4),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: calculateGridColumns(context),
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 1.0,
-          ),
-          itemCount: 6,
-          itemBuilder: (context, index) {
-            return Shimmer.fromColors(
-              baseColor: theme.colorScheme.surfaceContainer,
-              highlightColor: theme.colorScheme.surfaceContainerHigh,
-              child: Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceContainer,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                child: Container(color: theme.colorScheme.surface),
-              ),
-            );
-          },
-        );
-      } else {
-        return ListView.builder(
-          padding: const EdgeInsets.all(8),
-          itemCount: 6,
-          itemBuilder: (context, index) {
-            return Shimmer.fromColors(
-              baseColor: theme.colorScheme.surfaceContainer,
-              highlightColor: theme.colorScheme.surfaceContainerHigh,
-              child: Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceContainer,
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading:
-                  Container(width: 48, height: 48, color: theme.colorScheme.surface),
-                  title: Container(height: 12, color: theme.colorScheme.surface),
-                ),
-              ),
-            );
-          },
-        );
-      }
+      return _buildLoadingShimmer(theme);
     }
 
     if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline,
-                size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text(_errorMessage!, textAlign: TextAlign.center, style: theme.textTheme.bodyLarge),
-            if (_errorMessage!.contains('permission'))
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: ElevatedButton.icon(
-                  icon: Icon(Icons.settings, color: theme.colorScheme.onPrimary),
-                  label: const Text('Open Settings'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () async {
-                    await openAppSettings();
-                    await _checkPermissionsAndLoadItems();
-                  },
-                ),
-              ),
-          ],
-        ),
-      );
+      return _buildErrorWidget(theme);
     }
 
     if (_filteredItems.isEmpty) {
-      return Center(
-          child: Text('No items found.', style: theme.textTheme.bodyLarge));
+      return const Center(child: Text('No items found.'));
     }
 
-    if (_currentPreset == ViewPreset.images) {
-      return GridView.builder(
-        padding: const EdgeInsets.all(4),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: calculateGridColumns(context),
-          mainAxisSpacing: 4,
-          crossAxisSpacing: 4,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: _filteredItems.length,
-        itemBuilder: (context, index) {
-          final item = _filteredItems[index];
-          final isSelected = _selectedItems.contains(index);
-          final isImage = item is File;
-
-          return GestureDetector(
-            onTap: _isLoading ? null : () => _openItem(index),
-            onLongPress: () => _toggleSelection(index),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (isImage)
-                    Image.file(
-                      File(item.path),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: theme.colorScheme.surfaceContainer,
-                        child: Icon(
-                          Icons.broken_image,
-                          size: 48,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  if (isSelected)
-                    Container(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
-                      child: Icon(Icons.check_circle,
-                          color: theme.colorScheme.onPrimary, size: 30),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
+    if (_viewType == ViewType.grid) {
+      return _buildGridView();
     }
 
-    if (_currentPreset == ViewPreset.images && _viewType == ViewType.list) {
-      return ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: _filteredItems.length,
-        itemBuilder: (context, index) {
-          final item = _filteredItems[index];
-          final isSelected = _selectedItems.contains(index);
-          final isImage = item is File;
+    return _buildListView();
+  }
 
-          return Card(
-            elevation: 0,
-            color: theme.colorScheme.surfaceContainer,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: ListTile(
-              leading: isImage
-                  ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(item.path),
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Icon(
-                    Icons.broken_image,
-                    size: 48,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              )
-                  : Icon(Icons.folder,
-                  size: 48, color: theme.colorScheme.onSurfaceVariant),
-              title: Text(
-                item.path.split('/').last,
-                style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: isImage
-                  ? Text(
-                '${(File(item.path).lengthSync() / 1024).toStringAsFixed(1)} KB',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant),
-              )
-                  : null,
-              trailing: isSelected
-                  ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
-                  : null,
-              onTap: _isLoading ? null : () => _openItem(index),
-              onLongPress: () => _toggleSelection(index),
-              selected: isSelected,
-              selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
-            ),
-          );
-        },
-      );
-    }
-
-    if (_currentPreset == ViewPreset.galleriesFolder ||
-        _currentPreset == ViewPreset.celebrityAlbum) {
-      if (_viewType == ViewType.list) {
-        return ListView.builder(
-          padding: const EdgeInsets.only(bottom: 90),
-          itemCount: _filteredItems.length,
-          itemBuilder: (context, index) {
-            final item = _filteredItems[index];
-            final isSelected = _selectedItems.contains(index);
-
-            return FutureBuilder<Map<String, dynamic>>(
-              future: item is Directory
-                  ? _getFolderDetails(item,
-                  countSubfolders: _currentPreset == ViewPreset.celebrityAlbum)
-                  : Future.value(
-                  {'imageCount': 0, 'totalSize': 0, 'latestImage': null}),
-              builder: (context, snapshot) {
-                final imageCount = snapshot.data?['imageCount'] ?? 0;
-                final folderCount = snapshot.data?['folderCount'] ?? 0;
-                final totalSize = snapshot.data?['totalSize'] ?? 0;
-                final latestImage = snapshot.data?['latestImage'] as File?;
-                final sizeInMB = (totalSize / (1024 * 1024)).toStringAsFixed(2);
-
-                Widget leadingIcon = Icon(Icons.folder,
-                    size: 48, color: theme.colorScheme.onSurfaceVariant);
-
-                if (latestImage != null) {
-                  leadingIcon = ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      latestImage,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.folder,
-                        size: 48,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                }
-
-                return Card(
-                  elevation: 0,
-                  color: theme.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    leading: leadingIcon,
-                    title: Text(
-                      item.path.split('/').last,
-                      style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: item is Directory
-                        ? Text(
-                      _currentPreset == ViewPreset.celebrityAlbum
-                          ? '$folderCount folder${folderCount == 1 ? '' : 's'}, $sizeInMB MB'
-                          : '$imageCount image${imageCount == 1 ? '' : 's'}, $sizeInMB MB',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
-                    )
-                        : null,
-                    trailing: isSelected
-                        ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
-                        : null,
-                    onTap: _isLoading ? null : () => _openItem(index),
-                    onLongPress: () => _toggleSelection(index),
-                    selected: isSelected,
-                    selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      } else {
-        return GridView.builder(
-          padding: const EdgeInsets.only(bottom: 90),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: calculateGridColumns(context),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 4,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: _filteredItems.length,
-          itemBuilder: (context, index) {
-            final item = _filteredItems[index];
-            final isSelected = _selectedItems.contains(index);
-
-            return FutureBuilder<Map<String, dynamic>>(
-              future: item is Directory
-                  ? _getFolderDetails(item,
-                  countSubfolders: _currentPreset == ViewPreset.celebrityAlbum)
-                  : null,
-              builder: (context, snapshot) {
-                final imageCount = snapshot.data?['imageCount'] ?? 0;
-                final folderCount = snapshot.data?['folderCount'] ?? 0;
-                final totalSize = snapshot.data?['totalSize'] ?? 0;
-                final latestImage = snapshot.data?['latestImage'] as File?;
-                final sizeInMB = (totalSize / (1024 * 1024)).toStringAsFixed(2);
-
-                Widget thumbnail = Icon(Icons.folder,
-                    size: 48, color: theme.colorScheme.onSurfaceVariant);
-
-                if (latestImage != null) {
-                  thumbnail = Image.file(
-                    latestImage,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.folder,
-                      size: 48,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  );
-                }
-
-                return GestureDetector(
-                  onTap: _isLoading ? null : () => _openItem(index),
-                  onLongPress: () => _toggleSelection(index),
-                  child: Card(
-                    elevation: 0,
-                    color: theme.colorScheme.background,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        thumbnail,
-                        if (isSelected)
-                          Container(
-                            color: theme.colorScheme.primary.withOpacity(0.3),
-                            child: Icon(Icons.check_circle,
-                                color: theme.colorScheme.onPrimary, size: 30),
-                          ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            padding: const EdgeInsets.all(4),
-                            child: Text(
-                              _currentPreset == ViewPreset.celebrityAlbum
-                                  ? '${item.path.split('/').last}\n$folderCount folder${folderCount == 1 ? '' : 's'}, $sizeInMB MB'
-                                  : '${item.path.split('/').last}\n$imageCount image${imageCount == 1 ? '' : 's'}, $sizeInMB MB',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      }
-    }
-
+  Widget _buildLoadingShimmer(ThemeData theme) {
     return GridView.builder(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(12),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: calculateGridColumns(context),
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-        childAspectRatio: 1.0,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+      ),
+      itemCount: 8,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: theme.colorScheme.surface,
+          highlightColor: theme.colorScheme.surface.withOpacity(0.5),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildErrorWidget(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+          const SizedBox(height: 16),
+          Text(_errorMessage!, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _checkPermissionsAndLoadItems,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridView() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: calculateGridColumns(context),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.8,
       ),
       itemCount: _filteredItems.length,
       itemBuilder: (context, index) {
         final item = _filteredItems[index];
         final isSelected = _selectedItems.contains(index);
-        final isImage = item is File;
 
         return GestureDetector(
-          onTap: _isLoading ? null : () => _openItem(index),
+          onTap: () => _openItem(index),
           onLongPress: () => _toggleSelection(index),
           child: Card(
-            elevation: 0,
-            color: theme.colorScheme.background,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: isSelected ? 8 : 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: isSelected
+                  ? BorderSide(color: Theme.of(context).primaryColor, width: 2)
+                  : BorderSide.none,
+            ),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (isImage)
-                  Image.file(
-                    File(item.path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.broken_image,
-                      size: 48,
-                      color: theme.colorScheme.onSurfaceVariant,
+                if (item is File)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: Image.file(
+                      item,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
                     ),
-                  )
-                else
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.folder,
-                          size: 48, color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.path.split('/').last,
-                        style: theme.textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ),
+                if (item is Directory)
+                  const Center(child: Icon(Icons.folder, size: 48)),
                 if (isSelected)
                   Container(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
-                    child: Icon(Icons.check_circle,
-                        color: theme.colorScheme.onPrimary, size: 30),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.check_circle, color: Colors.white),
                   ),
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
                   child: Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      ),
+                    ),
                     child: Text(
-                      isImage
-                          ? '${(File(item.path).lengthSync() / 1024).toStringAsFixed(1)} KB'
-                          : item.path.split('/').last,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface),
+                      item.path.split('/').last,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                     ),
                   ),
-                ),
+                )
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildListView() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _filteredItems.length,
+      itemBuilder: (context, index) {
+        final item = _filteredItems[index];
+        final isSelected = _selectedItems.contains(index);
+
+        return Card(
+          elevation: isSelected ? 8 : 2,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListTile(
+            leading: (item is File)
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: Image.file(
+                item,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+              ),
+            )
+                : const Icon(Icons.folder, size: 40),
+            title: Text(item.path.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+                '${(item.statSync().size / 1024).toStringAsFixed(2)} KB',
+                style: Theme.of(context).textTheme.bodySmall
+            ),
+            onTap: () => _openItem(index),
+            onLongPress: () => _toggleSelection(index),
+            selected: isSelected,
+            selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         );
@@ -1169,6 +787,6 @@ class _HistoryPageState extends State<HistoryPage> {
 
 extension StringExtension on String {
   String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1)}";
+    return isNotEmpty ? "${this[0].toUpperCase()}${substring(1)}" : this;
   }
 }
