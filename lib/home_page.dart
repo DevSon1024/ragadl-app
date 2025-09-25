@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Added for image caching
+import 'package:cached_network_image/cached_network_image.dart';
 import 'pages/download_manager_page.dart';
 import 'package:flutter/services.dart';
 import 'pages/celebrity/latest_celebrity.dart';
@@ -127,9 +126,9 @@ class _HomePageState extends State<HomePage> {
                     imageUrl: imageUrl,
                     fit: BoxFit.contain,
                     width: double.infinity,
-                    height: 200, // Increased height for full-size display
+                    height: 200,
                     placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, error, stackTrace) => Container(), // Show nothing on error
+                    errorWidget: (context, error, stackTrace) => Container(),
                   ),
                 ),
               ),
@@ -211,26 +210,9 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('admin_content')
-                          .doc('status_content')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        if (!snapshot.hasData || snapshot.hasError) {
-                          return _buildProfileContainer('No message available', null);
-                        }
-
-                        final data = snapshot.data!.data() as Map<String, dynamic>?;
-                        final adminMessage = data?['message'] as String? ?? 'No message available';
-                        final adminImageUrl = data?['imageUrl'] as String?;
-
-                        return _buildProfileContainer(adminMessage, adminImageUrl);
-                      },
-                    ),
+                    // Removed the StreamBuilder and replaced it with a placeholder.
+                    // You can replace this with a local alternative if you wish.
+                    _buildProfileContainer('Welcome to Ragalahari Downloader!', null),
                     const SizedBox(height: 16),
                   ],
                 ),

@@ -4,7 +4,6 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -21,8 +20,6 @@ android {
     namespace = "com.devson.ragalahari_downloader"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
-
-
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

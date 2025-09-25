@@ -54,9 +54,10 @@ class DisplaySettingsPage extends StatelessWidget {
                           style: theme.textTheme.bodyLarge,
                         ),
                         trailing: Switch(
-                          value: themeConfig.useSystemTheme,
+                          value: themeConfig.currentThemeMode == ThemeMode.system,
                           onChanged: (value) {
-                            themeConfig.setUseSystemTheme(value);
+                            themeConfig.setThemeMode(
+                                value ? ThemeMode.system : ThemeMode.light);
                           },
                           activeColor: theme.colorScheme.primary,
                         ),
@@ -65,17 +66,21 @@ class DisplaySettingsPage extends StatelessWidget {
                         title: Text(
                           'Dark Mode',
                           style: theme.textTheme.bodyLarge?.copyWith(
-                            color: themeConfig.useSystemTheme
-                                ? theme.colorScheme.onSurface.withOpacity(0.5)
+                            color:
+                            themeConfig.currentThemeMode == ThemeMode.system
+                                ? theme.colorScheme.onSurface
+                                .withOpacity(0.5)
                                 : theme.colorScheme.onSurface,
                           ),
                         ),
                         trailing: Switch(
                           value: themeConfig.currentThemeMode == ThemeMode.dark,
-                          onChanged: themeConfig.useSystemTheme
+                          onChanged:
+                          themeConfig.currentThemeMode == ThemeMode.system
                               ? null
                               : (value) {
-                            themeConfig.toggleTheme();
+                            themeConfig.setThemeMode(
+                                value ? ThemeMode.dark : ThemeMode.light);
                           },
                           activeColor: theme.colorScheme.primary,
                         ),
@@ -95,57 +100,26 @@ class DisplaySettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Consumer<ThemeConfig>(
-                builder: (context, themeConfig, child) => Column(
-                  children: [
-                    _buildThemeTile(
+                builder: (context, themeConfig, child) => GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 2.5,
+                  ),
+                  itemCount: colorOptions.length,
+                  itemBuilder: (context, index) {
+                    return _buildThemeTile(
                       context,
-                      'Cool Theme',
-                      Colors.blue[700]!,
+                      colorLabels[index],
+                      colorOptions[index],
                       themeConfig,
-                      themeName: 'white',
-                      isSelected: themeConfig.currentTheme == 'white',
-                    ),
-                    _buildThemeTile(
-                      context,
-                      'Saffron Theme',
-                      Colors.deepOrange[700]!,
-                      themeConfig,
-                      themeName: 'saffron',
-                      isSelected: themeConfig.currentTheme == 'saffron',
-                    ),
-                    _buildThemeTile(
-                      context,
-                      'Nature Theme',
-                      Colors.green[700]!,
-                      themeConfig,
-                      themeName: 'nature',
-                      isSelected: themeConfig.currentTheme == 'nature',
-                    ),
-                    _buildThemeTile(
-                      context,
-                      'Smooth Theme',
-                      Colors.pink[700]!,
-                      themeConfig,
-                      themeName: 'smooth',
-                      isSelected: themeConfig.currentTheme == 'smooth',
-                    ),
-                    _buildThemeTile(
-                      context,
-                      'Vibrant Theme',
-                      Colors.orange[700]!,
-                      themeConfig,
-                      themeName: 'vibrant',
-                      isSelected: themeConfig.currentTheme == 'vibrant',
-                    ),
-                    _buildThemeTile(
-                      context,
-                      'Calm Theme',
-                      Colors.teal[700]!,
-                      themeConfig,
-                      themeName: 'calm',
-                      isSelected: themeConfig.currentTheme == 'calm',
-                    ),
-                  ],
+                      index: index,
+                      isSelected: themeConfig.primaryColor == colorOptions[index],
+                    );
+                  },
                 ),
               ),
             ],
@@ -160,7 +134,7 @@ class DisplaySettingsPage extends StatelessWidget {
       String displayName,
       Color color,
       ThemeConfig themeConfig, {
-        required String themeName,
+        required int index,
         bool isSelected = false,
       }) {
     final theme = Theme.of(context);
@@ -174,28 +148,33 @@ class DisplaySettingsPage extends StatelessWidget {
           width: isSelected ? 2 : 1,
         ),
       ),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
+      margin: EdgeInsets.zero,
+      child: InkWell(
         onTap: () {
-          themeConfig.setTheme(themeName);
+          themeConfig.setColorIndex(index);
         },
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(12),
+        child: Center(
+          child: ListTile(
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            title: Text(
+              displayName,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            trailing: isSelected
+                ? Icon(Icons.check_circle, color: color)
+                : null,
           ),
         ),
-        title: Text(
-          displayName,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: isSelected
-            ? Icon(Icons.check_circle, color: color)
-            : null,
       ),
     );
   }
