@@ -26,7 +26,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Map<String, dynamic>> sections = [
+   List<Map<String, dynamic>> sections = [
     {'title': 'Latest All Celebrities', 'icon': Icons.star, 'page': const LatestCelebrityPage()},
     {'title': 'Favorites', 'icon': Icons.favorite, 'page': const FavouritePage()},
     {'title': 'Latest Actors', 'icon': Icons.person, 'page': const ActorPage()},
@@ -48,16 +48,12 @@ class _HomePageState extends State<HomePage> {
         var section = sections.firstWhere((s) => s['title'] == title);
         reordered.add(section);
       }
-      setState(() {
-        sections = reordered;
-      });
+      if (mounted) {
+        setState(() {
+          sections = reordered;
+        });
+      }
     }
-  }
-
-  Future<void> _saveSectionOrder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final order = sections.map((s) => s['title'] as String).toList();
-    await prefs.setStringList('section_order', order);
   }
 
   Future<void> _launchUrl(String url) async {
@@ -65,6 +61,171 @@ class _HomePageState extends State<HomePage> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       throw Exception('Could not launch $url');
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Ragalahari Downloader',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: theme.colorScheme.surfaceTint,
+        elevation: 2,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.history,
+              color: theme.colorScheme.onSurface,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
+              );
+              FocusScope.of(context).unfocus();
+            },
+            tooltip: 'Link History',
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.settings,
+              color: theme.colorScheme.onSurface,
+            ),
+            onPressed: widget.openSettings,
+            tooltip: 'Settings',
+          ),
+        ],
+      ),
+      body: ListView.builder(
+        itemCount: sections.length + 2, // +2 for header and footer
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _buildHeader();
+          }
+          if (index == sections.length + 1) {
+            return _buildFooter();
+          }
+          final section = sections[index - 1];
+          return Card(
+            key: ValueKey(section['title']),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            surfaceTintColor: theme.colorScheme.surfaceTint,
+            child: ListTile(
+              leading: Icon(
+                section['icon'],
+                color: theme.colorScheme.primary,
+              ),
+              title: Text(section['title']),
+              trailing: Platform.isWindows
+                  ? null
+                  : Icon(
+                Icons.drag_handle,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => section['page']),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          if (Platform.isWindows)
+            GestureDetector(
+              onPanStart: (_) => windowManager.startDragging(),
+              child: Container(
+                height: 40,
+                color: Colors.transparent,
+                child: const Center(
+                  child: Text(
+                    'Drag here to move window',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
+            ),
+          _buildProfileContainer('Welcome to Ragalahari Downloader!', null),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Follow Ragalahari on',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildSocialMediaItem(
+                context,
+                Icons.facebook,
+                'Facebook',
+                'https://www.facebook.com/ragalahari',
+                Colors.blue,
+              ),
+              const SizedBox(height: 12),
+              _buildSocialMediaItem(
+                context,
+                Icons.alternate_email,
+                'Twitter',
+                'https://twitter.com/ragalahari',
+                Colors.lightBlue,
+              ),
+              const SizedBox(height: 12),
+              _buildSocialMediaItem(
+                context,
+                Icons.camera_alt,
+                'Instagram',
+                'https://www.instagram.com/ragalahari',
+                Colors.purple,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSocialMediaItem(
@@ -143,200 +304,6 @@ class _HomePageState extends State<HomePage> {
               textAlign: TextAlign.center,
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Ragalahari Downloader',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: theme.colorScheme.surface,
-        surfaceTintColor: theme.colorScheme.surfaceTint,
-        elevation: 2,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.history,
-              color: theme.colorScheme.onSurface,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
-              );
-              FocusScope.of(context).unfocus();
-            },
-            tooltip: 'Link History',
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.settings,
-              color: theme.colorScheme.onSurface,
-            ),
-            onPressed: widget.openSettings,
-            tooltip: 'Settings',
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 80.0),
-          child: Column(
-            children: [
-              if (Platform.isWindows)
-                GestureDetector(
-                  onPanStart: (_) => windowManager.startDragging(),
-                  child: Container(
-                    height: 40,
-                    color: Colors.transparent,
-                    child: const Center(
-                      child: Text(
-                        'Drag here to move window',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // Removed the StreamBuilder and replaced it with a placeholder.
-                    // You can replace this with a local alternative if you wish.
-                    _buildProfileContainer('Welcome to Ragalahari Downloader!', null),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-              ReorderableListView(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                onReorder: (oldIndex, newIndex) {
-                  setState(() {
-                    if (newIndex > oldIndex) {
-                      newIndex -= 1;
-                    }
-                    final section = sections.removeAt(oldIndex);
-                    sections.insert(newIndex, section);
-                    _saveSectionOrder();
-                  });
-                },
-                proxyDecorator: (child, index, animation) {
-                  return Material(
-                    elevation: 8,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: theme.colorScheme.primary,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: child,
-                    ),
-                  );
-                },
-                children: sections.map((section) {
-                  return Card(
-                    key: ValueKey(section['title']),
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    surfaceTintColor: theme.colorScheme.surfaceTint,
-                    child: ListTile(
-                      leading: Icon(
-                        section['icon'],
-                        color: theme.colorScheme.primary,
-                      ),
-                      title: Text(section['title']),
-                      trailing: Platform.isWindows
-                          ? null
-                          : Icon(
-                        Icons.drag_handle,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => section['page']),
-                        );
-                      },
-                      onLongPress: Platform.isWindows
-                          ? () {
-                        setState(() {});
-                      }
-                          : null,
-                    ),
-                  );
-                }).toList(),
-              ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Follow Ragalahari on',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildSocialMediaItem(
-                          context,
-                          Icons.facebook,
-                          'Facebook',
-                          'https://www.facebook.com/ragalahari',
-                          Colors.blue,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildSocialMediaItem(
-                          context,
-                          Icons.alternate_email,
-                          'Twitter',
-                          'https://twitter.com/ragalahari',
-                          Colors.lightBlue,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildSocialMediaItem(
-                          context,
-                          Icons.camera_alt,
-                          'Instagram',
-                          'https://www.instagram.com/ragalahari',
-                          Colors.purple,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
