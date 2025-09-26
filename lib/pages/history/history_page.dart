@@ -1,17 +1,62 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // Import for compute
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:share_plus/share_plus.dart';
 import 'recycle_page.dart';
-import 'package:ragalahari_downloader/permissions.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'history_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'sub_folder_page.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:ragalahari_downloader/widgets/grid_utils.dart';
+import 'package:ragalahari_downloader/widgets/thumbnail_utils.dart'; // Import the new utils
 import 'history_full_image_viewer.dart';
+import 'sub_folder_page.dart';
+
+// Helper function to be executed in an isolate
+Future<List<FileSystemEntity>> _loadItemsIsolate(Map<String, dynamic> args) async {
+  final Directory baseDir = args['baseDir'];
+  final SortOption currentSort = args['currentSort'];
+
+  final List<FileSystemEntity> items = [];
+
+  Future<void> _collectItems(Directory dir, List<FileSystemEntity> items) async {
+    try {
+      final entities = await dir.list(recursive: true).toList();
+      for (var entity in entities) {
+        final name = entity.path.split('/').last;
+        if (name.startsWith('.trashed-')) continue;
+        if (entity is File) {
+          final extension = entity.path.toLowerCase().split('.').last;
+          if (['jpg', 'jpeg', 'png'].contains(extension)) {
+            items.add(entity);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error scanning directory ${dir.path}: $e');
+    }
+  }
+
+  await _collectItems(baseDir, items);
+
+  items.sort((a, b) {
+    final aStat = a.statSync();
+    final bStat = b.statSync();
+    switch (currentSort) {
+      case SortOption.newest:
+        return bStat.modified.compareTo(aStat.modified);
+      case SortOption.oldest:
+        return aStat.modified.compareTo(bStat.modified);
+      case SortOption.largest:
+        return bStat.size.compareTo(aStat.size);
+      case SortOption.smallest:
+        return aStat.size.compareTo(bStat.size);
+    }
+  });
+
+  return items;
+}
 
 enum SortOption {
   newest,
@@ -19,6 +64,8 @@ enum SortOption {
   largest,
   smallest,
 }
+
+enum ViewType { list, grid }
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -31,8 +78,7 @@ class _HistoryPageState extends State<HistoryPage> {
   List<FileSystemEntity> _downloadedItems = [];
   List<FileSystemEntity> _filteredItems = [];
   SortOption _currentSort = SortOption.newest;
-  ViewPreset _currentPreset = ViewPreset.images;
-  ViewType _viewType = ViewType.list;
+  ViewType _viewType = ViewType.grid;
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSelectionMode = false;
@@ -43,27 +89,8 @@ class _HistoryPageState extends State<HistoryPage> {
   void initState() {
     super.initState();
     _searchController.addListener(_filterItems);
-    _loadPreset();
     _loadViewType();
     _checkPermissionsAndLoadItems();
-  }
-
-  Future<void> _loadPreset() async {
-    final prefs = await SharedPreferences.getInstance();
-    final presetString = prefs.getString('viewPreset');
-    if (presetString != null) {
-      setState(() {
-        _currentPreset = ViewPreset.values.firstWhere(
-              (preset) => preset.toString() == presetString,
-          orElse: () => ViewPreset.images,
-        );
-      });
-    }
-  }
-
-  Future<void> _savePreset(ViewPreset preset) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('viewPreset', preset.toString());
   }
 
   Future<void> _loadViewType() async {
@@ -73,7 +100,7 @@ class _HistoryPageState extends State<HistoryPage> {
       setState(() {
         _viewType = ViewType.values.firstWhere(
               (type) => type.toString() == viewTypeString,
-          orElse: () => ViewType.list,
+          orElse: () => ViewType.grid,
         );
       });
     }
@@ -88,49 +115,6 @@ class _HistoryPageState extends State<HistoryPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<Map<String, dynamic>> _getFolderDetails(Directory dir,
-      {bool countSubfolders = false}) async {
-    int imageCount = 0;
-    int folderCount = 0;
-    int totalSize = 0;
-    File? latestImage;
-    DateTime? latestModified;
-
-    try {
-      final entities = await dir.list(recursive: true).toList();
-      for (var entity in entities) {
-        if (entity is File &&
-            ['jpg', 'jpeg', 'png']
-                .contains(entity.path.toLowerCase().split('.').last)) {
-          imageCount++;
-          totalSize += entity.statSync().size;
-          final modified = entity.statSync().modified;
-          if (latestModified == null || modified.isAfter(latestModified)) {
-            latestModified = modified;
-            latestImage = entity;
-          }
-        } else if (entity is Directory && countSubfolders) {
-          folderCount++;
-          final subEntities =
-          await Directory(entity.path).list(recursive: true).toList();
-          for (var subEntity in subEntities) {
-            if (subEntity is File) {
-              totalSize += subEntity.statSync().size;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error calculating folder details for ${dir.path}: $e');
-    }
-    return {
-      'imageCount': imageCount,
-      'folderCount': folderCount,
-      'totalSize': totalSize,
-      'latestImage': latestImage,
-    };
   }
 
   Future<void> _checkPermissionsAndLoadItems() async {
@@ -151,7 +135,6 @@ class _HistoryPageState extends State<HistoryPage> {
       final sdkInt = androidInfo.version.sdkInt;
 
       if (sdkInt >= 30) {
-        // Android 11 and above
         if (!await Permission.manageExternalStorage.isGranted) {
           final result = await Permission.manageExternalStorage.request();
           if (!result.isGranted) {
@@ -160,7 +143,6 @@ class _HistoryPageState extends State<HistoryPage> {
           }
         }
       } else {
-        // Android 10 and below
         if (!await Permission.storage.isGranted) {
           final result = await Permission.storage.request();
           if (!result.isGranted) {
@@ -170,7 +152,6 @@ class _HistoryPageState extends State<HistoryPage> {
         }
       }
     } else {
-      // For other platforms like iOS, Windows etc.
       if (!await Permission.storage.isGranted) {
         if (await Permission.storage.request().isDenied) {
           await _showPermissionDialog();
@@ -180,7 +161,6 @@ class _HistoryPageState extends State<HistoryPage> {
     }
     return true;
   }
-
 
   Future<void> _showPermissionDialog() async {
     await showDialog(
@@ -223,7 +203,6 @@ class _HistoryPageState extends State<HistoryPage> {
         baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
       }
 
-
       if (!await baseDir.exists()) {
         setState(() {
           _downloadedItems = [];
@@ -234,22 +213,9 @@ class _HistoryPageState extends State<HistoryPage> {
         return;
       }
 
-      final List<FileSystemEntity> items = [];
-      await _collectItems(baseDir, items);
-
-      items.sort((a, b) {
-        final aStat = a.statSync();
-        final bStat = b.statSync();
-        switch (_currentSort) {
-          case SortOption.newest:
-            return bStat.modified.compareTo(aStat.modified);
-          case SortOption.oldest:
-            return aStat.modified.compareTo(bStat.modified);
-          case SortOption.largest:
-            return bStat.size.compareTo(aStat.size);
-          case SortOption.smallest:
-            return aStat.size.compareTo(bStat.size);
-        }
+      final items = await compute(_loadItemsIsolate, {
+        'baseDir': baseDir,
+        'currentSort': _currentSort,
       });
 
       setState(() {
@@ -265,44 +231,6 @@ class _HistoryPageState extends State<HistoryPage> {
         _errorMessage = 'Error loading items: $e';
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _collectItems(Directory dir, List<FileSystemEntity> items) async {
-    try {
-      if (_currentPreset == ViewPreset.galleriesFolder) {
-        final topLevelEntities = await dir.list(recursive: false).toList();
-        for (var entity in topLevelEntities) {
-          if (entity is Directory) {
-            final subDir = Directory(entity.path);
-            final subEntities = await subDir.list(recursive: false).toList();
-            for (var subEntity in subEntities) {
-              final name = subEntity.path.split('/').last;
-              if (subEntity is Directory && !name.startsWith('.trashed-')) {
-                items.add(subEntity);
-              }
-            }
-          }
-        }
-      } else {
-        final entities =
-        await dir.list(recursive: _currentPreset == ViewPreset.images).toList();
-        for (var entity in entities) {
-          final name = entity.path.split('/').last;
-          if (name.startsWith('.trashed-')) continue;
-          if (_currentPreset == ViewPreset.images && entity is File) {
-            final extension = entity.path.toLowerCase().split('.').last;
-            if (['jpg', 'jpeg', 'png'].contains(extension)) {
-              items.add(entity);
-            }
-          } else if (_currentPreset == ViewPreset.celebrityAlbum &&
-              entity is Directory) {
-            items.add(entity);
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error scanning directory ${dir.path}: $e');
     }
   }
 
@@ -354,8 +282,8 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child:
-            const Text('Move to Recycle Bin', style: TextStyle(color: Colors.red)),
+            child: const Text('Move to Recycle Bin',
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -366,14 +294,14 @@ class _HistoryPageState extends State<HistoryPage> {
     setState(() => _isLoading = true);
 
     try {
-      final toDelete = _selectedItems.map((index) => _filteredItems[index]).toList();
+      final toDelete =
+      _selectedItems.map((index) => _filteredItems[index]).toList();
       for (var item in toDelete) {
         final name = item.path.split('/').last;
         final dirPath = item.path.substring(0, item.path.length - name.length);
         final trashedPath =
             '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$name';
-        await (item is File ? item : Directory(item.path))
-            .rename(trashedPath);
+        await (item is File ? item : Directory(item.path)).rename(trashedPath);
       }
 
       await _loadDownloadedItems();
@@ -392,11 +320,11 @@ class _HistoryPageState extends State<HistoryPage> {
       return;
     }
 
-    final paths = _selectedItems
-        .map((index) => _filteredItems[index].path)
-        .toList();
+    final paths =
+    _selectedItems.map((index) => _filteredItems[index].path).toList();
 
-    await Share.shareFiles(paths, text: 'Sharing items from Ragalahari Downloader');
+    await Share.shareFiles(paths,
+        text: 'Sharing items from Ragalahari Downloader');
   }
 
   void _openItem(int index) {
@@ -410,7 +338,8 @@ class _HistoryPageState extends State<HistoryPage> {
           MaterialPageRoute(
             builder: (context) => FullImageViewer(
               images: _filteredItems.whereType<File>().toList(),
-              initialIndex: _filteredItems.whereType<File>().toList().indexOf(item),
+              initialIndex:
+              _filteredItems.whereType<File>().toList().indexOf(item),
             ),
           ),
         );
@@ -435,7 +364,9 @@ class _HistoryPageState extends State<HistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _isSelectionMode ? '${_selectedItems.length} selected' : 'Download History',
+          _isSelectionMode
+              ? '${_selectedItems.length} selected'
+              : 'Download History',
         ),
         leading: _isSelectionMode
             ? IconButton(
@@ -458,15 +389,27 @@ class _HistoryPageState extends State<HistoryPage> {
         ]
             : [
           IconButton(
-            icon: const Icon(Icons.view_module_outlined),
-            onPressed: () => _showViewOptions(context, theme),
-            tooltip: 'View Options',
+            icon: Icon(_viewType == ViewType.grid
+                ? Icons.view_list
+                : Icons.view_module),
+            onPressed: () {
+              setState(() {
+                _viewType = _viewType == ViewType.grid
+                    ? ViewType.list
+                    : ViewType.grid;
+                _saveViewType(_viewType);
+              });
+            },
+            tooltip:
+            _viewType == ViewType.grid ? 'List View' : 'Grid View',
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const RecyclePage()));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const RecyclePage()));
             },
             tooltip: 'Recycle Bin',
           ),
@@ -513,7 +456,8 @@ class _HistoryPageState extends State<HistoryPage> {
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        _selectedItems.addAll(List.generate(_filteredItems.length, (i) => i));
+                        _selectedItems.addAll(
+                            List.generate(_filteredItems.length, (i) => i));
                       });
                     },
                     child: const Text('Select All'),
@@ -523,51 +467,6 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
           Expanded(child: _buildContent(theme)),
         ],
-      ),
-    );
-  }
-
-  void _showViewOptions(BuildContext context, ThemeData theme) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('View Options', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 16),
-            const Text('Preset'),
-            ...ViewPreset.values.map((preset) => RadioListTile(
-              title: Text(preset.name.capitalize()),
-              value: preset,
-              groupValue: _currentPreset,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _currentPreset = value);
-                  _savePreset(value);
-                  _loadDownloadedItems();
-                  Navigator.pop(context);
-                }
-              },
-            )),
-            const Divider(),
-            const Text('View Type'),
-            ...ViewType.values.map((type) => RadioListTile(
-              title: Text(type.name.capitalize()),
-              value: type,
-              groupValue: _viewType,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _viewType = value);
-                  _saveViewType(value);
-                  Navigator.pop(context);
-                }
-              },
-            )),
-          ],
-        ),
       ),
     );
   }
@@ -694,21 +593,46 @@ class _HistoryPageState extends State<HistoryPage> {
                 if (item is File)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12.0),
-                    child: Image.file(
-                      item,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
+                    child: FutureBuilder<File>(
+                      future: ThumbnailUtils.getThumbnail(item),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.done &&
+                            snapshot.hasData) {
+                          return Image.file(
+                            snapshot.data!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) =>
+                            const Icon(Icons.broken_image, color: Colors.grey),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return const Icon(Icons.error_outline,
+                              color: Colors.red);
+                        }
+                        return Shimmer.fromColors(
+                          baseColor: Colors.grey[300]!,
+                          highlightColor: Colors.grey[100]!,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 if (item is Directory)
-                  const Center(child: Icon(Icons.folder, size: 48)),
+                  const Center(
+                      child: Icon(Icons.folder, size: 48, color: Colors.grey)),
                 if (isSelected)
                   Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).primaryColor.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.check_circle, color: Colors.white),
+                    child:
+                    const Icon(Icons.check_circle, color: Colors.white),
                   ),
                 Positioned(
                   bottom: 0,
@@ -725,7 +649,8 @@ class _HistoryPageState extends State<HistoryPage> {
                     ),
                     child: Text(
                       item.path.split('/').last,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style:
+                      const TextStyle(color: Colors.white, fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -758,19 +683,42 @@ class _HistoryPageState extends State<HistoryPage> {
             leading: (item is File)
                 ? ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
-              child: Image.file(
-                item,
+              child: SizedBox(
                 width: 56,
                 height: 56,
-                fit: BoxFit.cover,
+                child: FutureBuilder<File>(
+                  future: ThumbnailUtils.getThumbnail(item),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.done &&
+                        snapshot.hasData) {
+                      return Image.file(
+                        snapshot.data!,
+                        fit: BoxFit.cover,
+                      );
+                    }
+                    return Container(color: Colors.grey[200]);
+                  },
+                ),
               ),
             )
                 : const Icon(Icons.folder, size: 40),
-            title: Text(item.path.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-                '${(item.statSync().size / 1024).toStringAsFixed(2)} KB',
-                style: Theme.of(context).textTheme.bodySmall
-            ),
+            title: Text(item.path.split('/').last,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: item is File
+                ? FutureBuilder<int>(
+              future: item.length(), // Now only called on File objects
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Text(
+                    '${(snapshot.data! / 1024).toStringAsFixed(2)} KB',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  );
+                }
+                return const Text('...'); // Placeholder for size
+              },
+            )
+                : null, // No subtitle for directories
             onTap: () => _openItem(index),
             onLongPress: () => _toggleSelection(index),
             selected: isSelected,

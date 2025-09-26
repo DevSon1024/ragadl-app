@@ -1,15 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
 import 'package:intl/intl.dart';
 import 'dart:math';
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'celebrity_utils.dart';
 import '../ragalahari_downloader.dart';
 import 'package:ragalahari_downloader/widgets/grid_utils.dart';
+
+// Data class for passing data to isolate
+class GalleryScrapingData {
+  final String profileUrl;
+  final Map<String, String> headers;
+  final List<String> thumbnailDomains;
+  final int batchSize;
+  final bool sortNewestFirst;
+
+  GalleryScrapingData({
+    required this.profileUrl,
+    required this.headers,
+    required this.thumbnailDomains,
+    required this.batchSize,
+    required this.sortNewestFirst,
+  });
+}
+
+// Data class for isolate results
+class GalleryScrapingResult {
+  final List<GalleryItem>? items;
+  final String? error;
+  final bool isPartialUpdate;
+  final int processedCount;
+  final int totalCount;
+
+  GalleryScrapingResult({
+    this.items,
+    this.error,
+    this.isPartialUpdate = false,
+    this.processedCount = 0,
+    this.totalCount = 0,
+  });
+}
 
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;
@@ -40,6 +76,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
+  // Progress tracking
+  int _processedCount = 0;
+  int _totalCount = 0;
+  ReceivePort? _receivePort;
+  Isolate? _isolate;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +93,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _receivePort?.close();
+    _isolate?.kill();
     super.dispose();
   }
 
@@ -75,7 +119,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         _isLoading = false;
       });
     }
-    _scrapeGalleryLinks();
+    _scrapeGalleryLinksWithIsolate();
   }
 
   Future<void> _cacheGalleryLinks() async {
@@ -91,6 +135,250 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     })
         .toList();
     await prefs.setString(cacheKey, jsonEncode(jsonData));
+  }
+
+  Future<void> _scrapeGalleryLinksWithIsolate() async {
+    try {
+      _receivePort = ReceivePort();
+
+      // Listen for messages from isolate
+      _receivePort!.listen((message) {
+        if (message is GalleryScrapingResult) {
+          _handleIsolateResult(message);
+        }
+      });
+
+      final scrapingData = GalleryScrapingData(
+        profileUrl: widget.profileUrl,
+        headers: headers,
+        thumbnailDomains: thumbnailDomains,
+        batchSize: _batchSize,
+        sortNewestFirst: _sortNewestFirst,
+      );
+
+      _isolate = await Isolate.spawn(
+        _scrapeGalleryLinksIsolate,
+        [_receivePort!.sendPort, scrapingData],
+      );
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to start scraping: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _handleIsolateResult(GalleryScrapingResult result) {
+    if (result.error != null) {
+      setState(() {
+        _error = result.error;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (result.items != null) {
+      setState(() {
+        if (result.isPartialUpdate) {
+          // Add new items to existing list
+          _galleryItems.addAll(result.items!);
+          // Re-sort the entire list
+          _galleryItems.sort(
+                (a, b) => _sortNewestFirst
+                ? b.date.compareTo(a.date)
+                : a.date.compareTo(b.date),
+          );
+        } else {
+          _galleryItems = result.items!;
+        }
+
+        _filteredItems = List.from(_galleryItems);
+        _updateDisplayedItems();
+        _processedCount = result.processedCount;
+        _totalCount = result.totalCount;
+
+        // If this is the final result, stop loading
+        if (!result.isPartialUpdate || result.processedCount >= result.totalCount) {
+          _isLoading = false;
+          _cacheGalleryLinks();
+        }
+      });
+    }
+  }
+
+  // Static isolate function
+  static Future<void> _scrapeGalleryLinksIsolate(List<dynamic> args) async {
+    final SendPort sendPort = args[0];
+    final GalleryScrapingData data = args[1];
+
+    try {
+      // Fetch main page
+      final response = await http
+          .get(Uri.parse(data.profileUrl), headers: data.headers)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        sendPort.send(GalleryScrapingResult(
+          error: 'Failed to load page: ${response.statusCode}',
+        ));
+        return;
+      }
+
+      final document = html_parser.parse(response.body);
+      final links = _extractGalleryLinksIsolate(document, data.profileUrl);
+
+      if (links.isEmpty) {
+        sendPort.send(GalleryScrapingResult(items: []));
+        return;
+      }
+
+      // Process links in batches and send partial updates
+      final items = <GalleryItem>[];
+      final batches = <List<String>>[];
+
+      for (var i = 0; i < links.length; i += data.batchSize) {
+        batches.add(
+          links.sublist(
+            i,
+            i + data.batchSize > links.length ? links.length : i + data.batchSize,
+          ),
+        );
+      }
+
+      for (int batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        final batch = batches[batchIndex];
+        final futures = batch.map((link) =>
+            _processSingleLinkIsolate(link, data.headers, data.thumbnailDomains)
+        ).toList();
+
+        final results = await Future.wait(futures);
+        final batchItems = results.whereType<GalleryItem>().toList();
+
+        // Sort batch items
+        batchItems.sort(
+              (a, b) => data.sortNewestFirst
+              ? b.date.compareTo(a.date)
+              : a.date.compareTo(b.date),
+        );
+
+        items.addAll(batchItems);
+
+        // Send partial update after each batch
+        sendPort.send(GalleryScrapingResult(
+          items: batchItems,
+          isPartialUpdate: true,
+          processedCount: (batchIndex + 1) * data.batchSize,
+          totalCount: links.length,
+        ));
+      }
+
+      // Send final sorted result
+      items.sort(
+            (a, b) => data.sortNewestFirst
+            ? b.date.compareTo(a.date)
+            : a.date.compareTo(b.date),
+      );
+
+      sendPort.send(GalleryScrapingResult(
+        items: items,
+        isPartialUpdate: false,
+        processedCount: links.length,
+        totalCount: links.length,
+      ));
+    } catch (e) {
+      sendPort.send(GalleryScrapingResult(error: 'Failed to scrape gallery links: $e'));
+    }
+  }
+
+  static List<String> _extractGalleryLinksIsolate(dom.Document document, String profileUrl) {
+    final galleriesPanel = document.getElementById('galleries_panel');
+    if (galleriesPanel == null) return [];
+
+    return galleriesPanel
+        .getElementsByClassName('galimg')
+        .map((element) => element.attributes['href'] ?? '')
+        .where((href) => href.isNotEmpty)
+        .map((href) => Uri.parse(profileUrl).resolve(href).toString())
+        .toList();
+  }
+
+  static Future<GalleryItem?> _processSingleLinkIsolate(
+      String link,
+      Map<String, String> headers,
+      List<String> thumbnailDomains) async {
+    try {
+      final response = await http
+          .get(Uri.parse(link), headers: headers)
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) return null;
+
+      final document = html_parser.parse(response.body);
+
+      String title = '';
+      final titleElement = document.querySelector('h1.gallerytitle') ??
+          document.querySelector('.gallerytitle') ??
+          document.querySelector('h1');
+
+      if (titleElement != null && titleElement.text.trim().isNotEmpty) {
+        title = titleElement.text.trim();
+      } else {
+        final uri = Uri.parse(link);
+        final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+        title = link.split('/').last.replaceAll(".aspx", "");
+        if (pathSegments.length > 2) {
+          title =
+          '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
+        }
+      }
+
+      String? thumbnailUrl;
+      final images = document.getElementsByTagName('img');
+      for (final img in images) {
+        final src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
+        if (thumbnailDomains.any((domain) => src.contains(domain))) {
+          thumbnailUrl = src;
+          break;
+        }
+      }
+
+      final (pages, date) = await _getGalleryInfoIsolate(link, headers);
+
+      return GalleryItem(
+        url: link,
+        title: title,
+        thumbnailUrl: thumbnailUrl,
+        pages: pages,
+        date: date,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<(int, DateTime)> _getGalleryInfoIsolate(String url, Map<String, String> headers) async {
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) return (1, DateTime(1900));
+
+      final document = html_parser.parse(response.body);
+
+      final pageLinks = document.getElementsByClassName('otherPage');
+      final lastPage = pageLinks.isEmpty
+          ? 1
+          : pageLinks.map((e) => int.tryParse(e.text.trim()) ?? 1).reduce(max);
+
+      final dateElement = document.querySelector('.gallerydate time');
+      final dateStr = dateElement?.text.trim() ?? '';
+      final date = dateStr.startsWith('Updated on ')
+          ? DateFormat('MMMM dd, yyyy').parse(dateStr.substring(11))
+          : DateTime.now();
+
+      return (lastPage, date);
+    } catch (e) {
+      return (1, DateTime(1900));
+    }
   }
 
   Future<void> _toggleGalleryFavorite(GalleryItem item) async {
@@ -157,149 +445,6 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     });
   }
 
-  Future<void> _scrapeGalleryLinks() async {
-    try {
-      final response = await http
-          .get(Uri.parse(widget.profileUrl), headers: headers)
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final document = html_parser.parse(response.body);
-        final links = _extractGalleryLinks(document);
-        final items = await _processGalleryLinks(links);
-
-        setState(() {
-          _galleryItems = items;
-          _filteredItems = List.from(_galleryItems);
-          _updateDisplayedItems();
-          _isLoading = false;
-        });
-        await _cacheGalleryLinks();
-      } else {
-        throw 'Failed to load page: ${response.statusCode}';
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to scrape gallery links: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  List<String> _extractGalleryLinks(dom.Document document) {
-    final galleriesPanel = document.getElementById('galleries_panel');
-    if (galleriesPanel == null) return [];
-
-    return galleriesPanel
-        .getElementsByClassName('galimg')
-        .map((element) => element.attributes['href'] ?? '')
-        .where((href) => href.isNotEmpty)
-        .map((href) => Uri.parse(widget.profileUrl).resolve(href).toString())
-        .toList();
-  }
-
-  Future<List<GalleryItem>> _processGalleryLinks(List<String> links) async {
-    final items = <GalleryItem>[];
-    final batches = <List<String>>[];
-
-    for (var i = 0; i < links.length; i += _batchSize) {
-      batches.add(
-        links.sublist(
-          i,
-          i + _batchSize > links.length ? links.length : i + _batchSize,
-        ),
-      );
-    }
-
-    for (final batch in batches) {
-      final futures = batch.map((link) => _processSingleLink(link)).toList();
-      final results = await Future.wait(futures);
-      items.addAll(results.whereType<GalleryItem>());
-    }
-
-    items.sort(
-          (a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date),
-    );
-    return items;
-  }
-
-  Future<GalleryItem?> _processSingleLink(String link) async {
-    try {
-      final response = await http
-          .get(Uri.parse(link), headers: headers)
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) return null;
-
-      final document = html_parser.parse(response.body);
-
-      String title = '';
-      final titleElement = document.querySelector('h1.gallerytitle') ??
-          document.querySelector('.gallerytitle') ??
-          document.querySelector('h1');
-
-      if (titleElement != null && titleElement.text.trim().isNotEmpty) {
-        title = titleElement.text.trim();
-      } else {
-        final uri = Uri.parse(link);
-        final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-        title = link.split('/').last.replaceAll(".aspx", "");
-        if (pathSegments.length > 2) {
-          title =
-          '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
-        }
-      }
-
-      String? thumbnailUrl;
-      final images = document.getElementsByTagName('img');
-      for (final img in images) {
-        final src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
-        if (thumbnailDomains.any((domain) => src.contains(domain))) {
-          thumbnailUrl = src;
-          break;
-        }
-      }
-
-      final (pages, date) = await _getGalleryInfo(link);
-
-      return GalleryItem(
-        url: link,
-        title: title,
-        thumbnailUrl: thumbnailUrl,
-        pages: pages,
-        date: date,
-      );
-    } catch (e) {
-      debugPrint('Error processing $link: $e');
-      return null;
-    }
-  }
-
-  Future<(int, DateTime)> _getGalleryInfo(String url) async {
-    try {
-      final response = await http
-          .get(Uri.parse(url), headers: headers)
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) return (1, DateTime(1900));
-
-      final document = html_parser.parse(response.body);
-
-      final pageLinks = document.getElementsByClassName('otherPage');
-      final lastPage = pageLinks.isEmpty
-          ? 1
-          : pageLinks.map((e) => int.tryParse(e.text.trim()) ?? 1).reduce(max);
-
-      final dateElement = document.querySelector('.gallerydate time');
-      final dateStr = dateElement?.text.trim() ?? '';
-      final date = dateStr.startsWith('Updated on ')
-          ? DateFormat('MMMM dd, yyyy').parse(dateStr.substring(11))
-          : DateTime.now();
-
-      return (lastPage, date);
-    } catch (e) {
-      return (1, DateTime(1900));
-    }
-  }
-
   void _filterGalleries() {
     final query = _searchController.text.trim();
     setState(() {
@@ -351,42 +496,183 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   }
 
   Widget _buildShimmerLoading() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: calculateGridColumns(context),
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.75,
-      ),
-      itemCount: _itemsPerPage,
-      itemBuilder: (context, index) {
-        return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Card(
+    return Column(
+      children: [
+        // Progress indicator
+        if (_totalCount > 0)
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
+              children: [
+                LinearProgressIndicator(
+                  value: _processedCount / _totalCount,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Loading galleries: $_processedCount / $_totalCount',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(8),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: calculateGridColumns(context),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: _displayedItems.isNotEmpty ? _displayedItems.length : _itemsPerPage,
+            itemBuilder: (context, index) {
+              // Show actual items if available, otherwise show shimmer
+              if (index < _displayedItems.length) {
+                final item = _displayedItems[index];
+                return FutureBuilder<bool>(
+                  future: _isGalleryFavorite(item.url),
+                  builder: (context, snapshot) {
+                    final isFavorite = snapshot.data ?? false;
+                    return _buildGalleryCard(item, isFavorite);
+                  },
+                );
+              } else {
+                return Shimmer.fromColors(
+                  baseColor: Colors.grey[300]!,
+                  highlightColor: Colors.grey[100]!,
+                  child: Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(color: Colors.grey),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(height: 16, color: Colors.grey),
+                              const SizedBox(height: 4),
+                              Container(height: 12, color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGalleryCard(GalleryItem item, bool isFavorite) {
+    return GestureDetector(
+      onTap: () => _navigateToDownloader(item.url, item.title),
+      onLongPress: () => _toggleGalleryFavorite(item),
+      child: Card(
+        elevation: 2,
+        color: isFavorite
+            ? Theme.of(context).colorScheme.surfaceTint.withOpacity(0.1)
+            : Theme.of(context).colorScheme.surface,
+        child: Stack(
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Container(color: Colors.grey),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12)),
+                    child: item.thumbnailUrl != null &&
+                        item.thumbnailUrl!.isNotEmpty
+                        ? Container(
+                      width: double.infinity,
+                      child: Image.network(
+                        item.thumbnailUrl!,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) {
+                            return child;
+                          }
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.red.shade200,
+                          child: const Icon(
+                            Icons.broken_image,
+                            size: 60,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                        : Container(
+                      color: Colors.red.shade200,
+                      child: const Icon(
+                        Icons.error,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(height: 16, color: Colors.grey),
+                      Text(
+                        item.title,
+                        style: Theme.of(context).textTheme.titleSmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 4),
-                      Container(height: 12, color: Colors.grey),
+                      Text(
+                        '${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => _toggleGalleryFavorite(item),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? Colors.yellow : Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -465,19 +751,18 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
           ),
         ),
       ),
-      body: _isLoading
-          ? _buildShimmerLoading()
-          : _error != null
+      body: _error != null
           ? Center(child: Text(_error!))
-          : _filteredItems.isEmpty
+          : _filteredItems.isEmpty && !_isLoading
           ? const Center(child: Text('No galleries found'))
+          : _isLoading
+          ? _buildShimmerLoading()
           : Column(
         children: [
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(8),
-              gridDelegate:
-               SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: calculateGridColumns(context),
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
@@ -490,117 +775,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                   future: _isGalleryFavorite(item.url),
                   builder: (context, snapshot) {
                     final isFavorite = snapshot.data ?? false;
-                    return GestureDetector(
-                      onTap: () => _navigateToDownloader(item.url, item.title),
-                      onLongPress: () => _toggleGalleryFavorite(item),
-                      child: Card(
-                        elevation: 2,
-                        color: isFavorite
-                            ? Theme.of(context)
-                            .colorScheme
-                            .surfaceTint
-                            .withOpacity(0.1)
-                            : Theme.of(context).colorScheme.surface,
-                        child: Stack(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(12)),
-                                    child: item.thumbnailUrl != null &&
-                                        item.thumbnailUrl!.isNotEmpty
-                                        ? Container(
-                                      width: double.infinity,
-                                      child: Image.network(
-                                        item.thumbnailUrl!,
-                                        fit: BoxFit.cover,
-                                        alignment: Alignment.topCenter, // This ensures vertical images show from top
-                                        loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null) {
-                                            return child;
-                                          }
-                                          return const Center(
-                                            child: CircularProgressIndicator(),
-                                          );
-                                        },
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: Colors.red.shade200,
-                                          child: const Icon(
-                                            Icons.broken_image,
-                                            size: 60,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                        : Container(
-                                      color: Colors.red.shade200,
-                                      child: const Icon(
-                                        Icons.error,
-                                        size: 60,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.title,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: () => _toggleGalleryFavorite(item), // Add tap functionality to star
-                                child: Container(
-                                  padding: const EdgeInsets.all(4), // Add padding for better tap area
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3), // Add background for better visibility
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    isFavorite ? Icons.star : Icons.star_border,
-                                    color: isFavorite
-                                        ? Colors.yellow
-                                        : Colors.white,
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                    return _buildGalleryCard(item, isFavorite);
                   },
                 );
               },

@@ -1,3 +1,5 @@
+import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' show parse;
@@ -12,6 +14,111 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
 import 'package:ragalahari_downloader/permissions.dart';
 import '../widgets/grid_utils.dart';
+
+// Isolate entry point for processing the gallery. This runs in the background.
+void _processGalleryIsolate(SendPort sendPort) {
+  final receivePort = ReceivePort();
+  sendPort.send(receivePort.sendPort);
+
+  receivePort.listen((message) async {
+    final String baseUrl = message['baseUrl'];
+    final SendPort replyPort = message['replyPort'];
+
+    try {
+      final dio = Dio();
+      final headers = {
+        'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      };
+
+      // Helper to get total pages
+      Future<int> getTotalPages(String url) async {
+        try {
+          final response = await dio.get(url, options: Options(headers: headers));
+          if (response.statusCode == 200) {
+            final document = parse(response.data);
+            final pageLinks = document.querySelectorAll("a.otherPage");
+            final pages = pageLinks
+                .map((e) => int.tryParse(e.text))
+                .where((page) => page != null)
+                .cast<int>()
+                .toList();
+            return pages.isEmpty ? 1 : pages.reduce(max);
+          }
+          return 1;
+        } catch (e) {
+          return 1;
+        }
+      }
+
+      final totalPages = await getTotalPages(baseUrl);
+      final Set<ImageData> allImageUrls = {};
+      final galleryId = _extractGalleryId(baseUrl);
+
+      for (int i = 0; i < totalPages; i++) {
+        replyPort.send({'type': 'progress', 'currentPage': i + 1, 'totalPages': totalPages});
+        final pageUrl = _constructPageUrl(baseUrl, galleryId, i);
+        final response = await dio.get(pageUrl, options: Options(headers: headers));
+
+        if (response.statusCode == 200) {
+          final document = parse(response.data);
+          _removeUnwantedDivs(document);
+          final pageImages = _extractImageUrls(document);
+          allImageUrls.addAll(pageImages);
+        }
+      }
+      // Send the final result back to the main thread
+      replyPort.send({'type': 'result', 'images': allImageUrls.toList()});
+    } catch (e) {
+      // Send any errors back to the main thread
+      replyPort.send({'type': 'error', 'error': e.toString()});
+    }
+  });
+}
+
+// Helper functions that are also used in the isolate must be top-level or static.
+String _extractGalleryId(String url) {
+  final RegExp regex = RegExp(r"/(\d+)/");
+  final match = regex.firstMatch(url);
+  return match?.group(1) ?? url.hashCode.abs().toString();
+}
+
+String _constructPageUrl(String baseUrl, String galleryId, int index) {
+  if (index == 0) return baseUrl;
+  return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
+}
+
+void _removeUnwantedDivs(var document) {
+  final unwantedHeadings = {"Latest Local Events", "Latest Movie Events", "Latest Starzone"};
+  for (var div in document.querySelectorAll("div#btmlatest")) {
+    var h4 = div.querySelector("h4");
+    if (h4 != null && unwantedHeadings.contains(h4.text.trim())) {
+      div.remove();
+    }
+  }
+  for (var badId in ["taboolaandnews", "news_panel"]) {
+    var div = document.querySelector("div#$badId");
+    div?.remove();
+  }
+}
+
+List<ImageData> _extractImageUrls(var document) {
+  final Set<ImageData> imageDataSet = {};
+  for (var img in document.querySelectorAll("img")) {
+    final src = img.attributes['src'];
+    if (src == null || !src.toLowerCase().endsWith(".jpg") || (!src.startsWith("http") && !src.startsWith("../"))) {
+      continue;
+    }
+    String thumbnailUrl = src.startsWith("http") ? src : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
+    String originalUrl =
+    src.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '').startsWith("http")
+        ? src.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '')
+        : "https://www.ragalahari.com/${src.replaceAll("../", "").replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '')}";
+    imageDataSet.add(ImageData(thumbnailUrl: thumbnailUrl, originalUrl: originalUrl));
+  }
+  return imageDataSet.toList();
+}
+
 
 class ImageData {
   final String thumbnailUrl;
@@ -58,6 +165,11 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
   String subFolderName = '';
   bool _isInitialized = false;
 
+  // For managing the isolate
+  Isolate? _isolate;
+  ReceivePort? _receivePort;
+  SendPort? _sendPort;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -100,8 +212,10 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
         _folderController.text = widget.initialFolder!;
       }
 
-      if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty &&
-          widget.initialFolder != null && widget.initialFolder!.isNotEmpty &&
+      if (widget.initialUrl != null &&
+          widget.initialUrl!.isNotEmpty &&
+          widget.initialFolder != null &&
+          widget.initialFolder!.isNotEmpty &&
           !_isInitialized) {
         Future.microtask(() {
           _processGallery(widget.initialUrl!);
@@ -118,6 +232,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     _folderController.dispose();
     _urlFocusNode.dispose();
     _folderFocusNode.dispose();
+    _isolate?.kill(priority: Isolate.immediate); // Clean up the isolate
+    _receivePort?.close();
     super.dispose();
   }
 
@@ -166,75 +282,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     }
   }
 
-  String _extractGalleryId(String url) {
-    final RegExp regex = RegExp(r"/(\d+)/");
-    final match = regex.firstMatch(url);
-    return match?.group(1) ?? url.hashCode.abs().toString();
-  }
-
-  String _constructPageUrl(String baseUrl, String galleryId, int index) {
-    if (index == 0) return baseUrl;
-    return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
-  }
-
-  Future<int> _getTotalPages(String url) async {
-    try {
-      final response = await Dio().get(
-        url,
-        options: Options(
-          headers: {
-            'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          },
-        ),
-      );
-      if (response.statusCode == 200) {
-        final document = parse(response.data);
-        final pageLinks = document.querySelectorAll("a.otherPage");
-        final pages = pageLinks
-            .map((e) => int.tryParse(e.text))
-            .where((page) => page != null)
-            .cast<int>()
-            .toList();
-        return pages.isEmpty ? 1 : pages.reduce(max);
-      }
-      return 1;
-    } catch (e) {
-      return 1;
-    }
-  }
-
-  void _removeUnwantedDivs(var document) {
-    final unwantedHeadings = {"Latest Local Events", "Latest Movie Events", "Latest Starzone"};
-    for (var div in document.querySelectorAll("div#btmlatest")) {
-      var h4 = div.querySelector("h4");
-      if (h4 != null && unwantedHeadings.contains(h4.text.trim())) {
-        div.remove();
-      }
-    }
-    for (var badId in ["taboolaandnews", "news_panel"]) {
-      var div = document.querySelector("div#$badId");
-      div?.remove();
-    }
-  }
-
-  List<ImageData> _extractImageUrls(var document) {
-    final Set<ImageData> imageDataSet = {};
-    for (var img in document.querySelectorAll("img")) {
-      final src = img.attributes['src'];
-      if (src == null || !src.toLowerCase().endsWith(".jpg") || (!src.startsWith("http") && !src.startsWith("../"))) {
-        continue;
-      }
-      String thumbnailUrl = src.startsWith("http") ? src : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
-      String originalUrl =
-      src.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '').startsWith("http")
-          ? src.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '')
-          : "https://www.ragalahari.com/${src.replaceAll("../", "").replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '')}";
-      imageDataSet.add(ImageData(thumbnailUrl: thumbnailUrl, originalUrl: originalUrl));
-    }
-    return imageDataSet.toList();
-  }
-
   Future<void> _saveToHistory(String url) async {
     final prefs = await SharedPreferences.getInstance();
     final historyKey = 'link_history';
@@ -259,65 +306,64 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
 
   Future<void> _processGallery(String baseUrl) async {
     await _saveToHistory(baseUrl);
-    try {
-      setState(() {
-        isLoading = true;
-        imageUrls.clear();
-        selectedImages.clear();
-        isSelectionMode = false;
-        downloadsSuccessful = 0;
-        downloadsFailed = 0;
-        currentPage = 0;
-      });
-      await _checkPermissions();
-      final galleryId = _extractGalleryId(baseUrl);
+    setState(() {
+      isLoading = true;
+      imageUrls.clear();
+      selectedImages.clear();
+      isSelectionMode = false;
+      downloadsSuccessful = 0;
+      downloadsFailed = 0;
+      currentPage = 0;
+      totalPages = 1;
+      _error = null;
+    });
+    await _checkPermissions();
 
-      if (mainFolderName.isEmpty && _folderController.text.isNotEmpty) {
-        mainFolderName = _folderController.text.trim();
-      } else if (mainFolderName.isEmpty) {
-        mainFolderName = "RagalahariDownloads";
-        _folderController.text = mainFolderName;
-      }
-
-      subFolderName = "$mainFolderName-$galleryId";
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('base_download_path', '/storage/emulated/0/Download/Ragalahari Downloads');
-      totalPages = await _getTotalPages(baseUrl);
-      final Set<ImageData> allImageUrls = {};
-      for (int i = 0; i < totalPages; i++) {
-        setState(() {
-          currentPage = i + 1;
-        });
-        final pageUrl = _constructPageUrl(baseUrl, galleryId, i);
-        final response = await Dio().get(
-          pageUrl,
-          options: Options(
-            headers: {
-              'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            },
-          ),
-        );
-        if (response.statusCode == 200) {
-          final document = parse(response.data);
-          _removeUnwantedDivs(document);
-          final pageImages = _extractImageUrls(document);
-          allImageUrls.addAll(pageImages);
-        }
-      }
-      setState(() {
-        imageUrls = allImageUrls.toList();
-        isLoading = false;
-      });
-      _showSnackBar(imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images');
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-        _error = 'Error: $e';
-      });
-      _showSnackBar('Error: $e');
+    if (mainFolderName.isEmpty && _folderController.text.isNotEmpty) {
+      mainFolderName = _folderController.text.trim();
+    } else if (mainFolderName.isEmpty) {
+      mainFolderName = "RagalahariDownloads";
+      _folderController.text = mainFolderName;
     }
+
+    subFolderName = "$mainFolderName-${_extractGalleryId(baseUrl)}";
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('base_download_path', '/storage/emulated/0/Download/Ragalahari Downloads');
+
+    // Isolate setup
+    _receivePort = ReceivePort();
+    _isolate = await Isolate.spawn(_processGalleryIsolate, _receivePort!.sendPort);
+
+    _receivePort!.listen((data) {
+      if (data is SendPort) {
+        _sendPort = data;
+        // Start the process in the isolate
+        _sendPort?.send({'baseUrl': baseUrl, 'replyPort': _receivePort!.sendPort});
+      } else if (data['type'] == 'progress') {
+        setState(() {
+          currentPage = data['currentPage'];
+          totalPages = data['totalPages'];
+        });
+      } else if (data['type'] == 'result') {
+        setState(() {
+          imageUrls = data['images'];
+          isLoading = false;
+        });
+        _showSnackBar(imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images');
+        _isolate?.kill(priority: Isolate.immediate);
+        _receivePort?.close();
+      } else if (data['type'] == 'error') {
+        setState(() {
+          isLoading = false;
+          _error = 'Error: ${data['error']}';
+        });
+        _showSnackBar('Error: ${data['error']}');
+        _isolate?.kill(priority: Isolate.immediate);
+        _receivePort?.close();
+      }
+    });
   }
+
 
   Future<void> _downloadAllImages() async {
     try {
@@ -647,10 +693,10 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                         child: Column(
                           children: [
                             LinearProgressIndicator(
-                              value: isLoading
+                              value: isLoading && totalPages > 0
                                   ? (currentPage / totalPages)
                                   : (downloadsSuccessful + downloadsFailed) /
-                                  imageUrls.length,
+                                  (imageUrls.length > 0 ? imageUrls.length : 1),
                             ),
                             const SizedBox(height: 4),
                             Text(
