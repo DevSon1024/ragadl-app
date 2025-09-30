@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:ragalahari_downloader/widgets/grid_utils.dart';
-import '../ragalahari_downloader.dart';
+import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
+import '../../downloader/ui/ragalahari_downloader.dart';
 
 class LatestCelebrityPage extends StatefulWidget {
   const LatestCelebrityPage({super.key});

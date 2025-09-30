@@ -8,8 +8,8 @@ import 'recycle_page.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:ragalahari_downloader/widgets/grid_utils.dart';
-import 'package:ragalahari_downloader/widgets/thumbnail_utils.dart'; // Import the new utils
+import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
+import 'package:ragalahari_downloader/shared/widgets/thumbnail_utils.dart'; // Import the new utils
 import 'history_full_image_viewer.dart';
 import 'sub_folder_page.dart';
 

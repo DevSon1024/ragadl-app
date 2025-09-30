@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'pages/ragalahari_downloader.dart';
-import 'pages/history/history_page.dart';
-import 'pages/download_manager_page.dart';
-import 'pages/celebrity/celebrity_list_page.dart';
-import 'settings_page.dart';
-import 'widgets/theme_config.dart';
+import 'features/downloader/ui/ragalahari_downloader.dart';
+import 'features/history/ui/history_page.dart';
+import 'features/downloader/ui/download_manager_page.dart';
+import 'features/celebrity/ui/celebrity_list_page.dart';
+import 'features/settings/ui/settings_page.dart';
+import 'shared/widgets/theme_config.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'permissions.dart';
-import 'home_page.dart';
-import 'widgets/theme_notifier.dart';
+import 'core/permissions.dart';
+import 'features/home/ui/home_page.dart';
+import 'shared/widgets/theme_notifier.dart';
 
 final themeNotifierProvider = ChangeNotifierProvider<ThemeNotifier>((ref) {
   return ThemeNotifier();

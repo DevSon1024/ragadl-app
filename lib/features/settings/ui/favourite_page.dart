@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../pages/ragalahari_downloader.dart';
-import '../pages/celebrity/gallery_links_page.dart';
-import '../pages/celebrity/celebrity_utils.dart';
+import '../../downloader/ui/ragalahari_downloader.dart';
+import '../../celebrity/ui/gallery_links_page.dart';
+import '../../celebrity/utils/celebrity_utils.dart';
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});

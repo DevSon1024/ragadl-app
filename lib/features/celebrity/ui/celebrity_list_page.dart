@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'celebrity_utils.dart';
+import '../utils/celebrity_utils.dart';
 import 'gallery_links_page.dart';
-import '../ragalahari_downloader.dart';
+import '../../downloader/ui/ragalahari_downloader.dart';
 import 'dart:convert';
 
 class CelebrityListPage extends StatefulWidget {

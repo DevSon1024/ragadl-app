@@ -12,8 +12,8 @@ import 'package:ragalahari_downloader/main.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
-import 'package:ragalahari_downloader/permissions.dart';
-import '../widgets/grid_utils.dart';
+import 'package:ragalahari_downloader/core/permissions.dart';
+import '../../../shared/widgets/grid_utils.dart';
 
 // Isolate entry point for processing the gallery. This runs in the background.
 void _processGalleryIsolate(SendPort sendPort) {

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'history_full_image_viewer.dart';
 import 'history_page.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:ragalahari_downloader/widgets/grid_utils.dart';
+import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
 
 class SubFolderPage extends StatefulWidget {
   final FileSystemEntity directory;

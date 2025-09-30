@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'history_page.dart';
+import '../../history/ui/history_page.dart';
 
 enum ViewPreset {
   images,

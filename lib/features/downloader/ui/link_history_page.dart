@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 // import '../screens/ragalahari_downloader_screen.dart';
-import '../pages/ragalahari_downloader.dart';
+import 'ragalahari_downloader.dart';
 
 class LinkHistoryItem {
   final String url;

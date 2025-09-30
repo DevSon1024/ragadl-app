@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ragalahari_downloader/widgets/grid_utils.dart';
+import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
 
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});

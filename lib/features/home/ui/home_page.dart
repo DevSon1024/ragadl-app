@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'pages/download_manager_page.dart';
+import '../../downloader/ui/download_manager_page.dart';
 import 'package:flutter/services.dart';
-import 'pages/celebrity/latest_celebrity.dart';
-import 'pages/celebrity/latest_actor_and_actress.dart';
-import 'settings/favourite_page.dart';
-import 'pages/link_history_page.dart';
+import '../../celebrity/ui/latest_celebrity.dart';
+import '../../celebrity/ui/latest_actor_and_actress.dart';
+import '../../settings/ui/favourite_page.dart';
+import '../../downloader/ui/link_history_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
