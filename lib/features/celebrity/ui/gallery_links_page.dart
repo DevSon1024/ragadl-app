@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/celebrity_utils.dart';
 import '../../downloader/ui/ragalahari_downloader.dart';
 import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
-// Enhanced Web Scraping and Downloading
+
 // Data class for passing data to isolate
 class GalleryScrapingData {
   final String profileUrl;
@@ -150,7 +150,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
       final scrapingData = GalleryScrapingData(
         profileUrl: widget.profileUrl,
-        headers: getHeaders(),
+        headers: headers,
         thumbnailDomains: thumbnailDomains,
         batchSize: _batchSize,
         sortNewestFirst: _sortNewestFirst,
@@ -308,7 +308,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       List<String> thumbnailDomains) async {
     try {
       final response = await http
-          .get(Uri.parse(link), headers: getHeaders())
+          .get(Uri.parse(link), headers: headers)
           .timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return null;
 
@@ -358,7 +358,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   static Future<(int, DateTime)> _getGalleryInfoIsolate(String url, Map<String, String> headers) async {
     try {
       final response = await http
-          .get(Uri.parse(url), headers: getHeaders())
+          .get(Uri.parse(url), headers: headers)
           .timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return (1, DateTime(1900));
 
