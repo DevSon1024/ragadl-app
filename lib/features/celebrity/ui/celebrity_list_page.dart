@@ -1,11 +1,31 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../downloader/ui/ragalahari_downloader.dart';
 import '../utils/celebrity_utils.dart';
 import 'gallery_links_page.dart';
-import '../../downloader/ui/ragalahari_downloader.dart';
-import 'dart:convert';
+
+// Helper function to load and parse celebrity data in a separate isolate
+Future<Map<String, dynamic>> _loadCelebritiesIsolate(String assetData) async {
+  final lines = assetData.split('\n');
+  final celebrities = lines
+      .skip(1)
+      .where((line) => line.trim().isNotEmpty && line.contains(','))
+      .map((line) {
+    final parts = line.split(',');
+    if (parts.length >= 2) {
+      return {'name': parts[0].trim(), 'url': parts[1].trim()};
+    }
+    return {'name': 'Unknown', 'url': ''};
+  }).toList();
+
+  return {'celebrities': celebrities};
+}
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
@@ -24,6 +44,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
   SortOption _currentSortOption = SortOption.az;
   Set<String> _actorUrls = {};
   Set<String> _actressUrls = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -63,7 +84,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
       String csvString;
       if (Platform.isWindows) {
         final saveDir = await getApplicationDocumentsDirectory();
-        final file = File('${saveDir.path}/RagalahariData/Fetched_StarZone_Data.csv');
+        final file =
+        File('${saveDir.path}/RagalahariData/Fetched_StarZone_Data.csv');
         if (await file.exists()) {
           csvString = await file.readAsString();
         } else {
@@ -74,19 +96,12 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         csvString = await DefaultAssetBundle.of(context)
             .loadString('assets/data/Fetched_StarZone_Data.csv');
       }
-      final lines = csvString.split('\n');
-      final celebrities = lines
-          .skip(1)
-          .where((line) => line.trim().isNotEmpty && line.contains(','))
-          .map((line) {
-        final parts = line.split(',');
-        if (parts.length >= 2) {
-          return {'name': parts[0].trim(), 'url': parts[1].trim()};
-        }
-        return {'name': 'Unknown', 'url': ''};
-      })
-          .where((celebrity) => celebrity['name']!.isNotEmpty)
-          .toList();
+
+      // Use compute to run the parsing in a separate isolate
+      final celebrityData =
+      await compute(_loadCelebritiesIsolate, csvString);
+      final celebrities =
+      List<Map<String, String>>.from(celebrityData['celebrities'] as List);
 
       final jsonString = await DefaultAssetBundle.of(context)
           .loadString('assets/data/Fetched_Albums_StarZone.json');
@@ -103,11 +118,15 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         _actorUrls = actors;
         _actressUrls = actresses;
         _filteredCelebrities = List.from(_celebrities);
+        _isLoading = false;
         _sortCelebrities();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error loading celebrities: $e')));
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading celebrities: $e')));
     }
   }
 
@@ -135,7 +154,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
       final query = _searchController.text.toLowerCase();
       if (query.isNotEmpty) {
         _filteredCelebrities = _filteredCelebrities
-            .where((celebrity) => celebrity['name']!.toLowerCase().contains(query))
+            .where(
+                (celebrity) => celebrity['name']!.toLowerCase().contains(query))
             .toList();
       }
 
@@ -144,10 +164,12 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         case SortOption.celebrityAll:
         case SortOption.celebrityActors:
         case SortOption.celebrityActresses:
-          _filteredCelebrities.sort((a, b) => a['name']!.compareTo(b['name']!));
+          _filteredCelebrities
+              .sort((a, b) => a['name']!.compareTo(b['name']!));
           break;
         case SortOption.za:
-          _filteredCelebrities.sort((a, b) => b['name']!.compareTo(a['name']!));
+          _filteredCelebrities
+              .sort((a, b) => b['name']!.compareTo(a['name']!));
           break;
       }
     });
@@ -176,17 +198,18 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
     List<FavoriteItem> favorites = favoritesJson
         .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+      Map<String, String>.from(
+          jsonDecode(json) as Map<String, dynamic>),
     ))
         .toList();
 
     final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
-    final isFavorite = favorites
-        .any((item) => item.type == 'celebrity' && item.name == name && item.url == url);
+    final isFavorite = favorites.any((item) =>
+    item.type == 'celebrity' && item.name == name && item.url == url);
 
     if (isFavorite) {
-      favorites.removeWhere(
-              (item) => item.type == 'celebrity' && item.name == name && item.url == url);
+      favorites.removeWhere((item) =>
+      item.type == 'celebrity' && item.name == name && item.url == url);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('$name removed from favorites')));
     } else {
@@ -208,11 +231,12 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
     final favorites = favoritesJson
         .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+      Map<String, String>.from(
+          jsonDecode(json) as Map<String, dynamic>),
     ))
         .toList();
-    return favorites
-        .any((item) => item.type == 'celebrity' && item.name == name && item.url == url);
+    return favorites.any((item) =>
+    item.type == 'celebrity' && item.name == name && item.url == url);
   }
 
   @override
@@ -325,7 +349,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                 ),
                 filled: true,
                 fillColor: theme.colorScheme.surfaceContainer,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (value) {
                 setState(() {});
@@ -334,7 +359,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
             ),
           ),
           Expanded(
-            child: _celebrities.isEmpty
+            child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredCelebrities.isEmpty
                 ? const Center(child: Text('No matching celebrities found'))
@@ -348,7 +373,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                   builder: (context, snapshot) {
                     final isFavorite = snapshot.data ?? false;
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       elevation: 2,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -358,7 +384,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                           : theme.colorScheme.surfaceContainer,
                       surfaceTintColor: theme.colorScheme.surfaceTint,
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         title: Text(
                           celebrity['name'] ?? 'Unknown',
                           style: TextStyle(
@@ -373,7 +400,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                               builder: (_) => GalleryLinksPage(
                                 celebrityName: celebrity['name']!,
                                 profileUrl: celebrity['url']!,
-                                onDownloadSelected: widget.onDownloadSelected,
+                                onDownloadSelected:
+                                widget.onDownloadSelected,
                               ),
                             ),
                           );
@@ -383,11 +411,18 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                           children: [
                             IconButton(
                               icon: Icon(
-                                isFavorite ? Icons.star : Icons.star_border,
-                                color: isFavorite ? Colors.yellow[700] : theme.colorScheme.onSurfaceVariant,
+                                isFavorite
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: isFavorite
+                                    ? Colors.yellow[700]
+                                    : theme.colorScheme
+                                    .onSurfaceVariant,
                               ),
-                              onPressed: () => _toggleCelebrityFavorite(
-                                  celebrity['name']!, celebrity['url']!),
+                              onPressed: () =>
+                                  _toggleCelebrityFavorite(
+                                      celebrity['name']!,
+                                      celebrity['url']!),
                               tooltip: isFavorite
                                   ? 'Remove from favorites'
                                   : 'Add to favorites',
@@ -395,11 +430,13 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.add_box_outlined,
-                                color: theme.colorScheme.onSurfaceVariant,
+                                color: theme
+                                    .colorScheme.onSurfaceVariant,
                               ),
-                              onPressed: () =>
-                                  _handleDownloadPress(celebrity['name']!),
-                              tooltip: 'Add Name to The Main Folder Input',
+                              onPressed: () => _handleDownloadPress(
+                                  celebrity['name']!),
+                              tooltip:
+                              'Add Name to The Main Folder Input',
                             ),
                           ],
                         ),

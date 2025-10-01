@@ -1,26 +1,30 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // Import for compute
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:share_plus/share_plus.dart';
-import 'recycle_page.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
-import 'package:ragalahari_downloader/shared/widgets/thumbnail_utils.dart'; // Import the new utils
+import 'package:ragalahari_downloader/shared/widgets/thumbnail_utils.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'history_full_image_viewer.dart';
+import 'recycle_page.dart';
 import 'sub_folder_page.dart';
 
 // Helper function to be executed in an isolate
-Future<List<FileSystemEntity>> _loadItemsIsolate(Map<String, dynamic> args) async {
+Future<List<FileSystemEntity>> _loadItemsIsolate(
+    Map<String, dynamic> args) async {
   final Directory baseDir = args['baseDir'];
   final SortOption currentSort = args['currentSort'];
 
   final List<FileSystemEntity> items = [];
 
-  Future<void> _collectItems(Directory dir, List<FileSystemEntity> items) async {
+  Future<void> _collectItems(
+      Directory dir, List<FileSystemEntity> items) async {
     try {
       final entities = await dir.list(recursive: true).toList();
       for (var entity in entities) {
@@ -197,7 +201,8 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       Directory? baseDir;
       if (Platform.isAndroid) {
-        baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
+        baseDir =
+            Directory('/storage/emulated/0/Download/Ragalahari Downloads');
       } else {
         baseDir = await getApplicationDocumentsDirectory();
         baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
@@ -593,33 +598,11 @@ class _HistoryPageState extends State<HistoryPage> {
                 if (item is File)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12.0),
-                    child: FutureBuilder<File>(
-                      future: ThumbnailUtils.getThumbnail(item),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.done &&
-                            snapshot.hasData) {
-                          return Image.file(
-                            snapshot.data!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) =>
-                            const Icon(Icons.broken_image, color: Colors.grey),
-                          );
-                        }
-                        if (snapshot.hasError) {
-                          return const Icon(Icons.error_outline,
-                              color: Colors.red);
-                        }
-                        return Shimmer.fromColors(
-                          baseColor: Colors.grey[300]!,
-                          highlightColor: Colors.grey[100]!,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        );
-                      },
+                    child: Image.file(
+                      item,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) =>
+                      const Icon(Icons.broken_image, color: Colors.grey),
                     ),
                   ),
                 if (item is Directory)
@@ -686,19 +669,9 @@ class _HistoryPageState extends State<HistoryPage> {
               child: SizedBox(
                 width: 56,
                 height: 56,
-                child: FutureBuilder<File>(
-                  future: ThumbnailUtils.getThumbnail(item),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.done &&
-                        snapshot.hasData) {
-                      return Image.file(
-                        snapshot.data!,
-                        fit: BoxFit.cover,
-                      );
-                    }
-                    return Container(color: Colors.grey[200]);
-                  },
+                child: Image.file(
+                  item,
+                  fit: BoxFit.cover,
                 ),
               ),
             )
