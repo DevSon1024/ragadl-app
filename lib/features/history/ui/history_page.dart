@@ -13,7 +13,6 @@ import 'package:shimmer/shimmer.dart';
 
 import 'history_full_image_viewer.dart';
 import 'recycle_page.dart';
-import 'sub_folder_page.dart';
 
 // Helper function to be executed in an isolate
 Future<List<FileSystemEntity>> _loadItemsIsolate(
@@ -335,30 +334,20 @@ class _HistoryPageState extends State<HistoryPage> {
   void _openItem(int index) {
     if (_isSelectionMode) {
       _toggleSelection(index);
-    } else {
-      final item = _filteredItems[index];
-      if (item is File) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FullImageViewer(
-              images: _filteredItems.whereType<File>().toList(),
-              initialIndex:
-              _filteredItems.whereType<File>().toList().indexOf(item),
-            ),
+      return;
+    }
+
+    final item = _filteredItems[index];
+    if (item is File) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FullImageViewer(
+            images: _filteredItems.whereType<File>().toList(),
+            initialIndex: _filteredItems.whereType<File>().toList().indexOf(item),
           ),
-        );
-      } else if (item is Directory) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SubFolderPage(
-              directory: item,
-              sortOption: _currentSort,
-            ),
-          ),
-        );
-      }
+        ),
+      );
     }
   }
 
