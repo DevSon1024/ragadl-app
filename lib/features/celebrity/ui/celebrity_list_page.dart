@@ -1,31 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:ragalahari_downloader/features/celebrity/data/celebrity_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../downloader/ui/ragalahari_downloader.dart';
 import '../utils/celebrity_utils.dart';
 import 'gallery_links_page.dart';
-
-// Helper function to load and parse celebrity data in a separate isolate
-Future<Map<String, dynamic>> _loadCelebritiesIsolate(String assetData) async {
-  final lines = assetData.split('\n');
-  final celebrities = lines
-      .skip(1)
-      .where((line) => line.trim().isNotEmpty && line.contains(','))
-      .map((line) {
-    final parts = line.split(',');
-    if (parts.length >= 2) {
-      return {'name': parts[0].trim(), 'url': parts[1].trim()};
-    }
-    return {'name': 'Unknown', 'url': ''};
-  }).toList();
-
-  return {'celebrities': celebrities};
-}
+import '../../downloader/ui/ragalahari_downloader.dart';
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
@@ -37,20 +16,21 @@ class CelebrityListPage extends StatefulWidget {
 }
 
 class _CelebrityListPageState extends State<CelebrityListPage> {
-  List<Map<String, String>> _celebrities = [];
+  // Get the singleton instance of the repository
+  final CelebrityRepository _repository = CelebrityRepository.instance;
+
   List<Map<String, String>> _filteredCelebrities = [];
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   SortOption _currentSortOption = SortOption.az;
-  Set<String> _actorUrls = {};
-  Set<String> _actressUrls = {};
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _loadSortOption();
-    _loadCelebrities();
+    _initializeData(); // Changed from _loadCelebrities
     _searchController.addListener(_filterCelebrities);
   }
 
@@ -59,6 +39,26 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  // This method now fetches data from the repository, which loads it only once.
+  Future<void> _initializeData() async {
+    try {
+      // This will only perform a heavy load on the first call.
+      // Subsequent calls will return instantly.
+      await _repository.loadCelebrities();
+
+      setState(() {
+        _filteredCelebrities = List.from(_repository.celebrities);
+        _isLoading = false;
+        _sortCelebrities();
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load celebrities. Please try again.';
+      });
+    }
   }
 
   Future<void> _loadSortOption() async {
@@ -79,70 +79,21 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
     await prefs.setString('sortOption', _currentSortOption.toString());
   }
 
-  Future<void> _loadCelebrities() async {
-    try {
-      String csvString;
-      if (Platform.isWindows) {
-        final saveDir = await getApplicationDocumentsDirectory();
-        final file =
-        File('${saveDir.path}/RagalahariData/Fetched_StarZone_Data.csv');
-        if (await file.exists()) {
-          csvString = await file.readAsString();
-        } else {
-          csvString = await DefaultAssetBundle.of(context)
-              .loadString('assets/data/Fetched_StarZone_Data.csv');
-        }
-      } else {
-        csvString = await DefaultAssetBundle.of(context)
-            .loadString('assets/data/Fetched_StarZone_Data.csv');
-      }
-
-      // Use compute to run the parsing in a separate isolate
-      final celebrityData =
-      await compute(_loadCelebritiesIsolate, csvString);
-      final celebrities =
-      List<Map<String, String>>.from(celebrityData['celebrities'] as List);
-
-      final jsonString = await DefaultAssetBundle.of(context)
-          .loadString('assets/data/Fetched_Albums_StarZone.json');
-      final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
-      final actors = (jsonData['actors'] as List<dynamic>)
-          .map((e) => e['URL'] as String)
-          .toSet();
-      final actresses = (jsonData['actresses'] as List<dynamic>)
-          .map((e) => e['URL'] as String)
-          .toSet();
-
-      setState(() {
-        _celebrities = celebrities;
-        _actorUrls = actors;
-        _actressUrls = actresses;
-        _filteredCelebrities = List.from(_celebrities);
-        _isLoading = false;
-        _sortCelebrities();
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading celebrities: $e')));
-    }
-  }
-
   void _sortCelebrities() {
     setState(() {
-      _filteredCelebrities = List.from(_celebrities);
+      _filteredCelebrities = List.from(_repository.celebrities);
 
       switch (_currentSortOption) {
         case SortOption.celebrityActors:
           _filteredCelebrities = _filteredCelebrities
-              .where((celebrity) => _actorUrls.contains(celebrity['url']))
+              .where(
+                  (celebrity) => _repository.actorUrls.contains(celebrity['url']))
               .toList();
           break;
         case SortOption.celebrityActresses:
           _filteredCelebrities = _filteredCelebrities
-              .where((celebrity) => _actressUrls.contains(celebrity['url']))
+              .where((celebrity) =>
+              _repository.actressUrls.contains(celebrity['url']))
               .toList();
           break;
         case SortOption.celebrityAll:
@@ -204,14 +155,14 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         .toList();
 
     final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
-    final isFavorite = favorites.any((item) =>
-    item.type == 'celebrity' && item.name == name && item.url == url);
+    final isFavorite = favorites.any(
+            (item) => item.type == 'celebrity' && item.name == name && item.url == url);
 
     if (isFavorite) {
-      favorites.removeWhere((item) =>
-      item.type == 'celebrity' && item.name == name && item.url == url);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$name removed from favorites')));
+      favorites.removeWhere(
+              (item) => item.type == 'celebrity' && item.name == name && item.url == url);
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name removed from favorites')));
     } else {
       favorites.add(favoriteItem);
       ScaffoldMessenger.of(context)
@@ -235,8 +186,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           jsonDecode(json) as Map<String, dynamic>),
     ))
         .toList();
-    return favorites.any((item) =>
-    item.type == 'celebrity' && item.name == name && item.url == url);
+    return favorites.any(
+            (item) => item.type == 'celebrity' && item.name == name && item.url == url);
   }
 
   @override
@@ -361,8 +312,11 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                ? Center(child: Text(_errorMessage!))
                 : _filteredCelebrities.isEmpty
-                ? const Center(child: Text('No matching celebrities found'))
+                ? const Center(
+                child: Text('No matching celebrities found'))
                 : ListView.builder(
               itemCount: _filteredCelebrities.length,
               itemBuilder: (context, index) {
@@ -382,7 +336,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                       color: isFavorite
                           ? Colors.yellow[100]
                           : theme.colorScheme.surfaceContainer,
-                      surfaceTintColor: theme.colorScheme.surfaceTint,
+                      surfaceTintColor:
+                      theme.colorScheme.surfaceTint,
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 4),
@@ -398,7 +353,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => GalleryLinksPage(
-                                celebrityName: celebrity['name']!,
+                                celebrityName:
+                                celebrity['name']!,
                                 profileUrl: celebrity['url']!,
                                 onDownloadSelected:
                                 widget.onDownloadSelected,
@@ -430,11 +386,12 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.add_box_outlined,
-                                color: theme
-                                    .colorScheme.onSurfaceVariant,
+                                color: theme.colorScheme
+                                    .onSurfaceVariant,
                               ),
-                              onPressed: () => _handleDownloadPress(
-                                  celebrity['name']!),
+                              onPressed: () =>
+                                  _handleDownloadPress(
+                                      celebrity['name']!),
                               tooltip:
                               'Add Name to The Main Folder Input',
                             ),
