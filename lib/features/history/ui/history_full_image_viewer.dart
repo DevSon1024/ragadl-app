@@ -18,47 +18,54 @@ class FullImageViewer extends StatefulWidget {
 
 class _FullImageViewerState extends State<FullImageViewer> {
   late PageController _pageController;
-  late int _currentIndex;
-  final TransformationController _transformationController = TransformationController();
+  late ValueNotifier<int> _currentIndexNotifier;
+  late List<TransformationController> _controllers;
+  bool _firstBuild = true;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: _currentIndex);
+    _currentIndexNotifier = ValueNotifier<int>(widget.initialIndex);
+    _pageController = PageController(initialPage: widget.initialIndex);
+    _controllers = List.generate(widget.images.length, (_) => TransformationController());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_firstBuild) {
+      _firstBuild = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final idx = _currentIndexNotifier.value;
+        final len = widget.images.length;
+        if (idx > 0) {
+          precacheImage(FileImage(widget.images[idx - 1]), context);
+        }
+        if (idx < len - 1) {
+          precacheImage(FileImage(widget.images[idx + 1]), context);
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _currentIndexNotifier.dispose();
     _pageController.dispose();
-    _transformationController.dispose();
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
-  void _navigateToNext() {
-    if (_currentIndex < widget.images.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  void _navigateToPrevious() {
-    if (_currentIndex > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
   Future<void> _shareImage() async {
-    final imagePath = widget.images[_currentIndex].path;
+    final idx = _currentIndexNotifier.value;
+    final imagePath = widget.images[idx].path;
     await Share.shareXFiles([XFile(imagePath)], text: 'Sharing image');
   }
 
   Future<void> _deleteImage() async {
+    final idx = _currentIndexNotifier.value;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -77,26 +84,29 @@ class _FullImageViewerState extends State<FullImageViewer> {
       ),
     );
 
-    if (confirmed == true) {
-      final imageFile = widget.images[_currentIndex];
-      final newPath = imageFile.path.replaceFirst(
-        RegExp(r'([^/]+)$'),
-        '.trashed-${DateTime.now().millisecondsSinceEpoch}-${imageFile.path.split('/').last}',
-      );
+    if (confirmed != true) return;
 
-      try {
-        await imageFile.rename(newPath);
-        setState(() {
-          widget.images.removeAt(_currentIndex);
-          if (widget.images.isEmpty) {
-            Navigator.pop(context);
-          } else if (_currentIndex >= widget.images.length) {
-            _currentIndex = widget.images.length - 1;
-          }
-        });
-      } catch (e) {
-        // Handle error
+    final imageFile = widget.images[idx];
+    final newPath = imageFile.path.replaceFirst(
+      RegExp(r'([^/]+)$'),
+      '.trashed-${DateTime.now().millisecondsSinceEpoch}-${imageFile.path.split('/').last}',
+    );
+
+    try {
+      await imageFile.rename(newPath);
+      widget.images.removeAt(idx);
+      _controllers.removeAt(idx);
+      if (widget.images.isEmpty) {
+        Navigator.pop(context);
+      } else {
+        final newLen = widget.images.length;
+        final newIdx = idx >= newLen ? newLen - 1 : idx;
+        _currentIndexNotifier.value = newIdx;
+        setState(() {});
+        _pageController.jumpToPage(newIdx);
       }
+    } catch (e) {
+      // Handle error
     }
   }
 
@@ -110,9 +120,12 @@ class _FullImageViewerState extends State<FullImageViewer> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          '${_currentIndex + 1} of ${widget.images.length}',
-          style: const TextStyle(color: Colors.white),
+        title: ValueListenableBuilder<int>(
+          valueListenable: _currentIndexNotifier,
+          builder: (context, index, child) => Text(
+            '${index + 1} of ${widget.images.length}',
+            style: const TextStyle(color: Colors.white),
+          ),
         ),
         actions: [
           IconButton(
@@ -127,46 +140,86 @@ class _FullImageViewerState extends State<FullImageViewer> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: widget.images.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-                _transformationController.value = Matrix4.identity();
-              });
-            },
-            itemBuilder: (context, index) {
-              return InteractiveViewer(
-                transformationController: _transformationController,
-                minScale: 1.0,
-                maxScale: 4.0,
-                child: Image.file(
-                  widget.images[index],
-                  fit: BoxFit.contain,
+      body: ValueListenableBuilder<int>(
+        valueListenable: _currentIndexNotifier,
+        builder: (context, index, child) {
+          return Stack(
+            children: [
+              child!,
+              if (index > 0)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                    onPressed: () => _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    ),
+                  ),
                 ),
-              );
-            },
-          ),
-          if (_currentIndex > 0)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: _navigateToPrevious,
+              if (index < widget.images.length - 1)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                    onPressed: () => _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: widget.images.length,
+          onPageChanged: (int i) {
+            _currentIndexNotifier.value = i;
+            _controllers[i].value = Matrix4.identity();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final len = widget.images.length;
+              if (i > 0) {
+                precacheImage(FileImage(widget.images[i - 1]), context);
+              }
+              if (i < len - 1) {
+                precacheImage(FileImage(widget.images[i + 1]), context);
+              }
+            });
+          },
+          itemBuilder: (context, index) {
+            final controller = _controllers[index];
+            return InteractiveViewer(
+              transformationController: controller,
+              minScale: 1.0,
+              maxScale: 4.0,
+              child: GestureDetector(
+                onDoubleTap: () {
+                  final size = MediaQuery.of(context).size;
+                  final matrix = controller.value;
+                  final currentScale = matrix.entry(0, 0).abs();
+                  final targetScale = currentScale > 1.5 ? 1.0 : 2.0;
+                  if (targetScale == 1.0) {
+                    controller.value = Matrix4.identity();
+                  } else {
+                    final x = size.width / 2;
+                    final y = size.height / 2;
+                    controller.value = Matrix4.translationValues(-x, -y, 0)
+                      ..scale(targetScale)
+                      ..translate(x, y, 0);
+                  }
+                },
+                child: Hero(
+                  tag: widget.images[index],
+                  child: Image.file(
+                    widget.images[index],
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
-            ),
-          if (_currentIndex < widget.images.length - 1)
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                onPressed: _navigateToNext,
-              ),
-            ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }

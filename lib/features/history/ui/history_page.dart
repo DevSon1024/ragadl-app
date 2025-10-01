@@ -1,16 +1,13 @@
 import 'dart:io';
-
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
-import 'package:ragalahari_downloader/shared/widgets/thumbnail_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
-
 import 'history_full_image_viewer.dart';
 import 'recycle_page.dart';
 
@@ -123,6 +120,7 @@ class _HistoryPageState extends State<HistoryPage> {
   Future<void> _checkPermissionsAndLoadItems() async {
     bool permissionsGranted = await _checkAndRequestPermissions();
     if (!permissionsGranted) {
+      if (!mounted) return; // Check if mounted
       setState(() {
         _errorMessage =
         'Storage or media permission denied. Please grant permissions in app settings.';
@@ -166,6 +164,8 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> _showPermissionDialog() async {
+    // Check if the widget is still mounted before showing a dialog
+    if (!mounted) return;
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -190,6 +190,8 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> _loadDownloadedItems() async {
+    // Check if mounted at the beginning of the async method
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -208,8 +210,11 @@ class _HistoryPageState extends State<HistoryPage> {
       }
 
       if (!await baseDir.exists()) {
+        // Check if mounted before calling setState
+        if (!mounted) return;
         setState(() {
           _downloadedItems = [];
+          final query = _searchController.text.toLowerCase();
           _filteredItems = [];
           _errorMessage = 'No downloads found.';
           _isLoading = false;
@@ -222,19 +227,30 @@ class _HistoryPageState extends State<HistoryPage> {
         'currentSort': _currentSort,
       });
 
-      setState(() {
-        _downloadedItems = items;
-        _filteredItems = items;
-        _errorMessage = items.isEmpty ? 'No items found.' : null;
-        _isLoading = false;
-      });
+      // THE FIX: Check if the widget is still mounted before setState
+      if (mounted) {
+        setState(() {
+          _downloadedItems = items;
+          final query = _searchController.text.toLowerCase();
+          _filteredItems = items.where((item) {
+            final name = item.path.split('/').last.toLowerCase();
+            return name.contains(query);
+          }).toList();
+          _errorMessage = items.isEmpty ? 'No items found.' : null;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _downloadedItems = [];
-        _filteredItems = [];
-        _errorMessage = 'Error loading items: $e';
-        _isLoading = false;
-      });
+      // THE FIX: Also check here in the catch block
+      if (mounted) {
+        setState(() {
+          _downloadedItems = [];
+          final query = _searchController.text.toLowerCase();
+          _filteredItems = [];
+          _errorMessage = 'Error loading items: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -295,6 +311,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
     if (confirmed != true) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -310,10 +327,13 @@ class _HistoryPageState extends State<HistoryPage> {
 
       await _loadDownloadedItems();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Failed to move items: $e')));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -334,20 +354,20 @@ class _HistoryPageState extends State<HistoryPage> {
   void _openItem(int index) {
     if (_isSelectionMode) {
       _toggleSelection(index);
-      return;
-    }
-
-    final item = _filteredItems[index];
-    if (item is File) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FullImageViewer(
-            images: _filteredItems.whereType<File>().toList(),
-            initialIndex: _filteredItems.whereType<File>().toList().indexOf(item),
+    } else {
+      final item = _filteredItems[index];
+      if (item is File) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FullImageViewer(
+              images: _filteredItems.whereType<File>().toList(),
+              initialIndex:
+              _filteredItems.whereType<File>().toList().indexOf(item),
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -459,7 +479,12 @@ class _HistoryPageState extends State<HistoryPage> {
                 ],
               ),
             ),
-          Expanded(child: _buildContent(theme)),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadDownloadedItems,
+              child: _buildContent(theme),
+            ),
+          ),
         ],
       ),
     );
@@ -585,13 +610,16 @@ class _HistoryPageState extends State<HistoryPage> {
               fit: StackFit.expand,
               children: [
                 if (item is File)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12.0),
-                    child: Image.file(
-                      item,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) =>
-                      const Icon(Icons.broken_image, color: Colors.grey),
+                  Hero(
+                    tag: item.path, // Use the unique path as the tag
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12.0),
+                      child: Image.file(
+                        item,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) =>
+                        const Icon(Icons.broken_image, color: Colors.grey),
+                      ),
                     ),
                   ),
                 if (item is Directory)
@@ -653,14 +681,17 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
           child: ListTile(
             leading: (item is File)
-                ? ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: Image.file(
-                  item,
-                  fit: BoxFit.cover,
+                ? Hero(
+              tag: item.path, // Use the same tag here
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Image.file(
+                    item,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             )
@@ -669,7 +700,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: item is File
                 ? FutureBuilder<int>(
-              future: item.length(), // Now only called on File objects
+              future: item.length(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return Text(
@@ -677,10 +708,10 @@ class _HistoryPageState extends State<HistoryPage> {
                     style: Theme.of(context).textTheme.bodySmall,
                   );
                 }
-                return const Text('...'); // Placeholder for size
+                return const Text('...');
               },
             )
-                : null, // No subtitle for directories
+                : null,
             onTap: () => _openItem(index),
             onLongPress: () => _toggleSelection(index),
             selected: isSelected,
