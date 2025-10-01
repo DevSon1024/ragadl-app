@@ -15,6 +15,13 @@ import 'link_history_page.dart';
 import 'package:ragalahari_downloader/core/permissions.dart';
 import '../../../shared/widgets/grid_utils.dart';
 
+// List of user agents for rotation
+const List<String> _userAgents = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+];
+
 // Isolate entry point for processing the gallery. This runs in the background.
 void _processGalleryIsolate(SendPort sendPort) {
   final receivePort = ReceivePort();
@@ -26,14 +33,12 @@ void _processGalleryIsolate(SendPort sendPort) {
 
     try {
       final dio = Dio();
-      final headers = {
-        'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      };
+      final galleryId = _extractGalleryId(baseUrl);
 
       // Helper to get total pages
       Future<int> getTotalPages(String url) async {
         try {
+          final headers = {'User-Agent': _userAgents[Random().nextInt(_userAgents.length)]};
           final response = await dio.get(url, options: Options(headers: headers));
           if (response.statusCode == 200) {
             final document = parse(response.data);
@@ -53,19 +58,17 @@ void _processGalleryIsolate(SendPort sendPort) {
 
       final totalPages = await getTotalPages(baseUrl);
       final Set<ImageData> allImageUrls = {};
-      final galleryId = _extractGalleryId(baseUrl);
 
-      for (int i = 0; i < totalPages; i++) {
-        replyPort.send({'type': 'progress', 'currentPage': i + 1, 'totalPages': totalPages});
-        final pageUrl = _constructPageUrl(baseUrl, galleryId, i);
-        final response = await dio.get(pageUrl, options: Options(headers: headers));
-
-        if (response.statusCode == 200) {
-          final document = parse(response.data);
-          _removeUnwantedDivs(document);
-          final pageImages = _extractImageUrls(document);
-          allImageUrls.addAll(pageImages);
+      // Batch size for concurrent processing
+      const int batchSize = 5;
+      for (int i = 0; i < totalPages; i += batchSize) {
+        final end = min(i + batchSize, totalPages);
+        final batchFutures = <Future>[];
+        for (int j = i; j < end; j++) {
+          batchFutures.add(_processPage(dio, baseUrl, galleryId, j, replyPort));
         }
+        await Future.wait(batchFutures);
+        replyPort.send({'type': 'progress', 'currentPage': end, 'totalPages': totalPages});
       }
       // Send the final result back to the main thread
       replyPort.send({'type': 'result', 'images': allImageUrls.toList()});
@@ -74,6 +77,30 @@ void _processGalleryIsolate(SendPort sendPort) {
       replyPort.send({'type': 'error', 'error': e.toString()});
     }
   });
+}
+
+// Helper function to process a single page
+Future<void> _processPage(Dio dio, String baseUrl, String galleryId, int index, SendPort replyPort) async {
+  try {
+    final pageUrl = _constructPageUrl(baseUrl, galleryId, index);
+    final headers = {'User-Agent': _userAgents[Random().nextInt(_userAgents.length)]};
+    final response = await dio.get(pageUrl, options: Options(headers: headers));
+
+    if (response.statusCode == 200) {
+      final document = parse(response.data);
+      _removeUnwantedDivs(document);
+      final pageImages = _extractImageUrls(document);
+      replyPort.send({'type': 'images', 'images': pageImages});
+    } else {
+      replyPort.send({'type': 'page_error', 'page': index, 'status': response.statusCode});
+    }
+  } catch (e) {
+    if (e is DioException) {
+      replyPort.send({'type': 'dio_error', 'page': index, 'error': e.message, 'statusCode': e.response?.statusCode});
+    } else {
+      replyPort.send({'type': 'error', 'page': index, 'error': e.toString()});
+    }
+  }
 }
 
 // Helper functions that are also used in the isolate must be top-level or static.
@@ -110,10 +137,15 @@ List<ImageData> _extractImageUrls(var document) {
       continue;
     }
     String thumbnailUrl = src.startsWith("http") ? src : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
-    String originalUrl =
-    src.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '').startsWith("http")
-        ? src.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '')
-        : "https://www.ragalahari.com/${src.replaceAll("../", "").replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '')}";
+    // Enhanced extraction: Check for parent <a> tag for direct original link
+    String originalUrl = thumbnailUrl.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '');
+    final parentA = img.parent?.querySelector('a');
+    if (parentA != null && parentA.attributes['href'] != null) {
+      final href = parentA.attributes['href']!;
+      if (href.toLowerCase().endsWith('.jpg')) {
+        originalUrl = href.startsWith('http') ? href : "https://www.ragalahari.com/$href";
+      }
+    }
     imageDataSet.add(ImageData(thumbnailUrl: thumbnailUrl, originalUrl: originalUrl));
   }
   return imageDataSet.toList();
@@ -344,20 +376,26 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           currentPage = data['currentPage'];
           totalPages = data['totalPages'];
         });
+      } else if (data['type'] == 'images') {
+        imageUrls.addAll(data['images']);
       } else if (data['type'] == 'result') {
         setState(() {
-          imageUrls = data['images'];
           isLoading = false;
         });
         _showSnackBar(imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images');
         _isolate?.kill(priority: Isolate.immediate);
         _receivePort?.close();
-      } else if (data['type'] == 'error') {
+      } else if (data['type'] == 'error' || data['type'] == 'dio_error' || data['type'] == 'page_error') {
+        final errorMsg = data['type'] == 'dio_error'
+            ? 'Dio Error on page ${data['page']}: ${data['error']} (Status: ${data['statusCode']})'
+            : data['type'] == 'page_error'
+            ? 'Page ${data['page']} failed with status ${data['status']}'
+            : data['error'];
         setState(() {
           isLoading = false;
-          _error = 'Error: ${data['error']}';
+          _error = errorMsg;
         });
-        _showSnackBar('Error: ${data['error']}');
+        _showSnackBar('Error: $errorMsg');
         _isolate?.kill(priority: Isolate.immediate);
         _receivePort?.close();
       }

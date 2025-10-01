@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,6 +18,9 @@ class DownloadTask {
   final CancelToken cancelToken;
   double progress;
   DownloadStatus status;
+  int retryCount;
+  final void Function(double)? onProgress;
+  final void Function(bool)? onComplete;
 
   DownloadTask({
     required this.url,
@@ -27,6 +31,9 @@ class DownloadTask {
     required this.cancelToken,
     this.progress = 0.0,
     this.status = DownloadStatus.downloading,
+    this.retryCount = 0,
+    this.onProgress,
+    this.onComplete,
   });
 
   DownloadTask copyWith({
@@ -38,6 +45,9 @@ class DownloadTask {
     CancelToken? cancelToken,
     double? progress,
     DownloadStatus? status,
+    int? retryCount,
+    void Function(double)? onProgress,
+    void Function(bool)? onComplete,
   }) {
     return DownloadTask(
       url: url ?? this.url,
@@ -48,6 +58,9 @@ class DownloadTask {
       cancelToken: cancelToken ?? this.cancelToken,
       progress: progress ?? this.progress,
       status: status ?? this.status,
+      retryCount: retryCount ?? this.retryCount,
+      onProgress: onProgress ?? this.onProgress,
+      onComplete: onComplete ?? this.onComplete,
     );
   }
 }
@@ -58,11 +71,15 @@ class DownloadManager {
   DownloadManager._internal();
 
   final Map<String, DownloadTask> _activeDownloads = {};
+  final List<String> _downloadQueue = [];
   final Dio _dio = Dio();
+  final Set<String> _downloadingUrls = <String>{};
   int _batchDownloadCount = 0;
   int _completedDownloads = 0;
   int _failedDownloads = 0;
   String? _currentBatchId;
+  static const int maxConcurrent = 5;
+  static const int maxRetries = 3;
 
   Map<String, DownloadTask> get activeDownloads => Map.unmodifiable(_activeDownloads);
 
@@ -90,13 +107,14 @@ class DownloadManager {
       return;
     }
 
+    DownloadTask? task;
     try {
       final directory = await _getDownloadDirectory(folder, subFolder);
       final fileName = url.split('/').last;
       final savePath = '${directory.path}/$fileName';
       final cancelToken = CancelToken();
 
-      final task = DownloadTask(
+      task = DownloadTask(
         url: url,
         fileName: fileName,
         savePath: savePath,
@@ -105,6 +123,9 @@ class DownloadManager {
         cancelToken: cancelToken,
         progress: 0,
         status: DownloadStatus.downloading,
+        retryCount: 0,
+        onProgress: onProgress,
+        onComplete: onComplete,
       );
 
       _activeDownloads[url] = task;
@@ -132,74 +153,15 @@ class DownloadManager {
         );
       }
 
-      _download(task, onProgress, (success) async {
-        if (batchId != null) {
-          if (success) {
-            _completedDownloads++;
-          } else {
-            _failedDownloads++;
-          }
-
-          if (_completedDownloads + _failedDownloads == _batchDownloadCount) {
-            await AwesomeNotifications().createNotification(
-              content: NotificationContent(
-                id: batchId.hashCode,
-                channelKey: 'download_channel',
-                title: 'Download Complete',
-                body: '$_completedDownloads Images Downloaded${_failedDownloads > 0 ? ', $_failedDownloads Failed' : ''}',
-                notificationLayout: NotificationLayout.Default,
-                color: _failedDownloads == 0 ? Colors.green : Colors.orange,
-                locked: false,
-              ),
-            );
-            _currentBatchId = null;
-            _batchDownloadCount = 0;
-            _completedDownloads = 0;
-            _failedDownloads = 0;
-          }
-        } else {
-          await AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: url.hashCode,
-              channelKey: 'download_channel',
-              title: success ? 'Download Completed' : 'Download Failed',
-              body: success
-                  ? '${task.fileName} downloaded successfully'
-                  : 'Failed to download ${task.fileName}',
-              notificationLayout: NotificationLayout.Default,
-              color: success ? Colors.green : Colors.red,
-              locked: false,
-            ),
-          );
-        }
-
-        if (success) {
-          Future.delayed(const Duration(seconds: 2), () {
-            _activeDownloads.remove(url);
-          });
-        }
-
-        onComplete(success);
-      });
+      _enqueueDownload(task, batchId);
     } catch (e) {
+      if (task != null) {
+        _activeDownloads.remove(url);
+      }
       if (batchId != null) {
         _failedDownloads++;
         if (_completedDownloads + _failedDownloads == _batchDownloadCount) {
-          await AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: batchId.hashCode,
-              channelKey: 'download_channel',
-              title: 'Download Complete',
-              body: '$_completedDownloads Images Downloaded${_failedDownloads > 0 ? ', $_failedDownloads Failed' : ''}',
-              notificationLayout: NotificationLayout.Default,
-              color: _failedDownloads == 0 ? Colors.green : Colors.orange,
-              locked: false,
-            ),
-          );
-          _currentBatchId = null;
-          _batchDownloadCount = 0;
-          _completedDownloads = 0;
-          _failedDownloads = 0;
+          _notifyBatchComplete(batchId);
         }
       } else {
         await AwesomeNotifications().createNotification(
@@ -217,56 +179,202 @@ class DownloadManager {
     }
   }
 
+  void _enqueueDownload(DownloadTask task, String? batchId) {
+    if (_downloadingUrls.length < maxConcurrent) {
+      _startDownload(task, batchId);
+    } else {
+      _downloadQueue.add(task.url);
+    }
+  }
+
+  void _startDownload(DownloadTask task, String? batchId) {
+    _downloadingUrls.add(task.url);
+    _download(task, (success) {
+      _handleDownloadComplete(task.url, success, batchId);
+    });
+  }
+
+  void _handleDownloadComplete(String url, bool success, String? batchId) {
+    _downloadingUrls.remove(url);
+    final task = _activeDownloads[url];
+
+    if (success) {
+      if (task != null) {
+        final completedTask = task.copyWith(status: DownloadStatus.completed, progress: 1.0);
+        _activeDownloads[url] = completedTask;
+        if (batchId == null) {
+          AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: url.hashCode,
+              channelKey: 'download_channel',
+              title: 'Download Completed',
+              body: '${task.fileName} downloaded successfully',
+              notificationLayout: NotificationLayout.Default,
+              color: Colors.green,
+              locked: false,
+            ),
+          );
+        } else {
+          _completedDownloads++;
+        }
+        Future.delayed(const Duration(seconds: 2), () {
+          _activeDownloads.remove(url);
+        });
+        task.onComplete?.call(true);
+      }
+    } else {
+      if (task != null && task.retryCount < maxRetries) {
+        final newTask = task.copyWith(
+          retryCount: task.retryCount + 1,
+          status: DownloadStatus.downloading,
+          progress: 0.0,
+        );
+        _activeDownloads[url] = newTask;
+        _startDownload(newTask, batchId);
+        return;
+      }
+      // Final failure
+      if (task != null) {
+        final failedTask = task.copyWith(status: DownloadStatus.failed);
+        _activeDownloads[url] = failedTask;
+        if (batchId == null) {
+          AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: url.hashCode,
+              channelKey: 'download_channel',
+              title: 'Download Failed',
+              body: 'Failed to download ${task.fileName} after ${task.retryCount + 1} attempts',
+              notificationLayout: NotificationLayout.Default,
+              color: Colors.red,
+              locked: false,
+            ),
+          );
+        } else {
+          _failedDownloads++;
+        }
+        task.onComplete?.call(false);
+      }
+    }
+
+    if (batchId != null && _completedDownloads + _failedDownloads == _batchDownloadCount) {
+      _notifyBatchComplete(batchId);
+    }
+
+    _processQueue(batchId);
+  }
+
+  void _processQueue(String? batchId) {
+    while (_downloadQueue.isNotEmpty && _downloadingUrls.length < maxConcurrent) {
+      final url = _downloadQueue.removeAt(0);
+      final task = _activeDownloads[url];
+      if (task != null) {
+        _startDownload(task, batchId);
+      }
+    }
+  }
+
   Future<void> _download(
       DownloadTask task,
-      void Function(double progress) onProgress,
-      void Function(bool success) onComplete) async {
-    const maxRetries = 3;
-    int attempt = 0;
+      void Function(bool success) onCompleteInner,
+      ) async {
+    final file = File(task.savePath);
+    int start = 0;
+    bool canResume = false;
+    int? totalBytes;
 
-    while (attempt < maxRetries) {
-      try {
-        await _dio.download(
-          task.url,
-          task.savePath,
-          cancelToken: task.cancelToken,
-          onReceiveProgress: (received, total) {
-            final progress = total > 0 ? received / total : 0.0;
-            _activeDownloads[task.url] = task.copyWith(progress: progress);
-            onProgress(progress);
-          },
-          options: Options(
-            headers: {
-              'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            },
-            followRedirects: true,
-            maxRedirects: 5,
-            receiveTimeout: const Duration(seconds: 30),
-            sendTimeout: const Duration(seconds: 15),
-          ),
-        );
-
-        _activeDownloads[task.url] = task.copyWith(
-          status: DownloadStatus.completed,
-          progress: 1.0,
-        );
-        onComplete(true);
-        return;
-      } catch (e) {
-        attempt++;
-        print('Download error for ${task.url}: $e');
-        if (e is DioException && CancelToken.isCancel(e)) {
-          // Handle cancellation
-        } else if (attempt == maxRetries) {
-          print('Failed after $maxRetries attempts for ${task.url}');
-          _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.failed);
-          onComplete(false);
-        } else {
-          await Future.delayed(Duration(seconds: attempt * 2));
+    if (await file.exists()) {
+      start = await file.length();
+      if (start > 0) {
+        try {
+          final headResponse = await _dio.head(
+            task.url,
+            options: Options(
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              },
+            ),
+          );
+          if (headResponse.headers.value('accept-ranges') == 'bytes') {
+            canResume = true;
+            final totalStr = headResponse.headers.value('content-length');
+            if (totalStr != null) {
+              totalBytes = int.parse(totalStr);
+              if (start >= totalBytes) {
+                onCompleteInner(true);
+                return;
+              }
+              final initialProgress = start / totalBytes;
+              _activeDownloads[task.url] = task.copyWith(progress: initialProgress);
+              task.onProgress?.call(initialProgress);
+            }
+          } else {
+            await file.delete();
+            start = 0;
+          }
+        } catch (e) {
+          await file.delete();
+          start = 0;
         }
       }
     }
+
+    try {
+      final headers = <String, dynamic>{
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      };
+      if (canResume && start > 0) {
+        headers['Range'] = 'bytes=$start-';
+      }
+      await _dio.download(
+        task.url,
+        task.savePath,
+        cancelToken: task.cancelToken,
+        deleteOnError: false,
+        onReceiveProgress: (received, total) {
+          double progress;
+          if (canResume && start > 0 && total != null) {
+            progress = (start + received) / total;
+          } else {
+            progress = total > 0 ? received / total : 0.0;
+          }
+          _activeDownloads[task.url] = task.copyWith(progress: progress);
+          task.onProgress?.call(progress);
+        },
+        options: Options(
+          headers: headers,
+          followRedirects: true,
+          maxRedirects: 5,
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 15),
+        ),
+      );
+      onCompleteInner(true);
+    } catch (e) {
+      print('Download error for ${task.url}: $e');
+      if (e is DioException && CancelToken.isCancel(e)) {
+        onCompleteInner(false);
+      } else {
+        onCompleteInner(false);
+      }
+    }
+  }
+
+  void _notifyBatchComplete(String batchId) {
+    AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: batchId.hashCode,
+        channelKey: 'download_channel',
+        title: 'Download Complete',
+        body: '$_completedDownloads Images Downloaded${_failedDownloads > 0 ? ', $_failedDownloads Failed' : ''}',
+        notificationLayout: NotificationLayout.Default,
+        color: _failedDownloads == 0 ? Colors.green : Colors.orange,
+        locked: false,
+      ),
+    );
+    _currentBatchId = null;
+    _batchDownloadCount = 0;
+    _completedDownloads = 0;
+    _failedDownloads = 0;
   }
 
   Future<Directory> _getDownloadDirectory(String folder, String subFolder) async {
@@ -288,40 +396,39 @@ class DownloadManager {
   }
 
   void pauseDownload(String url) {
-    if (_activeDownloads.containsKey(url)) {
-      final task = _activeDownloads[url]!;
-      if (task.status == DownloadStatus.downloading) {
-        _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
-        task.cancelToken.cancel('Download paused');
-      }
+    final task = _activeDownloads[url];
+    if (task != null && task.status == DownloadStatus.downloading) {
+      _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
+      task.cancelToken.cancel('Download paused');
+      _downloadingUrls.remove(url);
+      _processQueue(null);
     }
   }
 
   void resumeDownload(String url) {
-    if (_activeDownloads.containsKey(url)) {
-      final task = _activeDownloads[url]!;
-      if (task.status == DownloadStatus.paused) {
-        final newCancelToken = CancelToken();
-        final newTask = task.copyWith(
-          cancelToken: newCancelToken,
-          status: DownloadStatus.downloading,
-        );
-        _activeDownloads[url] = newTask;
-
-        _download(
-          newTask,
-              (progress) {},
-              (success) {},
-        );
-      }
+    final task = _activeDownloads[url];
+    if (task != null && task.status == DownloadStatus.paused) {
+      final newCancelToken = CancelToken();
+      final newTask = task.copyWith(
+        cancelToken: newCancelToken,
+        status: DownloadStatus.downloading,
+      );
+      _activeDownloads[url] = newTask;
+      _enqueueDownload(newTask, null);
     }
   }
 
   void cancelDownload(String url) {
-    if (_activeDownloads.containsKey(url)) {
-      final task = _activeDownloads[url]!;
+    final task = _activeDownloads[url];
+    if (task != null) {
       if (task.status == DownloadStatus.downloading) {
         task.cancelToken.cancel('Download canceled');
+        _downloadingUrls.remove(url);
+        _processQueue(null);
+      }
+      _activeDownloads.remove(url);
+      _downloadQueue.remove(url);
+      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused) {
         AwesomeNotifications().createNotification(
           content: NotificationContent(
             id: url.hashCode,
@@ -333,7 +440,6 @@ class DownloadManager {
           ),
         );
       }
-      _activeDownloads.remove(url);
     }
   }
 
@@ -392,7 +498,7 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
   }
 
   void _cancelAllDownloadsAndDeleteFolder() async {
-    final urls = _downloadTasks.keys.toList();
+    final urls = List<String>.from(_downloadTasks.keys);
     for (final url in urls) {
       _downloadManager.cancelDownload(url);
     }
@@ -533,21 +639,25 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> {
         folder: task.folder,
         subFolder: task.subFolder,
         onProgress: (progress) {
-          setState(() {
-            _downloadTasks[url] = task.copyWith(progress: progress, status: DownloadStatus.downloading);
-          });
+          if (mounted) {
+            setState(() {
+              final currentTask = _downloadManager.activeDownloads[url];
+              if (currentTask != null) {
+                _downloadTasks[url] = currentTask;
+              } else {
+                _downloadTasks[url] = task.copyWith(progress: progress, status: DownloadStatus.downloading);
+              }
+            });
+          }
         },
         onComplete: (success) {
-          setState(() {
-            if (success) {
-              _downloadTasks.remove(url);
-            } else {
-              _downloadTasks[url] = task.copyWith(status: DownloadStatus.failed);
-            }
-          });
+          if (mounted) {
+            setState(() {
+              _loadVisibleDownloads();
+            });
+          }
         },
       );
-      _loadVisibleDownloads();
     }
   }
 }
@@ -606,6 +716,14 @@ class DownloadItem extends StatelessWidget {
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (task.retryCount > 0)
+                          Text(
+                            'Retries: ${task.retryCount}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.orange,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -631,39 +749,41 @@ class DownloadItem extends StatelessWidget {
                       color: Colors.grey[600],
                     ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: onRemove,
-                        tooltip: 'Remove from list',
-                        iconSize: 20,
-                      ),
-                      if (task.status == DownloadStatus.failed)
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
                         IconButton(
-                          icon: const Icon(Icons.refresh),
-                          onPressed: () => onRedownload?.call(),
-                          tooltip: 'Retry download',
+                          icon: const Icon(Icons.delete),
+                          onPressed: onRemove,
+                          tooltip: 'Remove from list',
                           iconSize: 20,
                         ),
-                      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
-                        IconButton(
-                          icon: Icon(
-                            task.status == DownloadStatus.paused ? Icons.play_arrow : Icons.pause,
+                        if (task.status == DownloadStatus.failed)
+                          IconButton(
+                            icon: const Icon(Icons.refresh),
+                            onPressed: () => onRedownload?.call(),
+                            tooltip: 'Retry download',
+                            iconSize: 20,
                           ),
-                          onPressed: task.status == DownloadStatus.paused ? onResume : onPause,
-                          tooltip: task.status == DownloadStatus.paused ? 'Resume' : 'Pause',
-                          iconSize: 20,
-                        ),
-                      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
-                        IconButton(
-                          icon: const Icon(Icons.cancel),
-                          onPressed: onCancel,
-                          tooltip: 'Cancel',
-                          iconSize: 20,
-                        ),
-                    ],
+                        if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
+                          IconButton(
+                            icon: Icon(
+                              task.status == DownloadStatus.paused ? Icons.play_arrow : Icons.pause,
+                            ),
+                            onPressed: task.status == DownloadStatus.paused ? onResume : onPause,
+                            tooltip: task.status == DownloadStatus.paused ? 'Resume' : 'Pause',
+                            iconSize: 20,
+                          ),
+                        if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
+                          IconButton(
+                            icon: const Icon(Icons.cancel),
+                            onPressed: onCancel,
+                            tooltip: 'Cancel',
+                            iconSize: 20,
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
