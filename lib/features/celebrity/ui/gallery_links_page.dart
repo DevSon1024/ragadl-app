@@ -198,7 +198,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         _totalCount = result.totalCount;
 
         // If this is the final result, stop loading
-        if (!result.isPartialUpdate || result.processedCount >= result.totalCount) {
+        if (!result.isPartialUpdate ||
+            result.processedCount >= result.totalCount) {
           _isLoading = false;
           _cacheGalleryLinks();
         }
@@ -240,16 +241,19 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         batches.add(
           links.sublist(
             i,
-            i + data.batchSize > links.length ? links.length : i + data.batchSize,
+            i + data.batchSize > links.length
+                ? links.length
+                : i + data.batchSize,
           ),
         );
       }
 
       for (int batchIndex = 0; batchIndex < batches.length; batchIndex++) {
         final batch = batches[batchIndex];
-        final futures = batch.map((link) =>
-            _processSingleLinkIsolate(link, data.headers, data.thumbnailDomains)
-        ).toList();
+        final futures = batch
+            .map((link) => _processSingleLinkIsolate(
+            link, data.headers, data.thumbnailDomains))
+            .toList();
 
         final results = await Future.wait(futures);
         final batchItems = results.whereType<GalleryItem>().toList();
@@ -286,11 +290,13 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         totalCount: links.length,
       ));
     } catch (e) {
-      sendPort.send(GalleryScrapingResult(error: 'Failed to scrape gallery links: $e'));
+      sendPort.send(
+          GalleryScrapingResult(error: 'Failed to scrape gallery links: $e'));
     }
   }
 
-  static List<String> _extractGalleryLinksIsolate(dom.Document document, String profileUrl) {
+  static List<String> _extractGalleryLinksIsolate(
+      dom.Document document, String profileUrl) {
     final galleriesPanel = document.getElementById('galleries_panel');
     if (galleriesPanel == null) return [];
 
@@ -323,7 +329,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         title = titleElement.text.trim();
       } else {
         final uri = Uri.parse(link);
-        final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+        final pathSegments =
+        uri.pathSegments.where((s) => s.isNotEmpty).toList();
         title = link.split('/').last.replaceAll(".aspx", "");
         if (pathSegments.length > 2) {
           title =
@@ -355,7 +362,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     }
   }
 
-  static Future<(int, DateTime)> _getGalleryInfoIsolate(String url, Map<String, String> headers) async {
+  static Future<(int, DateTime)> _getGalleryInfoIsolate(
+      String url, Map<String, String> headers) async {
     try {
       final response = await http
           .get(Uri.parse(url), headers: headers)
@@ -387,7 +395,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
     List<FavoriteItem> favorites = favoritesJson
         .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+      Map<String, String>.from(
+          jsonDecode(json) as Map<String, dynamic>),
     ))
         .toList();
 
@@ -440,8 +449,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         ),
       ),
     ).then((_) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Returned from downloader')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Returned from downloader')));
     });
   }
 
@@ -451,15 +460,13 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       if (query.isEmpty) {
         _filteredItems = List.from(_galleryItems);
       } else {
-        _filteredItems = _galleryItems
-            .where((item) {
+        _filteredItems = _galleryItems.where((item) {
           final galleryId = item.url
               .split('/')
               .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
               .firstOrNull;
           return galleryId != null && galleryId.startsWith(query);
-        })
-            .toList();
+        }).toList();
       }
       _currentPage = 1;
       _updateDisplayedItems();
@@ -488,7 +495,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     setState(() {
       _sortNewestFirst = !_sortNewestFirst;
       _filteredItems.sort(
-            (a, b) => _sortNewestFirst ? b.date.compareTo(a.date) : a.date.compareTo(b.date),
+            (a, b) => _sortNewestFirst
+            ? b.date.compareTo(a.date)
+            : a.date.compareTo(b.date),
       );
       _currentPage = 1;
       _updateDisplayedItems();
@@ -517,14 +526,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
           ),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: calculateGridColumns(context),
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
               childAspectRatio: 0.75,
             ),
-            itemCount: _displayedItems.isNotEmpty ? _displayedItems.length : _itemsPerPage,
+            itemCount: _displayedItems.isNotEmpty
+                ? _displayedItems.length
+                : _itemsPerPage,
             itemBuilder: (context, index) {
               // Show actual items if available, otherwise show shimmer
               if (index < _displayedItems.length) {
@@ -541,11 +552,21 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                   baseColor: Colors.grey[300]!,
                   highlightColor: Colors.grey[100]!,
                   child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Container(color: Colors.grey),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
+                            ),
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(8),
@@ -571,14 +592,18 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   }
 
   Widget _buildGalleryCard(GalleryItem item, bool isFavorite) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => _navigateToDownloader(item.url, item.title),
       onLongPress: () => _toggleGalleryFavorite(item),
       child: Card(
         elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         color: isFavorite
-            ? Theme.of(context).colorScheme.surfaceTint.withOpacity(0.1)
-            : Theme.of(context).colorScheme.surface,
+            ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+            : theme.colorScheme.surface,
         child: Stack(
           children: [
             Column(
@@ -586,8 +611,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(12)),
+                    borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                     child: item.thumbnailUrl != null &&
                         item.thumbnailUrl!.isNotEmpty
                         ? Container(
@@ -596,7 +621,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                         item.thumbnailUrl!,
                         fit: BoxFit.cover,
                         alignment: Alignment.topCenter,
-                        loadingBuilder: (context, child, loadingProgress) {
+                        loadingBuilder:
+                            (context, child, loadingProgress) {
                           if (loadingProgress == null) {
                             return child;
                           }
@@ -605,46 +631,43 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                           );
                         },
                         errorBuilder: (_, __, ___) => Container(
-                          color: Colors.red.shade200,
-                          child: const Icon(
+                          color: Colors.grey.shade300,
+                          child: Icon(
                             Icons.broken_image,
                             size: 60,
-                            color: Colors.white,
+                            color: Colors.grey.shade400,
                           ),
                         ),
                       ),
                     )
                         : Container(
-                      color: Colors.red.shade200,
-                      child: const Icon(
+                      color: Colors.grey.shade300,
+                      child: Icon(
                         Icons.error,
                         size: 60,
-                        color: Colors.white,
+                        color: Colors.grey.shade400,
                       ),
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         item.title,
-                        style: Theme.of(context).textTheme.titleSmall,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${item.pages} pages • ${DateFormat('MMM dd, yyyy').format(item.date)}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -659,12 +682,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
-                    isFavorite ? Icons.star : Icons.star_border,
-                    color: isFavorite ? Colors.yellow : Colors.white,
+                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: isFavorite ? Colors.amber : Colors.white,
                     size: 24,
                   ),
                 ),
@@ -682,7 +705,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
     final favorites = favoritesJson
         .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
+      Map<String, String>.from(
+          jsonDecode(json) as Map<String, dynamic>),
     ))
         .toList();
     return favorites.any(
@@ -696,20 +720,23 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   @override
   Widget build(BuildContext context) {
     final totalPages = (_filteredItems.length / _itemsPerPage).ceil();
-
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(
           '${widget.celebrityName} - Galleries',
-          style: Theme.of(context).textTheme.titleLarge,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           IconButton(
             icon: Icon(
               _sortNewestFirst ? Icons.arrow_downward : Icons.arrow_upward,
-              color: Theme.of(context).colorScheme.primary,
+              color: theme.colorScheme.primary,
             ),
-            tooltip: _sortNewestFirst ? 'Sort Oldest First' : 'Sort Newest First',
+            tooltip:
+            _sortNewestFirst ? 'Sort Oldest First' : 'Sort Newest First',
             onPressed: _toggleSortOrder,
           ),
         ],
@@ -734,12 +761,13 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                   },
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainer,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                fillColor: theme.colorScheme.surfaceContainer,
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               keyboardType: TextInputType.number,
               autofocus: false,
@@ -761,8 +789,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         children: [
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
+              gridDelegate:
+              SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: calculateGridColumns(context),
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,

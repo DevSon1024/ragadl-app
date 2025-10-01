@@ -162,7 +162,11 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-          _buildProfileContainer('Welcome to Ragalahari Downloader!', null),
+          Text('Welcome to Ragalahari Downloader!',style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),),
           const SizedBox(height: 16),
         ],
       ),
@@ -255,53 +259,6 @@ class _HomePageState extends State<HomePage> {
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileContainer(String message, String? imageUrl) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (imageUrl != null && imageUrl.isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => FullImagePage(imageUrl: imageUrl),
-                    ),
-                  );
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: 200,
-                    placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, error, stackTrace) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-            if (imageUrl != null && imageUrl.isNotEmpty) const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

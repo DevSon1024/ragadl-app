@@ -113,12 +113,18 @@ class _ActorPageState extends State<ActorPage> {
 
   @override
   Widget build(BuildContext context) {
-
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Latest Actors')),
+      appBar: AppBar(
+        title: Text(
+          'Latest Actors',
+          style: theme.textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ),
       body: isLoading
           ? GridView.builder(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 100),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
@@ -131,18 +137,26 @@ class _ActorPageState extends State<ActorPage> {
             baseColor: Colors.grey[300]!,
             highlightColor: Colors.grey[100]!,
             child: Card(
-              elevation: 3,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Container(
-                      color: Colors.grey[300],
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                      ),
                       width: double.infinity,
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -173,7 +187,7 @@ class _ActorPageState extends State<ActorPage> {
         },
       )
           : GridView.builder(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 100),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
@@ -186,23 +200,31 @@ class _ActorPageState extends State<ActorPage> {
           return GestureDetector(
             onTap: () => fetchCelebrityName(index),
             child: Card(
-              elevation: 3,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: CachedNetworkImage(
-                      imageUrl: item['img'] ?? '',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                      errorWidget: (context, url, error) =>
-                      const Icon(Icons.error),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl: item['img'] ?? '',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        placeholder: (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
+                        errorWidget: (context, url, error) =>
+                        const Icon(Icons.error),
+                      ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -221,16 +243,6 @@ class _ActorPageState extends State<ActorPage> {
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item['name']!.isEmpty
-                              ? 'Tap to Load Name'
-                              : item['name']!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
                           ),
                         ),
                       ],
@@ -353,12 +365,18 @@ class _ActressPageState extends State<ActressPage> {
 
   @override
   Widget build(BuildContext context) {
-
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Latest Actresses')),
+      appBar: AppBar(
+        title: Text(
+          'Latest Actresses',
+          style: theme.textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ),
       body: isLoading
           ? GridView.builder(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 100),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
@@ -371,18 +389,26 @@ class _ActressPageState extends State<ActressPage> {
             baseColor: Colors.grey[300]!,
             highlightColor: Colors.grey[100]!,
             child: Card(
-              elevation: 3,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Container(
-                      color: Colors.grey[300],
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                      ),
                       width: double.infinity,
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -413,7 +439,7 @@ class _ActressPageState extends State<ActressPage> {
         },
       )
           : GridView.builder(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 100),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: calculateGridColumns(context),
           crossAxisSpacing: 10,
@@ -426,23 +452,31 @@ class _ActressPageState extends State<ActressPage> {
           return GestureDetector(
             onTap: () => fetchCelebrityName(index),
             child: Card(
-              elevation: 3,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: CachedNetworkImage(
-                      imageUrl: item['img'] ?? '',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                      errorWidget: (context, url, error) =>
-                      const Icon(Icons.error),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl: item['img'] ?? '',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        placeholder: (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
+                        errorWidget: (context, url, error) =>
+                        const Icon(Icons.error),
+                      ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -461,16 +495,6 @@ class _ActressPageState extends State<ActressPage> {
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item['name']!.isEmpty
-                              ? 'Tap to Load Name'
-                              : item['name']!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
                           ),
                         ),
                       ],

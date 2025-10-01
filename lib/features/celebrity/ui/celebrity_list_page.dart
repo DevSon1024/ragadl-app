@@ -155,12 +155,12 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
         .toList();
 
     final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
-    final isFavorite = favorites.any(
-            (item) => item.type == 'celebrity' && item.name == name && item.url == url);
+    final isFavorite = favorites.any((item) =>
+    item.type == 'celebrity' && item.name == name && item.url == url);
 
     if (isFavorite) {
-      favorites.removeWhere(
-              (item) => item.type == 'celebrity' && item.name == name && item.url == url);
+      favorites.removeWhere((item) =>
+      item.type == 'celebrity' && item.name == name && item.url == url);
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$name removed from favorites')));
     } else {
@@ -186,8 +186,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
           jsonDecode(json) as Map<String, dynamic>),
     ))
         .toList();
-    return favorites.any(
-            (item) => item.type == 'celebrity' && item.name == name && item.url == url);
+    return favorites.any((item) =>
+    item.type == 'celebrity' && item.name == name && item.url == url);
   }
 
   @override
@@ -296,12 +296,13 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                   },
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
                 ),
                 filled: true,
                 fillColor: theme.colorScheme.surfaceContainer,
-                contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
               ),
               onChanged: (value) {
                 setState(() {});
@@ -318,6 +319,7 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                 ? const Center(
                 child: Text('No matching celebrities found'))
                 : ListView.builder(
+              padding: const EdgeInsets.only(bottom: 100.0),
               itemCount: _filteredCelebrities.length,
               itemBuilder: (context, index) {
                 final celebrity = _filteredCelebrities[index];
@@ -328,24 +330,23 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                     final isFavorite = snapshot.data ?? false;
                     return Card(
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
+                          horizontal: 16, vertical: 6),
                       elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       color: isFavorite
-                          ? Colors.yellow[100]
-                          : theme.colorScheme.surfaceContainer,
-                      surfaceTintColor:
-                      theme.colorScheme.surfaceTint,
+                          ? Colors.yellow.withOpacity(0.1)
+                          : theme.colorScheme.surface,
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
+                        contentPadding:
+                        const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         title: Text(
                           celebrity['name'] ?? 'Unknown',
                           style: TextStyle(
                             color: theme.colorScheme.onSurface,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         onTap: () {
@@ -368,10 +369,10 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                             IconButton(
                               icon: Icon(
                                 isFavorite
-                                    ? Icons.star
-                                    : Icons.star_border,
+                                    ? Icons.star_rounded
+                                    : Icons.star_border_rounded,
                                 color: isFavorite
-                                    ? Colors.yellow[700]
+                                    ? Colors.amber
                                     : theme.colorScheme
                                     .onSurfaceVariant,
                               ),
@@ -386,8 +387,8 @@ class _CelebrityListPageState extends State<CelebrityListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.add_box_outlined,
-                                color: theme.colorScheme
-                                    .onSurfaceVariant,
+                                color: theme
+                                    .colorScheme.onSurfaceVariant,
                               ),
                               onPressed: () =>
                                   _handleDownloadPress(
