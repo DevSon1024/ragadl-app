@@ -77,27 +77,78 @@ This app supports gallery previews, celebrity management via CSV, bulk downloads
 ## 📁 Folder Structure
 
 ```text
-/lib
-│
-├── main.dart
-├── settings_sidebar.dart
-├── pages/
-│   ├── celebrity_list_page.dart
-│   ├── download_mangager_page.dart
-│   ├── history_page.dart
-│   ├── latest_celebrity.dart
-│   ├── ragalahari_downloader.dart
-├── screens/
-│   ├── ragalahari_downloader_screen.dart
-├── widgets/
-│   ├── navbar.dart
-│   ├── theme_config.dart
-├── settings/
-│   ├── display_settings_page.dart
-│   ├── storage_settings.dart
-│   ├── favourite_page.dart
-│   ├── privacy_policy_page.dart
-│   └── update_database_page.dart
+ragalahari_downloader_2025/
+├── android/
+├── assets/
+│   ├── data/
+│   │   ├── Fetched_Albums_StarZone.json
+│   │   └── Fetched_StarZone_Data.csv
+│   └── images/
+│       ├── logo.png
+│       └── logo2.png
+├── ios/
+├── lib/
+│   ├── main.dart
+│   ├── core/
+│   │   ├── permissions/
+│   │   │   └── permissions.dart
+│   │   └── utils/
+│   ├── features/
+│   │   ├── celebrity/
+│   │   │   ├── data/
+│   │   │   │   └── celebrity_repository.dart
+│   │   │   ├── ui/
+│   │   │   │   ├── celebrity_list_page.dart
+│   │   │   │   ├── gallery_links_page.dart
+│   │   │   │   ├── latest_actor_and_actress.dart
+│   │   │   │   └── latest_celebrity.dart
+│   │   │   └── utils/
+│   │   │       ├── celebrity_image_cache.dart
+│   │   │       └── celebrity_utils.dart
+│   │   ├── downloader/
+│   │   │   └── ui/
+│   │   │       ├── download_manager_page.dart
+│   │   │       ├── link_history_page.dart
+│   │   │       └── ragalahari_downloader.dart
+│   │   ├── history/
+│   │   │   └── ui/
+│   │   │       ├── history_full_image_viewer.dart
+│   │   │       ├── history_page.dart
+│   │   │       └── recycle_page.dart
+│   │   ├── home/
+│   │   │   └── ui/
+│   │   │       └── home_page.dart
+│   │   └── settings/
+│   │       └── ui/
+│   │           ├── contact_us_page.dart
+│   │           ├── display_settings_page.dart
+│   │           ├── favourite_page.dart
+│   │           ├── history_settings.dart
+│   │           ├── notification_settings_page.dart
+│   │           ├── privacy_policy_page.dart
+│   │           ├── settings_page.dart
+│   │           ├── storage_settings.dart
+│   │           └── update_database_page.dart
+│   └── shared/
+│       └── widgets/
+│           ├── grid_utils.dart
+│           ├── theme_config.dart
+│           └── theme_notifier.dart
+├── linux/
+├── macos/
+├── screenshots/
+│   ├── celebrities.jpg
+│   ├── celebrity_galleries.jpg
+│   ├── display_setting.jpg
+│   ├── downloader.jpg
+│   ├── favourites.jpg
+│   ├── history.jpg
+│   ├── home.jpg
+│   └── link_history.jpg
+├── test/
+│   └── widget_test.dart
+├── web/
+└── windows/
 ```
 
 ---
