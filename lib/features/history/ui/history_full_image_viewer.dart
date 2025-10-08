@@ -28,16 +28,24 @@ class _FullImageViewerState extends State<FullImageViewer>
   late Animation<double> _appBarAnimation;
   late Animation<double> _fadeAnimation;
 
+  // Cache for loaded images
+  final Map<int, ImageProvider> _imageCache = {};
+  final Set<int> _precachedIndices = {};
+
   bool _firstBuild = true;
   bool _showControls = true;
   bool _isZoomed = false;
+  bool _isPageTransitioning = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndexNotifier = ValueNotifier(widget.initialIndex);
     _pageController = PageController(initialPage: widget.initialIndex);
-    _controllers = List.generate(widget.images.length, (_) => TransformationController());
+    _controllers = List.generate(
+        widget.images.length,
+            (_) => TransformationController()
+    );
 
     _appBarAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -50,11 +58,17 @@ class _FullImageViewerState extends State<FullImageViewer>
     );
 
     _appBarAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _appBarAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(
+        parent: _appBarAnimationController,
+        curve: Curves.easeInOut,
+      ),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(
+        parent: _fadeAnimationController,
+        curve: Curves.easeInOut,
+      ),
     );
 
     _appBarAnimationController.forward();
@@ -75,20 +89,65 @@ class _FullImageViewerState extends State<FullImageViewer>
     }
   }
 
+  // Enhanced precaching with extended range and caching strategy
   void _precacheAdjacentImages(int currentIndex) {
     final len = widget.images.length;
-    if (currentIndex > 0) {
-      precacheImage(FileImage(widget.images[currentIndex - 1]), context);
+
+    // Precache range: current ± 2 images for smoother scrolling
+    final indicesToCache = <int>[];
+
+    // Add current image
+    indicesToCache.add(currentIndex);
+
+    // Add previous images (up to 2)
+    if (currentIndex > 0) indicesToCache.add(currentIndex - 1);
+    if (currentIndex > 1) indicesToCache.add(currentIndex - 2);
+
+    // Add next images (up to 2)
+    if (currentIndex < len - 1) indicesToCache.add(currentIndex + 1);
+    if (currentIndex < len - 2) indicesToCache.add(currentIndex + 2);
+
+    // Precache images that haven't been cached yet
+    for (final index in indicesToCache) {
+      if (!_precachedIndices.contains(index)) {
+        final imageProvider = FileImage(widget.images[index]);
+        _imageCache[index] = imageProvider;
+
+        precacheImage(imageProvider, context).then((_) {
+          _precachedIndices.add(index);
+        }).catchError((error) {
+          debugPrint('Failed to precache image at index $index: $error');
+        });
+      }
     }
-    if (currentIndex < len - 1) {
-      precacheImage(FileImage(widget.images[currentIndex + 1]), context);
+
+    // Clean up cache for distant images to save memory
+    _cleanupDistantCache(currentIndex);
+  }
+
+  // Remove cached images that are too far from current position
+  void _cleanupDistantCache(int currentIndex) {
+    final indicesToRemove = <int>[];
+
+    for (final cachedIndex in _imageCache.keys) {
+      // Keep images within ±3 range
+      if ((cachedIndex - currentIndex).abs() > 3) {
+        indicesToRemove.add(cachedIndex);
+      }
+    }
+
+    for (final index in indicesToRemove) {
+      _imageCache.remove(index);
+      _precachedIndices.remove(index);
     }
   }
 
   @override
   void dispose() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-        overlays: SystemUiOverlay.values);
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
     _currentIndexNotifier.dispose();
     _pageController.dispose();
     _appBarAnimationController.dispose();
@@ -96,6 +155,8 @@ class _FullImageViewerState extends State<FullImageViewer>
     for (final controller in _controllers) {
       controller.dispose();
     }
+    _imageCache.clear();
+    _precachedIndices.clear();
     super.dispose();
   }
 
@@ -103,7 +164,6 @@ class _FullImageViewerState extends State<FullImageViewer>
     setState(() {
       _showControls = !_showControls;
     });
-
     if (_showControls) {
       _appBarAnimationController.forward();
     } else {
@@ -114,15 +174,16 @@ class _FullImageViewerState extends State<FullImageViewer>
   Future<void> _shareImage() async {
     final idx = _currentIndexNotifier.value;
     final imagePath = widget.images[idx].path;
-
     HapticFeedback.mediumImpact();
-    await Share.shareXFiles([XFile(imagePath)], text: 'Sharing image from Ragalahari Downloader');
+    await Share.shareXFiles(
+      [XFile(imagePath)],
+      text: 'Sharing image from Ragalahari Downloader',
+    );
   }
 
   Future<void> _deleteImage() async {
     final idx = _currentIndexNotifier.value;
     final confirmed = await _showDeleteDialog();
-
     if (confirmed != true) return;
 
     HapticFeedback.heavyImpact();
@@ -134,6 +195,11 @@ class _FullImageViewerState extends State<FullImageViewer>
 
     try {
       await imageFile.rename(newPath);
+
+      // Clean up cache for deleted image
+      _imageCache.remove(idx);
+      _precachedIndices.remove(idx);
+
       widget.images.removeAt(idx);
       _controllers.removeAt(idx);
 
@@ -145,6 +211,9 @@ class _FullImageViewerState extends State<FullImageViewer>
         _currentIndexNotifier.value = newIdx;
         setState(() {});
         _pageController.jumpToPage(newIdx);
+
+        // Recache after deletion
+        _precacheAdjacentImages(newIdx);
       }
 
       if (mounted) {
@@ -152,7 +221,9 @@ class _FullImageViewerState extends State<FullImageViewer>
           SnackBar(
             content: const Text('Image moved to recycle bin'),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -163,7 +234,9 @@ class _FullImageViewerState extends State<FullImageViewer>
             content: Text('Failed to delete image: $e'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Theme.of(context).colorScheme.error,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -176,9 +249,16 @@ class _FullImageViewerState extends State<FullImageViewer>
       builder: (context) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Delete Image', style: TextStyle(fontWeight: FontWeight.w700)),
-          content: const Text('Are you sure you want to move this image to the recycle bin?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Delete Image',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          content: const Text(
+            'Are you sure you want to move this image to the recycle bin?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -186,7 +266,9 @@ class _FullImageViewerState extends State<FullImageViewer>
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
               child: const Text('Delete'),
             ),
           ],
@@ -195,10 +277,12 @@ class _FullImageViewerState extends State<FullImageViewer>
     );
   }
 
-  void _onScaleUpdate(ScaleUpdateDetails details, TransformationController controller) {
+  void _onScaleUpdate(
+      ScaleUpdateDetails details,
+      TransformationController controller,
+      ) {
     final scale = controller.value.getMaxScaleOnAxis();
     final newIsZoomed = scale > 1.1;
-
     if (newIsZoomed != _isZoomed) {
       setState(() {
         _isZoomed = newIsZoomed;
@@ -209,7 +293,6 @@ class _FullImageViewerState extends State<FullImageViewer>
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
@@ -280,7 +363,10 @@ class _FullImageViewerState extends State<FullImageViewer>
     );
   }
 
-  Widget _buildGlassButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget _buildGlassButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(4),
       child: ClipRRect(
@@ -309,16 +395,26 @@ class _FullImageViewerState extends State<FullImageViewer>
     return PageView.builder(
       controller: _pageController,
       itemCount: widget.images.length,
+      physics: _isZoomed
+          ? const NeverScrollableScrollPhysics()
+          : const PageScrollPhysics(),
       onPageChanged: (int i) {
+        _isPageTransitioning = true;
         _currentIndexNotifier.value = i;
+
+        // Reset zoom for current page
         _controllers[i].value = Matrix4.identity();
+
         setState(() {
           _isZoomed = false;
         });
 
         HapticFeedback.selectionClick();
+
+        // Precache adjacent images
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _precacheAdjacentImages(i);
+          _isPageTransitioning = false;
         });
       },
       itemBuilder: (context, index) {
@@ -328,6 +424,8 @@ class _FullImageViewerState extends State<FullImageViewer>
           transformationController: controller,
           minScale: 1.0,
           maxScale: 4.0,
+          panEnabled: true,
+          scaleEnabled: true,
           onInteractionStart: (details) {
             if (details.pointerCount == 1) {
               _toggleControls();
@@ -359,33 +457,67 @@ class _FullImageViewerState extends State<FullImageViewer>
             },
             child: Hero(
               tag: 'image_${widget.images[index].path}',
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Image.file(
-                  widget.images[index],
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.broken_image_rounded, color: Colors.white70, size: 64),
-                          SizedBox(height: 16),
-                          Text(
-                            'Failed to load image',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              child: _buildCachedImage(index),
             ),
           ),
         );
       },
+    );
+  }
+
+  // Build image with caching support
+  Widget _buildCachedImage(int index) {
+    final imageProvider = _imageCache[index] ?? FileImage(widget.images[index]);
+
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Image(
+        image: imageProvider,
+        fit: BoxFit.contain,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) {
+            return child;
+          }
+
+          // Show loading indicator while image loads
+          return AnimatedOpacity(
+            opacity: frame == null ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            child: frame == null
+                ? Container(
+              color: Colors.grey[900],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                ),
+              ),
+            )
+                : child,
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.grey[900],
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.broken_image_rounded,
+                  color: Colors.white70,
+                  size: 64,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Failed to load image',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -437,7 +569,10 @@ class _FullImageViewerState extends State<FullImageViewer>
     );
   }
 
-  Widget _buildNavigationButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget _buildNavigationButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
     return ClipOval(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -473,17 +608,21 @@ class _FullImageViewerState extends State<FullImageViewer>
                 valueListenable: _currentIndexNotifier,
                 builder: (context, index, child) {
                   final fileName = widget.images[index].path.split('/').last;
-
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.1),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -493,7 +632,11 @@ class _FullImageViewerState extends State<FullImageViewer>
                                 color: Colors.white.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.image_rounded, color: Colors.white70, size: 20),
+                              child: const Icon(
+                                Icons.image_rounded,
+                                color: Colors.white70,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -515,11 +658,14 @@ class _FullImageViewerState extends State<FullImageViewer>
                                     future: widget.images[index].length(),
                                     builder: (context, snapshot) {
                                       if (snapshot.hasData) {
-                                        final sizeKB = (snapshot.data! / 1024).toStringAsFixed(1);
+                                        final sizeKB =
+                                        (snapshot.data! / 1024)
+                                            .toStringAsFixed(1);
                                         return Text(
                                           '$sizeKB KB',
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
+                                            color:
+                                            Colors.white.withOpacity(0.7),
                                             fontSize: 12,
                                           ),
                                         );

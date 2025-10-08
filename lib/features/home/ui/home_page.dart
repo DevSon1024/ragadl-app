@@ -9,9 +9,9 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../celebrity/ui/latest_actor_and_actress.dart';
 import '../../celebrity/ui/latest_celebrity.dart';
-import '../../downloader/ui/download_manager_page.dart';
 import '../../downloader/ui/link_history_page.dart';
 import '../../settings/ui/favourite_page.dart';
+import '../../history/ui/history_page.dart';
 
 class HomePage extends StatefulWidget {
   final Function({String? url, String? folder, String? title}) onDownloadSelected;
@@ -28,7 +28,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Keep the same sections but present them with a more modern UI.
   List<Map<String, dynamic>> sections = [
     {
       'title': 'Latest All Celebrities',
@@ -47,7 +46,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadSectionOrder() async {
-    // Loading a saved order if present to respect existing behavior.
     try {
       final prefs = await SharedPreferences.getInstance();
       final order = prefs.getStringList('section_order');
@@ -66,31 +64,42 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not launch $url')),
-      );
-    }
-  }
-
   void _openPage(Widget page) {
     Navigator.of(context).push(_ModernPageRoute(page));
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    try {
+      final uri = Uri.parse(urlString);
+      if (!await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication, // Force external browser
+      )) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not launch URL')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-
     return Scaffold(
       backgroundColor: color.surface,
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: false, // Changed to false to show device status bar
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: color.surface,
         surfaceTintColor: Colors.transparent,
         title: const Text(
           'Ragalahari Downloader',
@@ -124,6 +133,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         child: SafeArea(
+          top: false, // Don't apply safe area to top
           bottom: true,
           child: ListView(
             physics: const BouncingScrollPhysics(),
@@ -149,9 +159,11 @@ class _HomePageState extends State<HomePage> {
                 icon: section['icon'] as IconData,
                 onTap: () => _openPage(section['page'] as Widget),
               )),
-              const SizedBox(height: 4),
+              const SizedBox(height: 16),
+              // Social Links Section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildSocialLinks(context),
               ),
               const SizedBox(height: 24),
             ],
@@ -163,7 +175,6 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHeroHeader(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Container(
@@ -252,24 +263,12 @@ class _HomePageState extends State<HomePage> {
                     runSpacing: 10,
                     children: [
                       _HeroChip(
-                        icon: Icons.file_download_rounded,
-                        label: 'Download Manager',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const DownloadManagerPage()),
-                          );
-                        },
-                        foreground: color.onPrimary,
-                        background: color.onPrimary.withOpacity(0.10),
-                      ),
-                      _HeroChip(
                         icon: Icons.history_rounded,
-                        label: 'Link History',
+                        label: 'Download History',
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
+                            MaterialPageRoute(builder: (_) => const HistoryPage()),
                           );
                         },
                         foreground: color.onPrimary,
@@ -295,7 +294,6 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildQuickActions(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-
     return _Glass(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -305,7 +303,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Tip: Use Link History to quickly re‑open recent downloads.',
+                'Tip: Forgot last downloaded gallery, click Here for Link History.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -321,7 +319,54 @@ class _HomePageState extends State<HomePage> {
               },
               icon: const Icon(Icons.history_rounded),
               label: const Text('Open'),
-            )
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialLinks(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
+    return _Glass(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.link_rounded, color: color.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Connect With Us',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _SocialButton(
+              icon: Icons.code_rounded,
+              label: 'GitHub Repository',
+              color: Colors.black87,
+              onTap: () => _launchUrl('https://github.com/DevSon1024/ragalahari_downloader_2025'),
+            ),
+            const SizedBox(height: 8),
+            _SocialButton(
+              icon: Icons.new_releases_rounded,
+              label: 'Latest Release',
+              color: Colors.green,
+              onTap: () => _launchUrl('https://github.com/DevSon1024/ragalahari_downloader_2025/releases/latest'),
+            ),
+            const SizedBox(height: 8),
+            _SocialButton(
+              icon: Icons.telegram_rounded,
+              label: 'Telegram Channel',
+              color: Colors.blue,
+              onTap: () => _launchUrl('https://t.me/raga_downloader'),
+            ),
           ],
         ),
       ),
@@ -343,7 +388,6 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Material(
@@ -460,23 +504,25 @@ class _SocialButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: scheme.primaryContainer.withOpacity(0.55),
+          color: scheme.surfaceVariant.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: scheme.outline.withOpacity(0.2)),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: color, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: color,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
               ),
             ),
+            Icon(Icons.open_in_new_rounded, color: scheme.onSurfaceVariant, size: 18),
           ],
         ),
       ),
@@ -502,7 +548,7 @@ class _Glass extends StatelessWidget {
             color: color.shadow.withOpacity(0.06),
             blurRadius: 14,
             offset: const Offset(0, 6),
-          )
+          ),
         ],
       ),
       child: child,
@@ -524,109 +570,4 @@ class _ModernPageRoute extends PageRouteBuilder {
       );
     },
   );
-}
-
-// Image viewer remains available as in the original file with minor polish options if desired.
-class FullImagePage extends StatefulWidget {
-  final String imageUrl;
-  const FullImagePage({super.key, required this.imageUrl});
-
-  @override
-  State<FullImagePage> createState() => _FullImagePageState();
-}
-
-class _FullImagePageState extends State<FullImagePage> {
-  bool _isDownloading = false;
-
-  Future<void> _downloadImage(String imageUrl) async {
-    setState(() => _isDownloading = true);
-    try {
-      // Assuming a DownloadManager exists as in your project context.
-      final downloadManager = DownloadManager();
-      downloadManager.addDownload(
-        url: imageUrl,
-        folder: "SingleImages",
-        subFolder: DateTime.now().toString().split(' ')[0],
-        onProgress: (progress) {},
-        onComplete: (success) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(success ? 'Added to download manager' : 'Failed to add download'),
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to download: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isDownloading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('View Image'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Copy URL',
-            icon: const Icon(Icons.copy_rounded),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: widget.imageUrl));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Image URL copied to clipboard')),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Download',
-            icon: _isDownloading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.download_rounded),
-            onPressed: _isDownloading ? null : () => _downloadImage(widget.imageUrl),
-          ),
-        ],
-      ),
-      body: Container(
-        color: color.surface,
-        child: InteractiveViewer(
-          minScale: 0.1,
-          maxScale: 4.0,
-          child: Center(
-            child: CachedNetworkImage(
-              imageUrl: widget.imageUrl,
-              fit: BoxFit.contain,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Stub for DownloadManager to satisfy analyzer if not in scope here.
-// Remove this if your project already has the class imported properly.
-class DownloadManager {
-  void addDownload({
-    required String url,
-    required String folder,
-    required String subFolder,
-    required void Function(double) onProgress,
-    required void Function(bool) onComplete,
-  }) {
-    // Implemented in your project.
-  }
 }
