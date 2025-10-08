@@ -483,7 +483,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         _filteredUrls = _allGalleryUrls.where((url) {
           final galleryId = url
               .split('/')
-              .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
+              .where((segment) => RegExp(r'^\d+\$').hasMatch(segment))
               .firstOrNull;
           return galleryId != null && galleryId.startsWith(query);
         }).toList();
@@ -653,35 +653,44 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.photo_library_outlined,
-                                size: 14,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${item.pages} photos',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.calendar_today_outlined,
-                                size: 14,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  DateFormat('MMM dd, yyyy').format(item.date),
-                                  style: theme.textTheme.bodySmall?.copyWith(
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.photo_library_outlined,
+                                    size: 14,
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${item.pages} Page(s)',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 14,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      DateFormat('MMM dd, yyyy').format(item.date),
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -847,7 +856,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                 crossAxisCount: calculateGridColumns(context),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.72,
+                childAspectRatio: 0.68,
               ),
               itemCount: currentPageUrls.length,
               itemBuilder: (context, index) {
