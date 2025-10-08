@@ -28,6 +28,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Keep the same sections but present them with a more modern UI.
   List<Map<String, dynamic>> sections = [
     {
       'title': 'Latest All Celebrities',
@@ -43,23 +44,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadSectionOrder();
-    _setSystemUIOverlay();
-  }
-
-  void _setSystemUIOverlay() {
-    // Ensure status bar is visible and styled properly
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
-            ? Brightness.light
-            : Brightness.dark,
-        statusBarBrightness: Theme.of(context).brightness,
-      ),
-    );
   }
 
   Future<void> _loadSectionOrder() async {
+    // Loading a saved order if present to respect existing behavior.
     try {
       final prefs = await SharedPreferences.getInstance();
       final order = prefs.getStringList('section_order');
@@ -73,7 +61,9 @@ class _HomePageState extends State<HomePage> {
           setState(() => sections = reordered);
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Ignore ordering errors to keep UI resilient.
+    }
   }
 
   Future<void> _launchUrl(String url) async {
@@ -93,123 +83,79 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: brightness == Brightness.dark
-            ? Brightness.light
-            : Brightness.dark,
-        statusBarBrightness: brightness,
+    return Scaffold(
+      backgroundColor: color.surface,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        title: const Text(
+          'Ragalahari Downloader',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Link History',
+            icon: Icon(Icons.history_rounded, color: color.onSurface),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const LinkHistoryPage()));
+              FocusScope.of(context).unfocus();
+            },
+          ),
+          IconButton(
+            tooltip: 'Settings',
+            icon: Icon(Icons.settings_rounded, color: color.onSurface),
+            onPressed: widget.openSettings,
+          ),
+        ],
       ),
-      child: Scaffold(
-        backgroundColor: color.surface,
-        body: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Modern app bar with proper status bar spacing
-            SliverAppBar(
-              expandedHeight: 120,
-              floating: false,
-              pinned: true,
-              elevation: 0,
-              backgroundColor: color.surface,
-              surfaceTintColor: Colors.transparent,
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-                title: Text(
-                  'Ragalahari Downloader',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                    color: color.onSurface,
-                  ),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        color.primaryContainer.withOpacity(0.3),
-                        color.surface,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.primaryContainer.withOpacity(0.25),
+              color.surface,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          bottom: true,
+          child: ListView(
+            physics: const BouncingScrollPhysics(),
+            children: [
+              _buildHeroHeader(context),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildQuickActions(context),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Explore',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              actions: [
-                IconButton(
-                  tooltip: 'Link History',
-                  icon: Icon(Icons.history_rounded, color: color.onSurface),
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LinkHistoryPage()));
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-                IconButton(
-                  tooltip: 'Settings',
-                  icon: Icon(Icons.settings_rounded, color: color.onSurface),
-                  onPressed: widget.openSettings,
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-
-            // Content
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  _buildHeroHeader(context),
-                  const SizedBox(height: 20),
-                  _buildQuickActions(context),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Explore',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 22,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
+              const SizedBox(height: 8),
+              // Sections grid/list
+              ...sections.map((section) => _SectionCard(
+                title: section['title'] as String,
+                icon: section['icon'] as IconData,
+                onTap: () => _openPage(section['page'] as Widget),
+              )),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
               ),
-            ),
-
-            // Sections list
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    final section = sections[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _SectionCard(
-                        title: section['title'] as String,
-                        icon: section['icon'] as IconData,
-                        onTap: () => _openPage(section['page'] as Widget),
-                      ),
-                    );
-                  },
-                  childCount: sections.length,
-                ),
-              ),
-            ),
-
-            // Bottom spacing for navigation bar
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: MediaQuery.of(context).padding.bottom + 80,
-              ),
-            ),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -219,55 +165,56 @@ class _HomePageState extends State<HomePage> {
     final color = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              color.primary,
-              color.primary.withOpacity(0.85),
+              color.primary.withOpacity(0.90),
+              color.primary.withOpacity(0.75),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: color.primary.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: color.primary.withOpacity(0.25),
+              blurRadius: 18,
+              spreadRadius: 2,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
         child: Stack(
           children: [
-            // Decorative circles
+            // Subtle decorative overlay dots
             Positioned(
-              right: -40,
-              top: -40,
+              right: -24,
+              top: -24,
               child: Container(
-                width: 140,
-                height: 140,
+                width: 160,
+                height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+                  color: color.onPrimary.withOpacity(0.06),
                 ),
               ),
             ),
             Positioned(
-              left: -20,
-              bottom: -20,
+              left: -16,
+              bottom: -16,
               child: Container(
-                width: 100,
-                height: 100,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+                  color: color.onPrimary.withOpacity(0.06),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -276,89 +223,49 @@ class _HomePageState extends State<HomePage> {
                       onPanStart: (_) => windowManager.startDragging(),
                       child: Container(
                         height: 32,
-                        margin: const EdgeInsets.only(bottom: 8),
                         color: Colors.transparent,
                         alignment: Alignment.center,
                         child: Text(
                           'Drag here to move window',
-                          style: TextStyle(
-                            color: color.onPrimary.withOpacity(0.7),
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: color.onPrimary.withOpacity(0.7)),
                         ),
                       ),
                     ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          Icons.cloud_download_rounded,
-                          color: color.onPrimary,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome Back!',
-                              style: TextStyle(
-                                color: color.onPrimary.withOpacity(0.9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Start Exploring',
-                              style: TextStyle(
-                                color: color.onPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 22,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Welcome to Ragalahari Downloader',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: color.onPrimary,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Browse celebrities, actors, and more—then jump into downloads anytime.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: color.onPrimary.withOpacity(0.9),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Browse celebrities and manage your downloads in one place',
-                    style: TextStyle(
-                      color: color.onPrimary.withOpacity(0.85),
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 10,
+                    runSpacing: 10,
                     children: [
                       _HeroChip(
-                        icon: Icons.download_rounded,
-                        label: 'Downloads',
+                        icon: Icons.file_download_rounded,
+                        label: 'Download Manager',
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const DownloadManagerPage()),
                           );
                         },
-                        foreground: color.primary,
-                        background: color.onPrimary,
+                        foreground: color.onPrimary,
+                        background: color.onPrimary.withOpacity(0.10),
                       ),
                       _HeroChip(
                         icon: Icons.history_rounded,
-                        label: 'History',
+                        label: 'Link History',
                         onTap: () {
                           Navigator.push(
                             context,
@@ -366,7 +273,14 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         foreground: color.onPrimary,
-                        background: Colors.white.withOpacity(0.15),
+                        background: color.onPrimary.withOpacity(0.10),
+                      ),
+                      _HeroChip(
+                        icon: Icons.settings_rounded,
+                        label: 'Settings',
+                        onTap: widget.openSettings,
+                        foreground: color.onPrimary,
+                        background: color.onPrimary.withOpacity(0.10),
                       ),
                     ],
                   ),
@@ -382,41 +296,32 @@ class _HomePageState extends State<HomePage> {
   Widget _buildQuickActions(BuildContext context) {
     final color = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.surfaceContainerHighest.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.outline.withOpacity(0.1),
-          ),
-        ),
-        padding: const EdgeInsets.all(16),
+    return _Glass(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.primaryContainer,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.lightbulb_rounded,
-                color: color.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
+            Icon(Icons.lightbulb_rounded, color: color.primary),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Quick tip: Access recent downloads from History',
+                'Tip: Use Link History to quickly re‑open recent downloads.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color.onSurface.withOpacity(0.8),
-                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
+                );
+              },
+              icon: const Icon(Icons.history_rounded),
+              label: const Text('Open'),
+            )
           ],
         ),
       ),
@@ -439,57 +344,48 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: color.surface,
+        elevation: 2,
+        shadowColor: color.shadow.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: color.surfaceContainerHighest.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: color.outline.withOpacity(0.1),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.primary.withOpacity(0.12),
+                        color.primary.withOpacity(0.22),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(icon, color: color.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: color.onSurfaceVariant),
+              ],
             ),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color.primaryContainer,
-                      color.primaryContainer.withOpacity(0.7),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Icon(
-                  icon,
-                  color: color.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: color.onSurfaceVariant,
-                size: 18,
-              ),
-            ],
           ),
         ),
       ),
@@ -516,23 +412,23 @@ class _HeroChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: background,
-      borderRadius: BorderRadius.circular(12),
+      elevation: 0,
+      borderRadius: BorderRadius.circular(28),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(28),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: foreground, size: 18),
+              Icon(icon, color: foreground, size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
                   color: foreground,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -543,32 +439,94 @@ class _HeroChip extends StatelessWidget {
   }
 }
 
+class _SocialButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SocialButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer.withOpacity(0.55),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outline.withOpacity(0.2)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Glass extends StatelessWidget {
+  final Widget child;
+
+  const _Glass({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: color.surface.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.outline.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: color.shadow.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          )
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
 class _ModernPageRoute extends PageRouteBuilder {
   _ModernPageRoute(Widget page)
       : super(
-    transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (context, anim, secondary, child) {
-      final curved = CurvedAnimation(
-        parent: anim,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
+      final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
       return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0.03, 0),
-          end: Offset.zero,
-        ).animate(curved),
-        child: FadeTransition(
-          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
-          child: child,
-        ),
+        position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(curved),
+        child: FadeTransition(opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved), child: child),
       );
     },
   );
 }
 
+// Image viewer remains available as in the original file with minor polish options if desired.
 class FullImagePage extends StatefulWidget {
   final String imageUrl;
   const FullImagePage({super.key, required this.imageUrl});
@@ -583,6 +541,7 @@ class _FullImagePageState extends State<FullImagePage> {
   Future<void> _downloadImage(String imageUrl) async {
     setState(() => _isDownloading = true);
     try {
+      // Assuming a DownloadManager exists as in your project context.
       final downloadManager = DownloadManager();
       downloadManager.addDownload(
         url: imageUrl,
@@ -658,6 +617,8 @@ class _FullImagePageState extends State<FullImagePage> {
   }
 }
 
+// Stub for DownloadManager to satisfy analyzer if not in scope here.
+// Remove this if your project already has the class imported properly.
 class DownloadManager {
   void addDownload({
     required String url,
@@ -665,5 +626,7 @@ class DownloadManager {
     required String subFolder,
     required void Function(double) onProgress,
     required void Function(bool) onComplete,
-  }) {}
+  }) {
+    // Implemented in your project.
+  }
 }

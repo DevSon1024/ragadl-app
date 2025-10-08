@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ragalahari_downloader/features/celebrity/data/celebrity_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/celebrity_utils.dart';
 import 'gallery_links_page.dart';
 import '../../downloader/ui/ragalahari_downloader.dart';
-import '../utils/celebrity_image_cache.dart';
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
@@ -21,7 +19,6 @@ class CelebrityListPage extends StatefulWidget {
 class _CelebrityListPageState extends State<CelebrityListPage>
     with TickerProviderStateMixin {
   final CelebrityRepository _repository = CelebrityRepository.instance;
-  final CelebrityImageCache _imageCache = CelebrityImageCache();
   List<Map<String, String>> _filteredCelebrities = [];
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -75,7 +72,6 @@ class _CelebrityListPageState extends State<CelebrityListPage>
 
   Future<void> _initializeData() async {
     try {
-      await _imageCache.initialize();
       await _repository.loadCelebrities();
       if (mounted) {
         setState(() {
@@ -570,7 +566,6 @@ class _CelebrityListPageState extends State<CelebrityListPage>
                     celebrity: celebrity,
                     isFavorite: isFavorite,
                     theme: theme,
-                    imageCache: _imageCache,
                     onTap: () => Navigator.push(
                       context,
                       _createPageRoute(
@@ -601,7 +596,6 @@ class _CelebrityCard extends StatelessWidget {
   final Map<String, String> celebrity;
   final bool isFavorite;
   final ThemeData theme;
-  final CelebrityImageCache imageCache;
   final VoidCallback onTap;
   final VoidCallback onFavoriteToggle;
   final VoidCallback onDownloadPress;
@@ -610,7 +604,6 @@ class _CelebrityCard extends StatelessWidget {
     required this.celebrity,
     required this.isFavorite,
     required this.theme,
-    required this.imageCache,
     required this.onTap,
     required this.onFavoriteToggle,
     required this.onDownloadPress,
@@ -623,11 +616,9 @@ class _CelebrityCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
-        color: isFavorite ? color.primaryContainer.withOpacity(0.3) : color
-            .surface,
+        color: isFavorite ? color.primaryContainer.withOpacity(0.3) : color.surface,
         elevation: isFavorite ? 4 : 1,
-        shadowColor: isFavorite ? color.primary.withOpacity(0.2) : color.shadow
-            .withOpacity(0.1),
+        shadowColor: isFavorite ? color.primary.withOpacity(0.2) : color.shadow.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -636,13 +627,31 @@ class _CelebrityCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: isFavorite ? Border.all(
-                  color: color.primary.withOpacity(0.2)) : null,
+              border: isFavorite ? Border.all(color: color.primary.withOpacity(0.2)) : null,
             ),
             child: Row(
               children: [
-                // Celebrity avatar with image
-                _buildCelebrityAvatar(color),
+                // Celebrity avatar
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.primary.withOpacity(0.1),
+                        color.primary.withOpacity(0.2),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: color.primary,
+                    size: 28,
+                  ),
+                ),
 
                 const SizedBox(width: 16),
 
@@ -664,8 +673,7 @@ class _CelebrityCard extends StatelessWidget {
                       if (isFavorite)
                         Row(
                           children: [
-                            Icon(Icons.star_rounded, size: 14,
-                                color: Colors.amber),
+                            Icon(Icons.star_rounded, size: 14, color: Colors.amber),
                             const SizedBox(width: 4),
                             Text(
                               'Favorite',
@@ -687,123 +695,46 @@ class _CelebrityCard extends StatelessWidget {
                     // Favorite button
                     Container(
                       decoration: BoxDecoration(
-                        color: isFavorite
-                            ? Colors.amber.withOpacity(0.1)
-                            : color.surfaceVariant.withOpacity(0.5),
+                        color: isFavorite ? Colors.amber.withOpacity(0.1) : color.surfaceVariant.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
                         icon: Icon(
-                          isFavorite ? Icons.star_rounded : Icons
-                              .star_border_rounded,
-                          color: isFavorite ? Colors.amber : color
-                              .onSurfaceVariant,
+                          isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: isFavorite ? Colors.amber : color.onSurfaceVariant,
                           size: 20,
                         ),
                         onPressed: onFavoriteToggle,
-                        tooltip: isFavorite
-                            ? 'Remove from favorites'
-                            : 'Add to favorites',
+                        tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
                         padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(
-                            minWidth: 36, minHeight: 36),
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       ),
                     ),
 
                     const SizedBox(width: 8),
 
-                    // Download button (commented out as per original)
+                    // Download button
                     Container(
                       decoration: BoxDecoration(
                         color: color.primaryContainer.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(10),
                       ),
+                      // child: IconButton(
+                      //   icon: Icon(
+                      //     Icons.add_box_outlined,
+                      //     color: color.primary,
+                      //     size: 20,
+                      //   ),
+                      //   onPressed: onDownloadPress,
+                      //   tooltip: 'Add Name to Main Folder Input',
+                      //   padding: const EdgeInsets.all(8),
+                      //   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      // ),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCelebrityAvatar(ColorScheme color) {
-    final profileUrl = celebrity['url'];
-
-    if (profileUrl == null || profileUrl.isEmpty) {
-      return _buildPlaceholderAvatar(color);
-    }
-
-    return FutureBuilder<String?>(
-      future: imageCache.getImageUrl(profileUrl),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show shimmer loading effect
-          return _buildShimmerAvatar(color);
-        }
-
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          return _buildPlaceholderAvatar(color);
-        }
-
-        // Display cached network image
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: snapshot.data!,
-            width: 48,
-            height: 48,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => _buildShimmerAvatar(color),
-            errorWidget: (context, url, error) =>
-                _buildPlaceholderAvatar(color),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPlaceholderAvatar(ColorScheme color) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.primary.withOpacity(0.1),
-            color.primary.withOpacity(0.2),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(
-        Icons.person_rounded,
-        color: color.primary,
-        size: 28,
-      ),
-    );
-  }
-
-  Widget _buildShimmerAvatar(ColorScheme color) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: color.surfaceVariant.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(
-                color.primary.withOpacity(0.5)),
           ),
         ),
       ),
