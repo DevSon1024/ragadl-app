@@ -814,17 +814,6 @@ class _CelebrityCard extends StatelessWidget {
                         color: color.primaryContainer.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.add_box_outlined,
-                          color: color.primary,
-                          size: 20,
-                        ),
-                        onPressed: onDownloadPress,
-                        tooltip: 'Add Name to Main Folder Input',
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      ),
                     ),
                   ],
                 ),

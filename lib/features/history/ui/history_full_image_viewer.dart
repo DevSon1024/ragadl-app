@@ -456,7 +456,7 @@ class _FullImageViewerState extends State<FullImageViewer>
               });
             },
             child: Hero(
-              tag: 'image_${widget.images[index].path}',
+              tag: widget.images[index].path,
               child: _buildCachedImage(index),
             ),
           ),
