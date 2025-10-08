@@ -19,12 +19,24 @@ class CelebrityListPage extends StatefulWidget {
 class _CelebrityListPageState extends State<CelebrityListPage>
     with TickerProviderStateMixin {
   final CelebrityRepository _repository = CelebrityRepository.instance;
-  List<Map<String, String>> _filteredCelebrities = [];
+
+  // Paginated data
+  final List<Map<String, String>> _items = [];
+  final List<Map<String, String>> _searchResults = [];
+
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+
   SortOption _currentSortOption = SortOption.az;
+
   bool _isLoading = true;
+  bool _isFetching = false;
+  bool _hasMore = true;
   String? _errorMessage;
+
+  static const int _pageSize = 60;
+  int _nextOffset = 0;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -36,8 +48,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     super.initState();
     _setupAnimations();
     _loadSortOption();
-    _initializeData();
-    _searchController.addListener(_filterCelebrities);
+    _initializePaged();
+    _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
   }
 
   void _setupAnimations() {
@@ -45,16 +58,13 @@ class _CelebrityListPageState extends State<CelebrityListPage>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOutQuart),
     );
-
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
@@ -63,6 +73,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _fadeController.dispose();
@@ -70,16 +81,21 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     super.dispose();
   }
 
-  Future<void> _initializeData() async {
-    try {
-      await _repository.loadCelebrities();
-      if (mounted) {
-        setState(() {
-          _filteredCelebrities = List.from(_repository.celebrities);
-          _isLoading = false;
-          _sortCelebrities();
-        });
+  Future<void> _initializePaged() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _items.clear();
+      _searchResults.clear();
+      _nextOffset = 0;
+      _hasMore = true;
+    });
 
+    try {
+      await _repository.loadSources();
+      await _fetchNextPage(reset: true);
+      if (mounted) {
+        setState(() => _isLoading = false);
         _fadeController.forward();
         await Future.delayed(const Duration(milliseconds: 100));
         _slideController.forward();
@@ -91,6 +107,84 @@ class _CelebrityListPageState extends State<CelebrityListPage>
           _errorMessage = 'Failed to load celebrities. Please try again.';
         });
       }
+    }
+  }
+
+  Future<void> _fetchNextPage({bool reset = false}) async {
+    if (_isFetching || !_hasMore) return;
+
+    setState(() => _isFetching = true);
+
+    if (reset) {
+      _items.clear();
+      _nextOffset = 0;
+      _hasMore = true;
+    }
+
+    try {
+      final page = await _repository.fetchPage(
+        offset: _nextOffset,
+        limit: _pageSize,
+        sort: _currentSortOption,
+        category: _sortToCategory(_currentSortOption),
+      );
+
+      if (mounted) {
+        setState(() {
+          _items.addAll(page);
+          _nextOffset += page.length;
+          _hasMore = page.length == _pageSize;
+          _isFetching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isFetching = false);
+      }
+    }
+  }
+
+  CategoryOption _sortToCategory(SortOption option) {
+    switch (option) {
+      case SortOption.celebrityActors:
+        return CategoryOption.actors;
+      case SortOption.celebrityActresses:
+        return CategoryOption.actresses;
+      default:
+        return CategoryOption.all;
+    }
+  }
+
+  Future<void> _onSearchChanged() async {
+    final q = _searchController.text.trim();
+    if (q.isEmpty) {
+      if (mounted) setState(() => _searchResults.clear());
+      return;
+    }
+
+    try {
+      final matches = await _repository.searchByName(
+        query: q,
+        limit: 120,
+        category: _sortToCategory(_currentSortOption),
+      );
+      if (mounted) {
+        setState(() {
+          _searchResults
+            ..clear()
+            ..addAll(matches);
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _onScroll() {
+    if (_searchController.text.isNotEmpty) return;
+    if (!_hasMore || _isFetching) return;
+
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent * 0.7) {
+      _fetchNextPage();
     }
   }
 
@@ -113,53 +207,8 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   }
 
   void _sortCelebrities() {
-    setState(() {
-      _filteredCelebrities = List.from(_repository.celebrities);
-
-      // Apply category filters
-      switch (_currentSortOption) {
-        case SortOption.celebrityActors:
-          _filteredCelebrities = _filteredCelebrities
-              .where((celebrity) => _repository.actorUrls.contains(celebrity['url']))
-              .toList();
-          break;
-        case SortOption.celebrityActresses:
-          _filteredCelebrities = _filteredCelebrities
-              .where((celebrity) => _repository.actressUrls.contains(celebrity['url']))
-              .toList();
-          break;
-        case SortOption.celebrityAll:
-        case SortOption.az:
-        case SortOption.za:
-          break;
-      }
-
-      // Apply search filter
-      final query = _searchController.text.toLowerCase();
-      if (query.isNotEmpty) {
-        _filteredCelebrities = _filteredCelebrities
-            .where((celebrity) => celebrity['name']!.toLowerCase().contains(query))
-            .toList();
-      }
-
-      // Apply sorting
-      switch (_currentSortOption) {
-        case SortOption.az:
-        case SortOption.celebrityAll:
-        case SortOption.celebrityActors:
-        case SortOption.celebrityActresses:
-          _filteredCelebrities.sort((a, b) => a['name']!.compareTo(b['name']!));
-          break;
-        case SortOption.za:
-          _filteredCelebrities.sort((a, b) => b['name']!.compareTo(a['name']!));
-          break;
-      }
-    });
-  }
-
-  void _filterCelebrities() {
-    _sortCelebrities();
-    HapticFeedback.selectionClick();
+    _saveSortOption();
+    _initializePaged();
   }
 
   void _handleDownloadPress(String celebrityName) {
@@ -176,15 +225,17 @@ class _CelebrityListPageState extends State<CelebrityListPage>
 
   Future<void> _toggleCelebrityFavorite(String name, String url) async {
     HapticFeedback.mediumImpact();
-
     final prefs = await SharedPreferences.getInstance();
     const favoriteKey = 'favorites';
-    final favoritesJson = prefs.getStringList(favoriteKey) ?? <String>[];
+    final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
 
     List<FavoriteItem> favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map),
-    ))
+        .map((json) {
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      return FavoriteItem.fromJson(
+        decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+      );
+    })
         .toList();
 
     final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
@@ -218,17 +269,20 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   Future<bool> _isCelebrityFavorite(String name, String url) async {
     final prefs = await SharedPreferences.getInstance();
     const favoriteKey = 'favorites';
-    final favoritesJson = prefs.getStringList(favoriteKey) ?? <String>[];
-
+    final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
     final favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map),
-    ))
+        .map((json) {
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      return FavoriteItem.fromJson(
+        decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+      );
+    })
         .toList();
 
     return favorites.any((item) =>
     item.type == 'celebrity' && item.name == name && item.url == url);
   }
+
 
   SnackBar _createModernSnackBar(String message, bool isPositive) {
     final color = Theme.of(context).colorScheme;
@@ -246,7 +300,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
       ),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      backgroundColor: isPositive ? Colors.amber.withOpacity(0.9) : color.inverseSurface,
+      backgroundColor: isPositive
+          ? Colors.amber.withOpacity(0.9)
+          : color.inverseSurface,
       duration: const Duration(milliseconds: 2000),
     );
   }
@@ -259,12 +315,11 @@ class _CelebrityListPageState extends State<CelebrityListPage>
         const begin = Offset(0.0, 0.05);
         const end = Offset.zero;
         const curve = Curves.easeOutCubic;
-
         final tween = Tween(begin: begin, end: end);
         final curvedAnimation = CurvedAnimation(parent: animation, curve: curve);
         final offsetAnimation = tween.animate(curvedAnimation);
-
-        final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation);
+        final fadeAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation);
 
         return SlideTransition(
           position: offsetAnimation,
@@ -314,18 +369,22 @@ class _CelebrityListPageState extends State<CelebrityListPage>
             onSelected: (SortOption newValue) {
               setState(() {
                 _currentSortOption = newValue;
-                _saveSortOption();
-                _sortCelebrities();
               });
+              _sortCelebrities();
               HapticFeedback.selectionClick();
             },
             itemBuilder: (BuildContext context) => [
-              _buildPopupMenuItem(SortOption.az, 'A-Z', Icons.sort_by_alpha_rounded),
-              _buildPopupMenuItem(SortOption.za, 'Z-A', Icons.sort_by_alpha_rounded),
+              _buildPopupMenuItem(
+                  SortOption.az, 'A-Z', Icons.sort_by_alpha_rounded),
+              _buildPopupMenuItem(
+                  SortOption.za, 'Z-A', Icons.sort_by_alpha_rounded),
               const PopupMenuDivider(),
-              _buildPopupMenuItem(SortOption.celebrityAll, 'All Celebrities', Icons.people_rounded),
-              _buildPopupMenuItem(SortOption.celebrityActors, 'Actors', Icons.person_rounded),
-              _buildPopupMenuItem(SortOption.celebrityActresses, 'Actresses', Icons.person_outline_rounded),
+              _buildPopupMenuItem(SortOption.celebrityAll, 'All Celebrities',
+                  Icons.people_rounded),
+              _buildPopupMenuItem(
+                  SortOption.celebrityActors, 'Actors', Icons.person_rounded),
+              _buildPopupMenuItem(SortOption.celebrityActresses, 'Actresses',
+                  Icons.person_outline_rounded),
             ],
           ),
         ),
@@ -333,7 +392,8 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     );
   }
 
-  PopupMenuItem<SortOption> _buildPopupMenuItem(SortOption option, String title, IconData icon) {
+  PopupMenuItem<SortOption> _buildPopupMenuItem(
+      SortOption option, String title, IconData icon) {
     final color = Theme.of(context).colorScheme;
     final isSelected = _currentSortOption == option;
 
@@ -346,7 +406,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isSelected ? color.primary.withOpacity(0.1) : Colors.transparent,
+                color: isSelected
+                    ? color.primary.withOpacity(0.1)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -406,7 +468,6 @@ class _CelebrityListPageState extends State<CelebrityListPage>
               onPressed: () {
                 _searchController.clear();
                 _searchFocusNode.unfocus();
-                _filterCelebrities();
                 HapticFeedback.lightImpact();
               },
             ),
@@ -415,7 +476,6 @@ class _CelebrityListPageState extends State<CelebrityListPage>
           ),
           onChanged: (value) {
             setState(() {});
-            _filterCelebrities();
           },
         ),
       ),
@@ -431,7 +491,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
       return _buildErrorState(theme, color);
     }
 
-    if (_filteredCelebrities.isEmpty) {
+    final list = _searchController.text.isNotEmpty ? _searchResults : _items;
+
+    if (list.isEmpty && !_isLoading) {
       return _buildEmptyState(theme, color);
     }
 
@@ -451,7 +513,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
             ),
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(color.primary),
+              valueColor: AlwaysStoppedAnimation(color.primary),
             ),
           ),
           const SizedBox(height: 24),
@@ -502,7 +564,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
                   _isLoading = true;
                   _errorMessage = null;
                 });
-                _initializeData();
+                _initializePaged();
               },
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Try Again'),
@@ -526,7 +588,8 @@ class _CelebrityListPageState extends State<CelebrityListPage>
                 color: color.surfaceVariant.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.search_off_rounded, size: 64, color: color.onSurfaceVariant),
+              child: Icon(Icons.search_off_rounded,
+                  size: 64, color: color.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
             Text(
@@ -546,20 +609,41 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   }
 
   Widget _buildCelebrityList(ThemeData theme, ColorScheme color) {
+    final list = _searchController.text.isNotEmpty ? _searchResults : _items;
+    final itemCount = list.length + ((_hasMore && _searchController.text.isEmpty) ? 1 : 0);
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: _slideAnimation,
         child: ListView.builder(
+          controller: _scrollController,
           padding: const EdgeInsets.only(bottom: 100.0, top: 8),
           physics: const BouncingScrollPhysics(),
-          itemCount: _filteredCelebrities.length,
+          itemCount: itemCount,
           itemBuilder: (context, index) {
-            final celebrity = _filteredCelebrities[index];
+            if (index >= list.length) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation(color.primary),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final celebrity = list[index];
             return AnimatedContainer(
-              duration: Duration(milliseconds: 100 + (index * 50)),
+              duration: Duration(milliseconds: 100 + (index * 20)),
               child: FutureBuilder<bool>(
-                future: _isCelebrityFavorite(celebrity['name']!, celebrity['url']!),
+                future: _isCelebrityFavorite(
+                    celebrity['name']!, celebrity['url']!),
                 builder: (context, snapshot) {
                   final isFavorite = snapshot.data ?? false;
                   return _CelebrityCard(
@@ -580,7 +664,8 @@ class _CelebrityListPageState extends State<CelebrityListPage>
                       celebrity['name']!,
                       celebrity['url']!,
                     ),
-                    onDownloadPress: () => _handleDownloadPress(celebrity['name']!),
+                    onDownloadPress: () =>
+                        _handleDownloadPress(celebrity['name']!),
                   );
                 },
               ),
@@ -616,9 +701,13 @@ class _CelebrityCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
-        color: isFavorite ? color.primaryContainer.withOpacity(0.3) : color.surface,
+        color: isFavorite
+            ? color.primaryContainer.withOpacity(0.3)
+            : color.surface,
         elevation: isFavorite ? 4 : 1,
-        shadowColor: isFavorite ? color.primary.withOpacity(0.2) : color.shadow.withOpacity(0.1),
+        shadowColor: isFavorite
+            ? color.primary.withOpacity(0.2)
+            : color.shadow.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -627,7 +716,9 @@ class _CelebrityCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: isFavorite ? Border.all(color: color.primary.withOpacity(0.2)) : null,
+              border: isFavorite
+                  ? Border.all(color: color.primary.withOpacity(0.2))
+                  : null,
             ),
             child: Row(
               children: [
@@ -652,7 +743,6 @@ class _CelebrityCard extends StatelessWidget {
                     size: 28,
                   ),
                 ),
-
                 const SizedBox(width: 16),
 
                 // Celebrity name
@@ -695,41 +785,46 @@ class _CelebrityCard extends StatelessWidget {
                     // Favorite button
                     Container(
                       decoration: BoxDecoration(
-                        color: isFavorite ? Colors.amber.withOpacity(0.1) : color.surfaceVariant.withOpacity(0.5),
+                        color: isFavorite
+                            ? Colors.amber.withOpacity(0.1)
+                            : color.surfaceVariant.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
                         icon: Icon(
-                          isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                          isFavorite
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
                           color: isFavorite ? Colors.amber : color.onSurfaceVariant,
                           size: 20,
                         ),
                         onPressed: onFavoriteToggle,
-                        tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                        tooltip: isFavorite
+                            ? 'Remove from favorites'
+                            : 'Add to favorites',
                         padding: const EdgeInsets.all(8),
                         constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       ),
                     ),
-
                     const SizedBox(width: 8),
 
-                    // Download button
+                    // Download button (commented out in original)
                     Container(
                       decoration: BoxDecoration(
                         color: color.primaryContainer.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      // child: IconButton(
-                      //   icon: Icon(
-                      //     Icons.add_box_outlined,
-                      //     color: color.primary,
-                      //     size: 20,
-                      //   ),
-                      //   onPressed: onDownloadPress,
-                      //   tooltip: 'Add Name to Main Folder Input',
-                      //   padding: const EdgeInsets.all(8),
-                      //   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      // ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.add_box_outlined,
+                          color: color.primary,
+                          size: 20,
+                        ),
+                        onPressed: onDownloadPress,
+                        tooltip: 'Add Name to Main Folder Input',
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      ),
                     ),
                   ],
                 ),
