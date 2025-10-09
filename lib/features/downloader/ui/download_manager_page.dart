@@ -1,3 +1,5 @@
+// download_manager_page.dart - Enhanced version with tabs and concurrent downloads
+
 import 'dart:io';
 import 'dart:collection';
 import 'package:flutter/material.dart';
@@ -6,8 +8,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:open_file/open_file.dart';
 
-enum DownloadStatus { downloading, paused, completed, failed }
+enum DownloadStatus { downloading, paused, completed, failed, queued }
 
 class DownloadTask {
   final String url;
@@ -15,12 +18,16 @@ class DownloadTask {
   final String savePath;
   final String folder;
   final String subFolder;
-  final CancelToken cancelToken;
+  final String galleryName;
+  CancelToken cancelToken;
   double progress;
   DownloadStatus status;
   int retryCount;
   final void Function(double)? onProgress;
   final void Function(bool)? onComplete;
+  final DateTime addedTime;
+  DateTime? completedTime;
+  String? errorMessage;
 
   DownloadTask({
     required this.url,
@@ -28,13 +35,17 @@ class DownloadTask {
     required this.savePath,
     required this.folder,
     required this.subFolder,
+    required this.galleryName,
     required this.cancelToken,
     this.progress = 0.0,
-    this.status = DownloadStatus.downloading,
+    this.status = DownloadStatus.queued,
     this.retryCount = 0,
     this.onProgress,
     this.onComplete,
-  });
+    DateTime? addedTime,
+    this.completedTime,
+    this.errorMessage,
+  }) : addedTime = addedTime ?? DateTime.now();
 
   DownloadTask copyWith({
     String? url,
@@ -42,12 +53,16 @@ class DownloadTask {
     String? savePath,
     String? folder,
     String? subFolder,
+    String? galleryName,
     CancelToken? cancelToken,
     double? progress,
     DownloadStatus? status,
     int? retryCount,
     void Function(double)? onProgress,
     void Function(bool)? onComplete,
+    DateTime? addedTime,
+    DateTime? completedTime,
+    String? errorMessage,
   }) {
     return DownloadTask(
       url: url ?? this.url,
@@ -55,12 +70,16 @@ class DownloadTask {
       savePath: savePath ?? this.savePath,
       folder: folder ?? this.folder,
       subFolder: subFolder ?? this.subFolder,
+      galleryName: galleryName ?? this.galleryName,
       cancelToken: cancelToken ?? this.cancelToken,
       progress: progress ?? this.progress,
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
       onProgress: onProgress ?? this.onProgress,
       onComplete: onComplete ?? this.onComplete,
+      addedTime: addedTime ?? this.addedTime,
+      completedTime: completedTime ?? this.completedTime,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -68,33 +87,82 @@ class DownloadTask {
 class DownloadManager {
   static final DownloadManager _instance = DownloadManager._internal();
   factory DownloadManager() => _instance;
-  DownloadManager._internal();
+  DownloadManager._internal() {
+    _loadConcurrentDownloads();
+  }
 
   final Map<String, DownloadTask> _activeDownloads = {};
-  final List<String> _downloadQueue = [];
+  final Queue<String> _downloadQueue = Queue();
   final Dio _dio = Dio();
-  final Set<String> _downloadingUrls = <String>{};
-  int _batchDownloadCount = 0;
-  int _completedDownloads = 0;
-  int _failedDownloads = 0;
-  String? _currentBatchId;
-  static const int maxConcurrent = 5;
+  final Set<String> _downloadingUrls = {};
+
+  // Gallery-based download tracking
+  final Map<String, int> _galleryTotalCount = {};
+  final Map<String, int> _galleryCompletedCount = {};
+  final Map<String, int> _galleryFailedCount = {};
+  final Map<String, bool> _galleryNotificationShown = {};
+
+  int _maxConcurrentDownloads = 3; // Default value
   static const int maxRetries = 3;
 
   Map<String, DownloadTask> get activeDownloads => Map.unmodifiable(_activeDownloads);
 
-  Map<String, DownloadTask> get visibleDownloads {
+  int get maxConcurrentDownloads => _maxConcurrentDownloads;
+
+  // Get downloads by status
+  Map<String, DownloadTask> get runningDownloads {
     return Map.fromEntries(
         _activeDownloads.entries.where((entry) =>
-        entry.value.status == DownloadStatus.failed ||
-            entry.value.status == DownloadStatus.paused ||
-            entry.value.status == DownloadStatus.downloading));
+        entry.value.status == DownloadStatus.downloading ||
+            entry.value.status == DownloadStatus.queued
+        )
+    );
+  }
+
+  Map<String, DownloadTask> get failedDownloads {
+    return Map.fromEntries(
+        _activeDownloads.entries.where((entry) =>
+        entry.value.status == DownloadStatus.failed
+        )
+    );
+  }
+
+  Map<String, DownloadTask> get completedDownloads {
+    return Map.fromEntries(
+        _activeDownloads.entries.where((entry) =>
+        entry.value.status == DownloadStatus.completed
+        )
+    );
+  }
+
+  Map<String, DownloadTask> get pausedDownloads {
+    return Map.fromEntries(
+        _activeDownloads.entries.where((entry) =>
+        entry.value.status == DownloadStatus.paused
+        )
+    );
+  }
+
+  // Load concurrent downloads setting
+  Future<void> _loadConcurrentDownloads() async {
+    final prefs = await SharedPreferences.getInstance();
+    _maxConcurrentDownloads = prefs.getInt('max_concurrent_downloads') ?? 3;
+  }
+
+  // Set concurrent downloads limit
+  Future<void> setMaxConcurrentDownloads(int count) async {
+    if (count < 1 || count > 10) return;
+    _maxConcurrentDownloads = count;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('max_concurrent_downloads', count);
+    _processQueue();
   }
 
   Future<void> addDownload({
     required String url,
     required String folder,
     required String subFolder,
+    required String galleryName,
     required void Function(double progress) onProgress,
     required void Function(bool success) onComplete,
     String? batchId,
@@ -120,9 +188,10 @@ class DownloadManager {
         savePath: savePath,
         folder: folder,
         subFolder: subFolder,
+        galleryName: galleryName,
         cancelToken: cancelToken,
         progress: 0,
-        status: DownloadStatus.downloading,
+        status: DownloadStatus.queued,
         retryCount: 0,
         onProgress: onProgress,
         onComplete: onComplete,
@@ -130,27 +199,14 @@ class DownloadManager {
 
       _activeDownloads[url] = task;
 
+      // Initialize gallery tracking
       if (batchId != null) {
-        if (_currentBatchId == null || _currentBatchId != batchId) {
-          _currentBatchId = batchId;
-          _batchDownloadCount = 0;
-          _completedDownloads = 0;
-          _failedDownloads = 0;
-        }
-        _batchDownloadCount++;
-      }
+        _galleryTotalCount[batchId] = (_galleryTotalCount[batchId] ?? 0) + 1;
 
-      if (batchId != null && _batchDownloadCount == 1) {
-        await AwesomeNotifications().createNotification(
-          content: NotificationContent(
-            id: batchId.hashCode,
-            channelKey: 'download_channel',
-            title: 'Downloading Images',
-            body: 'Starting download of multiple images...',
-            notificationLayout: NotificationLayout.Default,
-            locked: true,
-          ),
-        );
+        // Show initial gallery notification only once
+        if (_galleryTotalCount[batchId] == 1) {
+          await _showGalleryProgressNotification(batchId, galleryName, 0, 1);
+        }
       }
 
       _enqueueDownload(task, batchId);
@@ -159,36 +215,25 @@ class DownloadManager {
         _activeDownloads.remove(url);
       }
       if (batchId != null) {
-        _failedDownloads++;
-        if (_completedDownloads + _failedDownloads == _batchDownloadCount) {
-          _notifyBatchComplete(batchId);
-        }
-      } else {
-        await AwesomeNotifications().createNotification(
-          content: NotificationContent(
-            id: url.hashCode,
-            channelKey: 'download_channel',
-            title: 'Download Failed',
-            body: 'Error downloading $url: $e',
-            notificationLayout: NotificationLayout.Default,
-            color: Colors.red,
-          ),
-        );
+        _galleryFailedCount[batchId] = (_galleryFailedCount[batchId] ?? 0) + 1;
       }
       onComplete(false);
     }
   }
 
   void _enqueueDownload(DownloadTask task, String? batchId) {
-    if (_downloadingUrls.length < maxConcurrent) {
+    if (_downloadingUrls.length < _maxConcurrentDownloads) {
       _startDownload(task, batchId);
     } else {
       _downloadQueue.add(task.url);
+      // Update status to queued
+      _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.queued);
     }
   }
 
   void _startDownload(DownloadTask task, String? batchId) {
     _downloadingUrls.add(task.url);
+    _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.downloading);
     _download(task, (success) {
       _handleDownloadComplete(task.url, success, batchId);
     });
@@ -200,77 +245,115 @@ class DownloadManager {
 
     if (success) {
       if (task != null) {
-        final completedTask = task.copyWith(status: DownloadStatus.completed, progress: 1.0);
+        final completedTask = task.copyWith(
+          status: DownloadStatus.completed,
+          progress: 1.0,
+          completedTime: DateTime.now(),
+        );
         _activeDownloads[url] = completedTask;
-        if (batchId == null) {
-          AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: url.hashCode,
-              channelKey: 'download_channel',
-              title: 'Download Completed',
-              body: '${task.fileName} downloaded successfully',
-              notificationLayout: NotificationLayout.Default,
-              color: Colors.green,
-              locked: false,
-            ),
-          );
-        } else {
-          _completedDownloads++;
+
+        if (batchId != null) {
+          _galleryCompletedCount[batchId] = (_galleryCompletedCount[batchId] ?? 0) + 1;
+          _updateGalleryProgress(batchId, task.galleryName);
         }
-        Future.delayed(const Duration(seconds: 2), () {
-          _activeDownloads.remove(url);
-        });
+
         task.onComplete?.call(true);
       }
     } else {
-      if (task != null && task.retryCount < maxRetries) {
+      if (task != null && task.retryCount < maxRetries && task.status != DownloadStatus.paused) {
+        // Retry logic
         final newTask = task.copyWith(
           retryCount: task.retryCount + 1,
           status: DownloadStatus.downloading,
           progress: 0.0,
+          cancelToken: CancelToken(),
         );
         _activeDownloads[url] = newTask;
         _startDownload(newTask, batchId);
         return;
       }
+
       // Final failure
       if (task != null) {
-        final failedTask = task.copyWith(status: DownloadStatus.failed);
+        final failedTask = task.copyWith(
+          status: DownloadStatus.failed,
+          errorMessage: 'Download failed after ${task.retryCount + 1} attempts',
+        );
         _activeDownloads[url] = failedTask;
-        if (batchId == null) {
-          AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: url.hashCode,
-              channelKey: 'download_channel',
-              title: 'Download Failed',
-              body: 'Failed to download ${task.fileName} after ${task.retryCount + 1} attempts',
-              notificationLayout: NotificationLayout.Default,
-              color: Colors.red,
-              locked: false,
-            ),
-          );
-        } else {
-          _failedDownloads++;
+
+        if (batchId != null) {
+          _galleryFailedCount[batchId] = (_galleryFailedCount[batchId] ?? 0) + 1;
+          _updateGalleryProgress(batchId, task.galleryName);
         }
+
         task.onComplete?.call(false);
       }
     }
 
-    if (batchId != null && _completedDownloads + _failedDownloads == _batchDownloadCount) {
-      _notifyBatchComplete(batchId);
-    }
-
-    _processQueue(batchId);
+    _processQueue();
   }
 
-  void _processQueue(String? batchId) {
-    while (_downloadQueue.isNotEmpty && _downloadingUrls.length < maxConcurrent) {
-      final url = _downloadQueue.removeAt(0);
+  void _processQueue() {
+    while (_downloadQueue.isNotEmpty && _downloadingUrls.length < _maxConcurrentDownloads) {
+      final url = _downloadQueue.removeFirst();
       final task = _activeDownloads[url];
-      if (task != null) {
-        _startDownload(task, batchId);
+      if (task != null && task.status != DownloadStatus.paused) {
+        _startDownload(task, null);
       }
     }
+  }
+
+  Future<void> _updateGalleryProgress(String batchId, String galleryName) async {
+    final total = _galleryTotalCount[batchId] ?? 0;
+    final completed = _galleryCompletedCount[batchId] ?? 0;
+    final failed = _galleryFailedCount[batchId] ?? 0;
+
+    // Update progress notification
+    await _showGalleryProgressNotification(batchId, galleryName, completed + failed, total);
+
+    // Check if all downloads are complete
+    if (completed + failed >= total) {
+      await _showGalleryCompleteNotification(batchId, galleryName, completed, failed);
+
+      // Cleanup
+      _galleryTotalCount.remove(batchId);
+      _galleryCompletedCount.remove(batchId);
+      _galleryFailedCount.remove(batchId);
+      _galleryNotificationShown.remove(batchId);
+    }
+  }
+
+  Future<void> _showGalleryProgressNotification(String batchId, String galleryName, int current, int total) async {
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: batchId.hashCode,
+        channelKey: 'download_channel',
+        title: 'Downloading $galleryName',
+        body: 'Progress: $current of $total images',
+        notificationLayout: NotificationLayout.ProgressBar,
+        progress: total > 0 ? ((current / total) * 100).toDouble() : 0,
+        locked: true,
+        category: NotificationCategory.Progress,
+      ),
+    );
+  }
+
+  Future<void> _showGalleryCompleteNotification(String batchId, String galleryName, int completed, int failed) async {
+    final prefs = await SharedPreferences.getInstance();
+    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
+    String folderPath = '$basePath/$galleryName';
+
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: DateTime.now().millisecondsSinceEpoch,
+        channelKey: 'download_channel',
+        title: '$galleryName Downloaded',
+        body: '$completed images saved to $folderPath${failed > 0 ? '\n$failed failed' : ''}',
+        notificationLayout: NotificationLayout.Default,
+        color: failed == 0 ? Colors.green : Colors.orange,
+        locked: false,
+      ),
+    );
   }
 
   Future<void> _download(
@@ -282,6 +365,7 @@ class DownloadManager {
     bool canResume = false;
     int? totalBytes;
 
+    // Check for partial downloads
     if (await file.exists()) {
       start = await file.length();
       if (start > 0) {
@@ -290,10 +374,11 @@ class DownloadManager {
             task.url,
             options: Options(
               headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
               },
             ),
           );
+
           if (headResponse.headers.value('accept-ranges') == 'bytes') {
             canResume = true;
             final totalStr = headResponse.headers.value('content-length');
@@ -303,6 +388,7 @@ class DownloadManager {
                 onCompleteInner(true);
                 return;
               }
+
               final initialProgress = start / totalBytes;
               _activeDownloads[task.url] = task.copyWith(progress: initialProgress);
               task.onProgress?.call(initialProgress);
@@ -319,12 +405,13 @@ class DownloadManager {
     }
 
     try {
-      final headers = <String, dynamic>{
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      final headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       };
       if (canResume && start > 0) {
         headers['Range'] = 'bytes=$start-';
       }
+
       await _dio.download(
         task.url,
         task.savePath,
@@ -332,11 +419,12 @@ class DownloadManager {
         deleteOnError: false,
         onReceiveProgress: (received, total) {
           double progress;
-          if (canResume && start > 0 && total != null) {
-            progress = (start + received) / total;
+          if (canResume && start > 0 && total != -1) {
+            progress = (start + received) / (total + start);
           } else {
             progress = total > 0 ? received / total : 0.0;
           }
+
           _activeDownloads[task.url] = task.copyWith(progress: progress);
           task.onProgress?.call(progress);
         },
@@ -348,40 +436,25 @@ class DownloadManager {
           sendTimeout: const Duration(seconds: 15),
         ),
       );
+
       onCompleteInner(true);
     } catch (e) {
-      print('Download error for ${task.url}: $e');
       if (e is DioException && CancelToken.isCancel(e)) {
-        onCompleteInner(false);
-      } else {
-        onCompleteInner(false);
+        // Don't mark as failed if paused
+        if (task.status == DownloadStatus.paused) {
+          onCompleteInner(false);
+          return;
+        }
       }
+      onCompleteInner(false);
     }
-  }
-
-  void _notifyBatchComplete(String batchId) {
-    AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: batchId.hashCode,
-        channelKey: 'download_channel',
-        title: 'Download Complete',
-        body: '$_completedDownloads Images Downloaded${_failedDownloads > 0 ? ', $_failedDownloads Failed' : ''}',
-        notificationLayout: NotificationLayout.Default,
-        color: _failedDownloads == 0 ? Colors.green : Colors.orange,
-        locked: false,
-      ),
-    );
-    _currentBatchId = null;
-    _batchDownloadCount = 0;
-    _completedDownloads = 0;
-    _failedDownloads = 0;
   }
 
   Future<Directory> _getDownloadDirectory(String folder, String subFolder) async {
     final prefs = await SharedPreferences.getInstance();
     String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
-    Directory directory;
 
+    Directory directory;
     if (Platform.isAndroid) {
       directory = Directory('$basePath/$folder/$subFolder');
     } else {
@@ -392,16 +465,17 @@ class DownloadManager {
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
+
     return directory;
   }
 
   void pauseDownload(String url) {
     final task = _activeDownloads[url];
     if (task != null && task.status == DownloadStatus.downloading) {
-      _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
       task.cancelToken.cancel('Download paused');
+      _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
       _downloadingUrls.remove(url);
-      _processQueue(null);
+      _processQueue();
     }
   }
 
@@ -411,7 +485,7 @@ class DownloadManager {
       final newCancelToken = CancelToken();
       final newTask = task.copyWith(
         cancelToken: newCancelToken,
-        status: DownloadStatus.downloading,
+        status: DownloadStatus.queued,
       );
       _activeDownloads[url] = newTask;
       _enqueueDownload(newTask, null);
@@ -424,22 +498,26 @@ class DownloadManager {
       if (task.status == DownloadStatus.downloading) {
         task.cancelToken.cancel('Download canceled');
         _downloadingUrls.remove(url);
-        _processQueue(null);
+        _processQueue();
       }
+
       _activeDownloads.remove(url);
       _downloadQueue.remove(url);
-      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused) {
-        AwesomeNotifications().createNotification(
-          content: NotificationContent(
-            id: url.hashCode,
-            channelKey: 'download_channel',
-            title: 'Download Cancelled',
-            body: '${task.fileName} download was cancelled',
-            notificationLayout: NotificationLayout.Default,
-            color: Colors.orange,
-          ),
-        );
-      }
+    }
+  }
+
+  void retryFailedDownload(String url) {
+    final task = _activeDownloads[url];
+    if (task != null && task.status == DownloadStatus.failed) {
+      final newTask = task.copyWith(
+        status: DownloadStatus.queued,
+        retryCount: 0,
+        progress: 0.0,
+        cancelToken: CancelToken(),
+        errorMessage: null,
+      );
+      _activeDownloads[url] = newTask;
+      _enqueueDownload(newTask, null);
     }
   }
 
@@ -452,11 +530,30 @@ class DownloadManager {
     }
   }
 
-  List<DownloadTask> getAllDownloads() {
-    return _activeDownloads.values.toList();
+  void clearCompleted() {
+    final completedUrls = _activeDownloads.entries
+        .where((entry) => entry.value.status == DownloadStatus.completed)
+        .map((entry) => entry.key)
+        .toList();
+
+    for (var url in completedUrls) {
+      _activeDownloads.remove(url);
+    }
+  }
+
+  void clearFailed() {
+    final failedUrls = _activeDownloads.entries
+        .where((entry) => entry.value.status == DownloadStatus.failed)
+        .map((entry) => entry.key)
+        .toList();
+
+    for (var url in failedUrls) {
+      _activeDownloads.remove(url);
+    }
   }
 }
 
+// Main Download Manager Page with Tabs
 class DownloadManagerPage extends StatefulWidget {
   const DownloadManagerPage({super.key});
 
@@ -464,394 +561,601 @@ class DownloadManagerPage extends StatefulWidget {
   _DownloadManagerPageState createState() => _DownloadManagerPageState();
 }
 
-class _DownloadManagerPageState extends State<DownloadManagerPage> {
+class _DownloadManagerPageState extends State<DownloadManagerPage> with SingleTickerProviderStateMixin {
   final DownloadManager _downloadManager = DownloadManager();
-  Map<String, DownloadTask> _downloadTasks = {};
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _loadVisibleDownloads();
+    _tabController = TabController(length: 3, vsync: this);
+    _refreshDownloads();
+  }
 
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        _refreshDownloads();
-      }
-    });
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _refreshDownloads() {
     if (mounted) {
-      setState(() {
-        _downloadTasks = _downloadManager.activeDownloads;
-      });
+      setState(() {});
       Future.delayed(const Duration(seconds: 1), () {
         _refreshDownloads();
       });
     }
   }
 
-  void _loadVisibleDownloads() {
-    setState(() {
-      _downloadTasks = _downloadManager.visibleDownloads;
-    });
-  }
+  Future<void> _showConcurrentDownloadsDialog() async {
+    int currentValue = _downloadManager.maxConcurrentDownloads;
 
-  void _cancelAllDownloadsAndDeleteFolder() async {
-    final urls = List<String>.from(_downloadTasks.keys);
-    for (final url in urls) {
-      _downloadManager.cancelDownload(url);
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
-    for (var task in _downloadTasks.values) {
-      final folderPath = Directory('$basePath/${task.folder}/${task.subFolder}');
-      if (await folderPath.exists()) {
-        await folderPath.delete(recursive: true);
-      }
-    }
-
-    setState(() {
-      _downloadTasks.clear();
-    });
-    _loadVisibleDownloads();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('All downloads cancelled and folders deleted')),
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Concurrent Downloads'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Select how many downloads can run simultaneously'),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Threads: $currentValue', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('${currentValue} at once'),
+                    ],
+                  ),
+                  Slider(
+                    value: currentValue.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    label: currentValue.toString(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        currentValue = value.toInt();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    currentValue <= 3 ? 'Light Load - Recommended for slower connections' :
+                    currentValue <= 6 ? 'Moderate Load - Balanced performance' :
+                    'Heavy Load - For fast connections only',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    _downloadManager.setMaxConcurrentDownloads(currentValue);
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Concurrent downloads set to $currentValue')),
+                    );
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Download Manager',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            onPressed: _clearFailedAndPaused,
-            tooltip: 'Clear Failed & Paused Downloads',
-          ),
-          IconButton(
-            icon: const Icon(Icons.cancel),
-            onPressed: _cancelAllDownloadsAndDeleteFolder,
-            tooltip: 'Cancel All Downloads and Delete Folders',
-          ),
-        ],
-      ),
-      body: _downloadTasks.isEmpty
-          ? const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.download_done,
-              size: 64,
-              color: Colors.grey,
+        title: const Text('Download Manager', style: TextStyle(fontWeight: FontWeight.bold)),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.downloading_rounded),
+              text: 'Running (${_downloadManager.runningDownloads.length + _downloadManager.pausedDownloads.length})',
             ),
-            SizedBox(height: 16),
-            Text(
-              'No active downloads',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
+            Tab(
+              icon: const Icon(Icons.error_rounded),
+              text: 'Failed (${_downloadManager.failedDownloads.length})',
             ),
-            SizedBox(height: 8),
-            Text(
-              'Failed and paused downloads will appear here',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+            Tab(
+              icon: const Icon(Icons.check_circle_rounded),
+              text: 'Completed (${_downloadManager.completedDownloads.length})',
             ),
           ],
         ),
-      )
-          : ListView(
-        children: _downloadTasks.values.map((task) => DownloadItem(
-          task: task,
-          onPause: () => _pauseDownload(task.url),
-          onResume: () => _resumeDownload(task.url),
-          onCancel: () => _cancelDownload(task.url),
-          onRemove: () => _removeDownload(task.url),
-          onRedownload: task.status == DownloadStatus.failed
-              ? () => _redownloadFailed(task.url)
-              : null,
-        )).toList(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _showConcurrentDownloadsDialog,
+            tooltip: 'Concurrent Downloads Settings',
+          ),
+        ],
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          RunningDownloadsTab(downloadManager: _downloadManager),
+          FailedDownloadsTab(downloadManager: _downloadManager),
+          CompletedDownloadsTab(downloadManager: _downloadManager),
+        ],
       ),
     );
   }
+}
 
-  void _pauseDownload(String url) {
-    _downloadManager.pauseDownload(url);
-    _loadVisibleDownloads();
-  }
+// Running Downloads Tab
+class RunningDownloadsTab extends StatelessWidget {
+  final DownloadManager downloadManager;
 
-  void _resumeDownload(String url) {
-    _downloadManager.resumeDownload(url);
-    _loadVisibleDownloads();
-  }
+  const RunningDownloadsTab({super.key, required this.downloadManager});
 
-  void _cancelDownload(String url) {
-    _downloadManager.cancelDownload(url);
-    _loadVisibleDownloads();
-  }
+  @override
+  Widget build(BuildContext context) {
+    final runningTasks = {...downloadManager.runningDownloads, ...downloadManager.pausedDownloads};
 
-  void _removeDownload(String url) {
-    _downloadManager.removeCompletedDownload(url);
-    _loadVisibleDownloads();
-  }
-
-  void _clearFailedAndPaused() {
-    final urlsToRemove = _downloadTasks.keys
-        .where((url) =>
-    _downloadTasks[url]!.status == DownloadStatus.failed ||
-        _downloadTasks[url]!.status == DownloadStatus.paused)
-        .toList();
-
-    for (final url in urlsToRemove) {
-      _downloadManager.removeCompletedDownload(url);
-    }
-    _loadVisibleDownloads();
-
-    if (urlsToRemove.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cleared ${urlsToRemove.length} downloads')),
+    if (runningTasks.isEmpty) {
+      return _buildEmptyState(
+        context,
+        Icons.download_done_rounded,
+        'No active downloads',
+        'Downloads in progress will appear here',
       );
     }
+
+    return ListView.builder(
+      itemCount: runningTasks.length,
+      padding: const EdgeInsets.all(8),
+      itemBuilder: (context, index) {
+        final task = runningTasks.values.elementAt(index);
+        return RunningDownloadItem(
+          task: task,
+          onPause: () => downloadManager.pauseDownload(task.url),
+          onResume: () => downloadManager.resumeDownload(task.url),
+          onCancel: () => downloadManager.cancelDownload(task.url),
+        );
+      },
+    );
   }
 
-  void _redownloadFailed(String url) {
-    final task = _downloadTasks[url];
-    if (task != null && task.status == DownloadStatus.failed) {
-      _downloadManager.removeCompletedDownload(url);
-      _downloadManager.addDownload(
-        url: task.url,
-        folder: task.folder,
-        subFolder: task.subFolder,
-        onProgress: (progress) {
-          if (mounted) {
-            setState(() {
-              final currentTask = _downloadManager.activeDownloads[url];
-              if (currentTask != null) {
-                _downloadTasks[url] = currentTask;
-              } else {
-                _downloadTasks[url] = task.copyWith(progress: progress, status: DownloadStatus.downloading);
-              }
-            });
-          }
-        },
-        onComplete: (success) {
-          if (mounted) {
-            setState(() {
-              _loadVisibleDownloads();
-            });
-          }
-        },
-      );
-    }
+  Widget _buildEmptyState(BuildContext context, IconData icon, String title, String subtitle) {
+    final color = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: color.outline),
+          const SizedBox(height: 16),
+          Text(title, style: TextStyle(fontSize: 18, color: color.onSurface, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(subtitle, style: TextStyle(fontSize: 14, color: color.onSurfaceVariant)),
+        ],
+      ),
+    );
   }
 }
 
-class DownloadItem extends StatelessWidget {
+class RunningDownloadItem extends StatelessWidget {
   final DownloadTask task;
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onCancel;
-  final VoidCallback? onRemove;
-  final VoidCallback? onRedownload;
 
-  const DownloadItem({
+  const RunningDownloadItem({
     super.key,
     required this.task,
     required this.onPause,
     required this.onResume,
     required this.onCancel,
-    this.onRemove,
-    this.onRedownload,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: () {
-        if (task.status == DownloadStatus.failed || task.status == DownloadStatus.paused) {
-          _copyImageUrlToClipboard(task.url, context);
-        }
-      },
-      child: Card(
-        margin: const EdgeInsets.all(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          task.fileName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${task.folder}/${task.subFolder}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (task.retryCount > 0)
-                          Text(
-                            'Retries: ${task.retryCount}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.orange,
-                            ),
-                          ),
-                      ],
-                    ),
+    final color = Theme.of(context).colorScheme;
+    final isPaused = task.status == DownloadStatus.paused;
+    final isQueued = task.status == DownloadStatus.queued;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.fileName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${task.folder}/${task.subFolder}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  _buildStatusChip(task.status),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: task.progress,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _getColorForStatus(task.status),
                 ),
+                _buildStatusChip(task.status, color),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: isQueued ? null : task.progress,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation(
+                isPaused ? Colors.orange : isQueued ? Colors.blue[300] : Colors.blue,
               ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${(task.progress * 100).toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: onRemove,
-                          tooltip: 'Remove from list',
-                          iconSize: 20,
-                        ),
-                        if (task.status == DownloadStatus.failed)
-                          IconButton(
-                            icon: const Icon(Icons.refresh),
-                            onPressed: () => onRedownload?.call(),
-                            tooltip: 'Retry download',
-                            iconSize: 20,
-                          ),
-                        if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
-                          IconButton(
-                            icon: Icon(
-                              task.status == DownloadStatus.paused ? Icons.play_arrow : Icons.pause,
-                            ),
-                            onPressed: task.status == DownloadStatus.paused ? onResume : onPause,
-                            tooltip: task.status == DownloadStatus.paused ? 'Resume' : 'Pause',
-                            iconSize: 20,
-                          ),
-                        if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.paused)
-                          IconButton(
-                            icon: const Icon(Icons.cancel),
-                            onPressed: onCancel,
-                            tooltip: 'Cancel',
-                            iconSize: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isQueued ? 'Queued...' : '${(task.progress * 100).toStringAsFixed(1)}%',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isQueued) ...[
+                      IconButton(
+                        icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
+                        onPressed: isPaused ? onResume : onPause,
+                        tooltip: isPaused ? 'Resume' : 'Pause',
+                        iconSize: 20,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.cancel),
+                        onPressed: onCancel,
+                        tooltip: 'Cancel',
+                        iconSize: 20,
+                      ),
+                    ],
+                    if (isQueued)
+                      IconButton(
+                        icon: const Icon(Icons.cancel),
+                        onPressed: onCancel,
+                        tooltip: 'Cancel',
+                        iconSize: 20,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _copyImageUrlToClipboard(String url, BuildContext context) {
-    Clipboard.setData(ClipboardData(text: url));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Image URL copied to clipboard')),
-    );
-  }
-
-  Widget _buildStatusChip(DownloadStatus status) {
+  Widget _buildStatusChip(DownloadStatus status, ColorScheme color) {
     String label;
-    Color color;
+    Color chipColor;
 
     switch (status) {
       case DownloadStatus.downloading:
         label = 'Downloading';
-        color = Colors.blue;
+        chipColor = Colors.blue;
         break;
       case DownloadStatus.paused:
         label = 'Paused';
-        color = Colors.orange;
+        chipColor = Colors.orange;
         break;
-      case DownloadStatus.completed:
-        label = 'Completed';
-        color = Colors.green;
+      case DownloadStatus.queued:
+        label = 'Queued';
+        chipColor = Colors.grey;
         break;
-      case DownloadStatus.failed:
-        label = 'Failed';
-        color = Colors.red;
-        break;
+      default:
+        label = 'Unknown';
+        chipColor = Colors.grey;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: chipColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
+        border: Border.all(color: chipColor),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+        style: TextStyle(color: chipColor, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+// Failed Downloads Tab
+class FailedDownloadsTab extends StatelessWidget {
+  final DownloadManager downloadManager;
+
+  const FailedDownloadsTab({super.key, required this.downloadManager});
+
+  @override
+  Widget build(BuildContext context) {
+    final failedTasks = downloadManager.failedDownloads;
+
+    if (failedTasks.isEmpty) {
+      return _buildEmptyState(
+        context,
+        Icons.check_circle_outline_rounded,
+        'No failed downloads',
+        'Failed downloads will appear here',
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  downloadManager.clearFailed();
+                },
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear All'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: failedTasks.length,
+            padding: const EdgeInsets.all(8),
+            itemBuilder: (context, index) {
+              final task = failedTasks.values.elementAt(index);
+              return FailedDownloadItem(
+                task: task,
+                onRetry: () => downloadManager.retryFailedDownload(task.url),
+                onRemove: () => downloadManager.removeCompletedDownload(task.url),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, IconData icon, String title, String subtitle) {
+    final color = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: color.outline),
+          const SizedBox(height: 16),
+          Text(title, style: TextStyle(fontSize: 18, color: color.onSurface, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(subtitle, style: TextStyle(fontSize: 14, color: color.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+}
+
+class FailedDownloadItem extends StatelessWidget {
+  final DownloadTask task;
+  final VoidCallback onRetry;
+  final VoidCallback onRemove;
+
+  const FailedDownloadItem({
+    super.key,
+    required this.task,
+    required this.onRetry,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.error, color: Colors.red),
+        ),
+        title: Text(
+          task.fileName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${task.folder}/${task.subFolder}'),
+            if (task.errorMessage != null)
+              Text(
+                task.errorMessage!,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: onRetry,
+              tooltip: 'Retry',
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: onRemove,
+              tooltip: 'Remove',
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Color _getColorForStatus(DownloadStatus status) {
-    switch (status) {
-      case DownloadStatus.downloading:
-        return Colors.blue;
-      case DownloadStatus.paused:
-        return Colors.orange;
-      case DownloadStatus.completed:
-        return Colors.green;
-      case DownloadStatus.failed:
-        return Colors.red;
+// Completed Downloads Tab
+class CompletedDownloadsTab extends StatelessWidget {
+  final DownloadManager downloadManager;
+
+  const CompletedDownloadsTab({super.key, required this.downloadManager});
+
+  @override
+  Widget build(BuildContext context) {
+    final completedTasks = downloadManager.completedDownloads.values.toList()
+      ..sort((a, b) => (b.completedTime ?? DateTime.now()).compareTo(a.completedTime ?? DateTime.now()));
+
+    if (completedTasks.isEmpty) {
+      return _buildEmptyState(
+        context,
+        Icons.history_rounded,
+        'No completed downloads',
+        'Completed downloads history will appear here',
+      );
     }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  downloadManager.clearCompleted();
+                },
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear History'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: completedTasks.length,
+            padding: const EdgeInsets.all(8),
+            itemBuilder: (context, index) {
+              final task = completedTasks[index];
+              return CompletedDownloadItem(
+                task: task,
+                onTap: () async {
+                  final result = await OpenFile.open(task.savePath);
+                  if (result.type != ResultType.done) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Could not open file: ${result.message}')),
+                    );
+                  }
+                },
+                onRemove: () => downloadManager.removeCompletedDownload(task.url),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, IconData icon, String title, String subtitle) {
+    final color = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: color.outline),
+          const SizedBox(height: 16),
+          Text(title, style: TextStyle(fontSize: 18, color: color.onSurface, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(subtitle, style: TextStyle(fontSize: 14, color: color.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+}
+
+class CompletedDownloadItem extends StatelessWidget {
+  final DownloadTask task;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const CompletedDownloadItem({
+    super.key,
+    required this.task,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  String _formatTime(DateTime? time) {
+    if (time == null) return '';
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inMinutes < 1) return 'Just now';
+    if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+    if (difference.inDays < 1) return '${difference.inHours}h ago';
+    return '${difference.inDays}d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.check_circle, color: Colors.green),
+        ),
+        title: Text(
+          task.fileName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(task.savePath, style: const TextStyle(fontSize: 11)),
+            Text(
+              _formatTime(task.completedTime),
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline),
+          onPressed: onRemove,
+          tooltip: 'Remove from history',
+        ),
+        onTap: onTap,
+      ),
+    );
   }
 }

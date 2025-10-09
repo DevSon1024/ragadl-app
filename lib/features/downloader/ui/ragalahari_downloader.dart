@@ -9,7 +9,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'dart:math';
 import 'download_manager_page.dart';
-import 'package:ragalahari_downloader/main.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
@@ -455,6 +454,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     });
   }
 
+  // In ragalahari_downloader.dart, update the _downloadAllImages and _downloadSelectedImages methods:
+
   Future<void> _downloadAllImages() async {
     try {
       setState(() {
@@ -465,6 +466,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
 
       final downloadManager = DownloadManager();
       final batchId = DateTime.now().millisecondsSinceEpoch.toString();
+      final galleryName = widget.galleryTitle ?? mainFolderName;
 
       for (int i = 0; i < imageUrls.length; i++) {
         final imageUrl = imageUrls[i].originalUrl;
@@ -472,6 +474,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
+          galleryName: galleryName,
           batchId: batchId,
           onProgress: (progress) {},
           onComplete: (success) {
@@ -515,6 +518,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
 
       final downloadManager = DownloadManager();
       final batchId = DateTime.now().millisecondsSinceEpoch.toString();
+      final galleryName = widget.galleryTitle ?? mainFolderName;
 
       for (int index in selectedImages) {
         final imageUrl = imageUrls[index].originalUrl;
@@ -522,6 +526,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
           url: imageUrl,
           folder: mainFolderName,
           subFolder: subFolderName,
+          galleryName: galleryName,
           batchId: batchId,
           onProgress: (progress) {},
           onComplete: (success) {
@@ -635,7 +640,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: _buildHeaderSection(theme, color, size)),
+              // SliverToBoxAdapter(child: _buildHeaderSection(theme, color, size)),
               SliverToBoxAdapter(child: _buildControlsSection(theme, color)),
               if (isLoading) SliverToBoxAdapter(child: _buildLoadingSection(theme, color)),
               if (_error != null) SliverToBoxAdapter(child: _buildErrorSection(theme, color)),
@@ -675,54 +680,54 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     return null;
   }
 
-  Widget _buildHeaderSection(ThemeData theme, ColorScheme color, Size size) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.primaryContainer.withOpacity(0.3),
-            color.primaryContainer.withOpacity(0.1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.outline.withOpacity(0.1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        'Enter gallery URL and folder name to begin',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: color.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (imageUrls.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _buildStatsCard(theme, color),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget _buildHeaderSection(ThemeData theme, ColorScheme color, Size size) {
+  //   return Container(
+  //     margin: const EdgeInsets.all(16),
+  //     decoration: BoxDecoration(
+  //       gradient: LinearGradient(
+  //         colors: [
+  //           color.primaryContainer.withOpacity(0.3),
+  //           color.primaryContainer.withOpacity(0.1),
+  //         ],
+  //         begin: Alignment.topLeft,
+  //         end: Alignment.bottomRight,
+  //       ),
+  //       borderRadius: BorderRadius.circular(20),
+  //       border: Border.all(color: color.outline.withOpacity(0.1)),
+  //     ),
+  //     child: Padding(
+  //       padding: const EdgeInsets.all(20),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Row(
+  //             children: [
+  //               const SizedBox(width: 16),
+  //               Expanded(
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   children: [
+  //                     const SizedBox(height: 4),
+  //                     Text(
+  //                       'Enter gallery URL and folder name to begin',
+  //                       style: theme.textTheme.bodyMedium?.copyWith(
+  //                         color: color.onSurfaceVariant,
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //           if (imageUrls.isNotEmpty) ...[
+  //             const SizedBox(height: 16),
+  //             _buildStatsCard(theme, color),
+  //           ],
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildStatsCard(ThemeData theme, ColorScheme color) {
     return Container(
@@ -1346,61 +1351,71 @@ class FullImagePage extends StatefulWidget {
 }
 
 class _FullImagePageState extends State<FullImagePage> {
-  late PageController _pageController;
-  late int _currentIndex;
-  bool _isDownloading = false;
-  final List<TransformationController> _transformationControllers = [];
+  late PageController pageController;
+  late int currentIndex;
+  bool isDownloading = false;  // Add this state variable
+  final List<TransformationController> transformationControllers = [];
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
+    currentIndex = widget.initialIndex;
+    pageController = PageController(initialPage: widget.initialIndex);
     for (int i = 0; i < widget.imageUrls.length; i++) {
-      _transformationControllers.add(TransformationController());
+      transformationControllers.add(TransformationController());
     }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
-    for (var controller in _transformationControllers) {
+    pageController.dispose();
+    for (var controller in transformationControllers) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  Future<void> _downloadImage(String imageUrl) async {
-    setState(() => _isDownloading = true);
+  Future<void> downloadImage(String imageUrl) async {
+    setState(() {
+      isDownloading = true;
+    });
+
     try {
       final downloadManager = DownloadManager();
       downloadManager.addDownload(
         url: imageUrl,
-        folder: "SingleImages",
+        folder: 'SingleImages',
         subFolder: DateTime.now().toString().split(' ')[0],
+        galleryName: 'Single Image',  // Added required parameter
         onProgress: (progress) {},
         onComplete: (success) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(success
-                    ? 'Added to download manager'
-                    : 'Failed to add download')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(success ? 'Added to download manager' : 'Failed to add download'),
+              ),
+            );
           }
         },
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to download: $e')));
+          SnackBar(content: Text('Failed to download: $e')),
+        );
       }
     } finally {
-      if (mounted) setState(() => _isDownloading = false);
+      if (mounted) {
+        setState(() {
+          isDownloading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentImageData = widget.imageUrls[_currentIndex];
+    final currentImageData = widget.imageUrls[currentIndex];
     final color = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -1410,7 +1425,7 @@ class _FullImagePageState extends State<FullImagePage> {
         backgroundColor: Colors.black.withOpacity(0.5),
         elevation: 0,
         title: Text(
-          'Image ${_currentIndex + 1} of ${widget.imageUrls.length}',
+          'Image ${currentIndex + 1} of ${widget.imageUrls.length}',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         leading: Container(
@@ -1420,7 +1435,8 @@ class _FullImagePageState extends State<FullImagePage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back),
+            color: Colors.white,
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -1432,7 +1448,8 @@ class _FullImagePageState extends State<FullImagePage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              icon: const Icon(Icons.copy, color: Colors.white),
+              icon: const Icon(Icons.copy),
+              color: Colors.white,
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: currentImageData.originalUrl));
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1448,26 +1465,31 @@ class _FullImagePageState extends State<FullImagePage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              icon: _isDownloading
+              icon: isDownloading
                   ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
-                  : const Icon(Icons.download, color: Colors.white),
-              onPressed: _isDownloading ? null : () => _downloadImage(currentImageData.originalUrl),
+                  : const Icon(Icons.download),
+              color: Colors.white,
+              onPressed: isDownloading ? null : () => downloadImage(currentImageData.originalUrl),
             ),
           ),
         ],
       ),
       body: PageView.builder(
-        controller: _pageController,
+        controller: pageController,
         itemCount: widget.imageUrls.length,
-        onPageChanged: (index) => setState(() => _currentIndex = index),
+        onPageChanged: (index) {
+          setState(() {
+            currentIndex = index;
+          });
+        },
         itemBuilder: (context, index) {
           final imageData = widget.imageUrls[index];
           return InteractiveViewer(
-            transformationController: _transformationControllers[index],
+            transformationController: transformationControllers[index],
             minScale: 0.1,
             maxScale: 4.0,
             child: Hero(
