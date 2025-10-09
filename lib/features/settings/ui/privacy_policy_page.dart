@@ -121,8 +121,6 @@ class PrivacyPolicyPage extends StatelessWidget {
                     content: _buildChildrenPrivacyContent(context),
                   ),
                   const SizedBox(height: 24),
-                  _buildContactSection(context),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -479,71 +477,6 @@ class PrivacyPolicyPage extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildContactSection(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-
-    return Card(
-      elevation: 2,
-      color: color.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.contact_mail_rounded, color: color.primary),
-                const SizedBox(width: 12),
-                Text(
-                  'Contact Us',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'If you have any questions, concerns, or suggestions about this Privacy Policy, please contact us:',
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.6,
-                color: color.onPrimaryContainer.withOpacity(0.8),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildContactItem(
-              context,
-              Icons.email_rounded,
-              'Email',
-              'dpsonawane789@gmail.com',
-              'mailto:dpsonawane789@gmail.com',
-            ),
-            const SizedBox(height: 12),
-            _buildContactItem(
-              context,
-              Icons.language_rounded,
-              'Developer',
-              'Ragalahari Downloader Development Team',
-              null,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'We typically respond within 48 hours.',
-              style: TextStyle(
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-                color: color.onPrimaryContainer.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

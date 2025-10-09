@@ -1,3 +1,4 @@
+// Modified settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ragalahari_downloader/main.dart';
@@ -7,6 +8,7 @@ import 'notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 import 'contact_us_page.dart';
 import 'package:ragalahari_downloader/features/settings/ui/update_database_page.dart';
+import 'version_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -116,6 +118,20 @@ class SettingsPage extends ConsumerWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const ContactUsPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildSettingsItem(
+                context,
+                icon: Icons.info_outline,
+                title: 'Version',
+                subtitle: 'Latest updates and changelog',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const VersionPage(),
                     ),
                   );
                 },
