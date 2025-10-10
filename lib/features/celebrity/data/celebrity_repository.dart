@@ -1,5 +1,3 @@
-// celebrity_repository.dart
-
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -11,7 +9,8 @@ typedef CelebrityRow = Map<String, String>;
 
 class CelebrityRepository {
   CelebrityRepository._privateConstructor();
-  static final CelebrityRepository instance = CelebrityRepository._privateConstructor();
+  static final CelebrityRepository instance =
+  CelebrityRepository._privateConstructor();
 
   // Raw sources (lazy-loaded)
   List<String> _csvLines = const [];
@@ -19,9 +18,13 @@ class CelebrityRepository {
   Set<String> _actressUrls = {};
   bool _sourcesLoaded = false;
 
-  // Optional precomputed sorted indices (built lazily on first use)
+  // Precomputed sorted and filtered indices
   List<int>? _sortedAZ;
   List<int>? _sortedZA;
+  List<int>? _actorsSortedAZ;
+  List<int>? _actressesSortedAZ;
+  List<int>? _actorsSortedZA;
+  List<int>? _actressesSortedZA;
 
   // Accessors for filters already used by UI
   Set<String> get actorUrls => _actorUrls;
@@ -34,24 +37,38 @@ class CelebrityRepository {
   Future<void> loadSources() async {
     if (_sourcesLoaded) return;
     // Load CSV and JSON once
-    final csvString = await rootBundle.loadString('assets/data/Fetched_StarZone_Data.csv');
-    final jsonString = await rootBundle.loadString('assets/data/Fetched_Albums_StarZone.json');
+    final csvString =
+    await rootBundle.loadString('assets/data/Fetched_StarZone_Data.csv');
+    final jsonString = await rootBundle
+        .loadString('assets/data/Fetched_Albums_StarZone.json');
 
     _csvLines = csvString.split('\n');
     final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
-    _actorUrls = (jsonData['actors'] as List).map((e) => (e['URL'] as String).trim()).toSet();
-    _actressUrls = (jsonData['actresses'] as List).map((e) => (e['URL'] as String).trim()).toSet();
+    _actorUrls =
+        (jsonData['actors'] as List).map((e) => (e['URL'] as String).trim()).toSet();
+    _actressUrls = (jsonData['actresses'] as List)
+        .map((e) => (e['URL'] as String).trim())
+        .toSet();
 
     _sourcesLoaded = true;
   }
 
-  // Build sorted indices lazily in a background isolate (global A–Z and Z–A cross-page)
-  Future<void> _ensureSortedIndices() async {
-    if (_sortedAZ != null && _sortedZA != null) return;
+  // Build sorted and filtered indices lazily in a background isolate
+  Future<void> _ensureSortedAndFilteredIndices() async {
+    if (_sortedAZ != null) return;
     final indices = List<int>.generate(totalCount, (i) => i + 1); // skip header at 0
-    final result = await compute(_sortIndicesByName, {'lines': _csvLines, 'indices': indices});
+    final result = await compute(_sortAndFilterIndices, {
+      'lines': _csvLines,
+      'indices': indices,
+      'actorUrls': _actorUrls,
+      'actressUrls': _actressUrls,
+    });
     _sortedAZ = result['az'] as List<int>;
     _sortedZA = result['za'] as List<int>;
+    _actorsSortedAZ = result['actors_az'] as List<int>;
+    _actressesSortedAZ = result['actresses_az'] as List<int>;
+    _actorsSortedZA = result['actors_za'] as List<int>;
+    _actressesSortedZA = result['actresses_za'] as List<int>;
   }
 
   // Fetch a page slice; sorting and category filters are applied here
@@ -59,41 +76,40 @@ class CelebrityRepository {
     required int offset,
     required int limit,
     required SortOption sort,
-    required CategoryOption category,
   }) async {
     await loadSources();
-    // Choose index space (straight lines vs lazy-sorted)
-    List<int> selected;
-    if (sort == SortOption.az || sort == SortOption.za) {
-      await _ensureSortedIndices();
-      selected = sort == SortOption.az ? _sortedAZ! : _sortedZA!;
-    } else {
-      selected = List<int>.generate(totalCount, (i) => i + 1);
+    await _ensureSortedAndFilteredIndices();
+
+    List<int> selectedIndices;
+    switch (sort) {
+      case SortOption.az:
+        selectedIndices = _sortedAZ!;
+        break;
+      case SortOption.za:
+        selectedIndices = _sortedZA!;
+        break;
+      case SortOption.celebrityActors:
+        selectedIndices = _actorsSortedAZ!;
+        break;
+      case SortOption.celebrityActresses:
+        selectedIndices = _actressesSortedAZ!;
+        break;
+      case SortOption.celebrityAll:
+      default:
+        selectedIndices = _sortedAZ!;
+        break;
     }
 
     // Slice bounds
-    if (offset >= selected.length) return const [];
-    final end = (offset + limit).clamp(0, selected.length);
-    final slice = selected.sublist(offset, end);
+    if (offset >= selectedIndices.length) return const [];
+    final end = (offset + limit).clamp(0, selectedIndices.length);
+    final slice = selectedIndices.sublist(offset, end);
 
     // Parse only the slice in a background isolate
-    final rows = await compute(_parseSlice, {'lines': _csvLines, 'indices': slice});
+    final rows =
+    await compute(_parseSlice, {'lines': _csvLines, 'indices': slice});
 
-    // Apply category filtering by URL set (in-memory check is cheap)
-    final filtered = rows.where((row) {
-      final url = row['url'] ?? '';
-      switch (category) {
-        case CategoryOption.actors:
-          return _actorUrls.contains(url);
-        case CategoryOption.actresses:
-          return _actressUrls.contains(url);
-        case CategoryOption.all:
-        default:
-          return true;
-      }
-    }).toList();
-
-    return filtered;
+    return rows;
   }
 
   // Search on-demand across entire source; returns limited matches
@@ -130,18 +146,41 @@ class CelebrityRepository {
 
 // ===== Isolate helpers =====
 
-// Sort by name globally and return AZ/ZA index lists
-Map<String, List<int>> _sortIndicesByName(Map args) {
+// Sort and filter by name globally and return AZ/ZA index lists for all categories
+Map<String, List<int>> _sortAndFilterIndices(Map args) {
   final lines = (args['lines'] as List).cast<String>();
   final indices = (args['indices'] as List).cast<int>();
+  final actorUrls = (args['actorUrls'] as Set).cast<String>();
+  final actressUrls = (args['actressUrls'] as Set).cast<String>();
+
   int cmpName(int i, int j) {
     final a = _extractName(lines[i]);
     final b = _extractName(lines[j]);
     return a.compareTo(b);
   }
+
   final az = [...indices]..sort(cmpName);
-  final za = [...az].reversed.toList();
-  return {'az': az, 'za': za};
+
+  final actorsAz = az.where((index) {
+    final line = lines[index];
+    final parts = line.split(',');
+    return parts.length >= 2 && actorUrls.contains(parts[1].trim());
+  }).toList();
+
+  final actressesAz = az.where((index) {
+    final line = lines[index];
+    final parts = line.split(',');
+    return parts.length >= 2 && actressUrls.contains(parts[1].trim());
+  }).toList();
+
+  return {
+    'az': az,
+    'za': [...az].reversed.toList(),
+    'actors_az': actorsAz,
+    'actresses_az': actressesAz,
+    'actors_za': [...actorsAz].reversed.toList(),
+    'actresses_za': [...actressesAz].reversed.toList(),
+  };
 }
 
 // Parse a set of line indices from the CSV into rows
@@ -170,7 +209,8 @@ List<CelebrityRow> _searchCsv(Map args) {
   final q = args['q'] as String;
   final limit = args['limit'] as int;
   final List<CelebrityRow> out = [];
-  for (var i = 1; i < lines.length; i++) { // skip header
+  for (var i = 1; i < lines.length; i++) {
+    // skip header
     final line = lines[i];
     final parts = line.split(',');
     if (parts.length >= 2) {

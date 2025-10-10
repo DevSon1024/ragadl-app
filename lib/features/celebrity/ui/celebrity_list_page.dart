@@ -126,7 +126,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
         offset: _nextOffset,
         limit: _pageSize,
         sort: _currentSortOption,
-        category: _sortToCategory(_currentSortOption),
+        // category: _sortToCategory(_currentSortOption),
       );
 
       if (mounted) {
