@@ -135,7 +135,8 @@ Future<List<Map<String, String>>> _fetchLinksFromAlpha(String alphaLetter, Strin
 }
 
 class UpdateDatabasePage extends StatefulWidget {
-  const UpdateDatabasePage({super.key});
+  final bool startUpdateOnLoad;
+  const UpdateDatabasePage({super.key, this.startUpdateOnLoad = false});
 
   @override
   State<UpdateDatabasePage> createState() => _UpdateDatabasePageState();
@@ -158,6 +159,9 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
     super.initState();
     _loadLastUpdateTime();
     _startAutoUpdate();
+    if (widget.startUpdateOnLoad) {
+      _runUpdate();
+    }
   }
 
   @override

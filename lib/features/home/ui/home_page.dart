@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:ragalahari_downloader/features/settings/ui/update_database_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
@@ -34,16 +34,61 @@ class _HomePageState extends State<HomePage> {
       'icon': Icons.star_rounded,
       'page': const LatestCelebrityPage()
     },
-    {'title': 'Favorites', 'icon': Icons.favorite_rounded, 'page': const FavouritePage()},
-    {'title': 'Latest Actors', 'icon': Icons.person_rounded, 'page': const ActorPage()},
     {'title': 'Latest Actress', 'icon': Icons.person_outline_rounded, 'page': const ActressPage()},
+    {'title': 'Latest Actors', 'icon': Icons.person_rounded, 'page': const ActorPage()},
+    {'title': 'Favorites', 'icon': Icons.favorite_rounded, 'page': const FavouritePage()},
   ];
 
   @override
   void initState() {
     super.initState();
     _loadSectionOrder();
+    _checkFirstRun();
   }
+
+  Future<void> _checkFirstRun() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstRun = prefs.getBool('isFirstRun') ?? true;
+    if (isFirstRun) {
+      if (mounted) {
+        _showUpdateDialog();
+      }
+      await prefs.setBool('isFirstRun', false);
+    }
+  }
+
+  void _showUpdateDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Update Celebrity Database'),
+          content: const Text(
+              'For the best experience, we recommend updating the celebrity database. This will ensure you have the latest celebrity information.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Later'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Update Now'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const UpdateDatabasePage(startUpdateOnLoad: true),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   Future<void> _loadSectionOrder() async {
     try {
@@ -358,7 +403,8 @@ class _HomePageState extends State<HomePage> {
               icon: Icons.new_releases_rounded,
               label: 'Latest Release',
               color: Colors.green,
-              onTap: () => _launchUrl('https://github.com/DevSon1024/ragalahari_downloader_2025/releases/latest'),
+              onTap: () =>
+                  _launchUrl('https://github.com/DevSon1024/ragalahari_downloader_2025/releases/latest'),
             ),
             const SizedBox(height: 8),
             _SocialButton(
@@ -563,7 +609,8 @@ class _ModernPageRoute extends PageRouteBuilder {
     reverseTransitionDuration: const Duration(milliseconds: 220),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (context, anim, secondary, child) {
-      final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+      final curved =
+      CurvedAnimation(parent: anim, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
       return SlideTransition(
         position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(curved),
         child: FadeTransition(opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved), child: child),
