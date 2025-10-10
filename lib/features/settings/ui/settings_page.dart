@@ -72,26 +72,26 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
-          _buildSettingsSection(
-            context,
-            title: 'Data',
-            children: [
-              _buildSettingsItem(
-                context,
-                icon: Icons.update,
-                title: 'Update Database',
-                subtitle: 'Fetch the latest celebrity data',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const UpdateDatabasePage(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+          // _buildSettingsSection(
+          //   context,
+          //   title: 'na kcData',
+            // children: [
+              // _buildSettingsItem(
+              //   context,
+              //   icon: Icons.update,
+              //   title: 'Update Database',
+              //   subtitle: 'Fetch the latest celebrity data',
+              //   onTap: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (_) => const UpdateDatabasePage(),
+              //       ),
+              //     );
+              //   },
+              // ),
+            // ],
+          // ),
           _buildSettingsSection(
             context,
             title: 'About',
