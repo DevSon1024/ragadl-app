@@ -203,7 +203,7 @@ class DownloadManager {
 
         // Show initial gallery notification only once
         if (_galleryTotalCount[batchId] == 1) {
-          await _showGalleryProgressNotification(batchId, galleryName, 0, 1);
+          await showGalleryProgressNotification(batchId, galleryName, 0, 1);
         }
       }
 
@@ -307,11 +307,11 @@ class DownloadManager {
     final failed = _galleryFailedCount[batchId] ?? 0;
 
     // Update progress notification
-    await _showGalleryProgressNotification(batchId, galleryName, completed + failed, total);
+    await showGalleryProgressNotification(batchId, galleryName, completed + failed, total);
 
     // Check if all downloads are complete
     if (completed + failed >= total) {
-      await _showGalleryCompleteNotification(batchId, galleryName, completed, failed);
+      await showGalleryCompleteNotification(batchId, galleryName, completed, failed);
 
       // Cleanup
       _galleryTotalCount.remove(batchId);
@@ -321,7 +321,13 @@ class DownloadManager {
     }
   }
 
-  Future<void> _showGalleryProgressNotification(String batchId, String galleryName, int current, int total) async {
+  /// Show gallery progress notification with proper updates
+  Future<void> showGalleryProgressNotification(
+      String batchId,
+      String galleryName,
+      int current,
+      int total,
+      ) async {
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: batchId.hashCode,
@@ -330,27 +336,55 @@ class DownloadManager {
         body: 'Progress: $current of $total images',
         notificationLayout: NotificationLayout.ProgressBar,
         progress: total > 0 ? ((current / total) * 100).toDouble() : 0,
-        locked: true,
+        locked: false,  // ✅ Changed from true - allows dismissal
         category: NotificationCategory.Progress,
+        autoDismissible: false,
       ),
     );
   }
 
-  Future<void> _showGalleryCompleteNotification(String batchId, String galleryName, int completed, int failed) async {
+  /// Show completion notification and cancel progress
+  Future<void> showGalleryCompleteNotification(
+      String batchId,
+      String galleryName,
+      int completed,
+      int failed,
+      ) async {
+    // ✅ Cancel the progress notification first
+    await AwesomeNotifications().cancel(batchId.hashCode);
+
+    await Future.delayed(const Duration(milliseconds: 100));
+
     final prefs = await SharedPreferences.getInstance();
-    String basePath = prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
+    String basePath = prefs.getString('base_download_path') ??
+        '/storage/emulated/0/Download/';
     String folderPath = '$basePath/$galleryName';
 
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
-        id: DateTime.now().millisecondsSinceEpoch,
+        id: batchId.hashCode + 1,  // Different ID for completion
         channelKey: 'download_channel',
         title: '$galleryName Downloaded',
-        body: '$completed images saved to $folderPath${failed > 0 ? '\n$failed failed' : ''}',
+        body: '$completed images saved to $folderPath'
+            '${failed > 0 ? " ($failed failed)" : ""}',
         notificationLayout: NotificationLayout.Default,
-        color: failed == 0 ? Colors.green : Colors.orange,
+        color: failed > 0 ? Colors.orange : Colors.green,
         locked: false,
+        autoDismissible: true,
+        payload: {'action': 'open_folder', 'path': folderPath},
       ),
+      actionButtons: [
+        NotificationActionButton(
+          key: 'open_folder',
+          label: 'Open Folder',
+          actionType: ActionType.Default,
+        ),
+        NotificationActionButton(
+          key: 'dismiss',
+          label: 'Dismiss',
+          actionType: ActionType.DismissAction,
+        ),
+      ],
     );
   }
 

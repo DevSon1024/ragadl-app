@@ -7,59 +7,54 @@ import 'dart:io';
 
 class PermissionHandler {
   static Future<bool> requestAllPermissions(BuildContext context) async {
-    bool allPermissionsGranted = true;
+    Map<Permission, PermissionStatus> statuses = {};
 
-    // Request storage-related permissions
+    // Define permissions based on Android version
     if (Platform.isAndroid) {
       final deviceInfo = DeviceInfoPlugin();
       final androidInfo = await deviceInfo.androidInfo;
-      bool isPermissionGranted = false;
 
       if (androidInfo.version.sdkInt >= 33) {
-        // Request photos permission for Android 13+
-        final photoStatus = await Permission.photos.status;
-        if (!photoStatus.isGranted) {
-          final newStatus = await Permission.photos.request();
-          isPermissionGranted = newStatus.isGranted;
-        } else {
-          isPermissionGranted = true;
-        }
+        // Android 13+
+        statuses = await [
+          Permission.photos,
+          Permission.videos, // It's good practice to request both
+          Permission.notification,
+        ].request();
       } else if (androidInfo.version.sdkInt >= 30) {
-        // Request manageExternalStorage for Android 11+
-        final manageStorageStatus = await Permission.manageExternalStorage.status;
-        if (!manageStorageStatus.isGranted) {
-          final newStatus = await Permission.manageExternalStorage.request();
-          isPermissionGranted = newStatus.isGranted;
-        } else {
-          isPermissionGranted = true;
-        }
+        // Android 11 & 12
+        statuses = await [
+          Permission.manageExternalStorage,
+          Permission.notification,
+        ].request();
       } else {
-        // Request storage for older Android versions
-        final storageStatus = await Permission.storage.status;
-        if (!storageStatus.isGranted) {
-          final newStatus = await Permission.storage.request();
-          isPermissionGranted = newStatus.isGranted;
-        } else {
-          isPermissionGranted = true;
+        // Older Android versions
+        statuses = await [
+          Permission.storage,
+          Permission.notification,
+        ].request();
+      }
+    } else {
+      // For iOS or other platforms
+      statuses = await [
+        Permission.photos,
+        Permission.notification,
+      ].request();
+    }
+
+
+    bool allGranted = true;
+    statuses.forEach((permission, status) {
+      if (!status.isGranted) {
+        allGranted = false;
+        // If any permission is permanently denied, show the dialog to open settings.
+        if (status.isPermanentlyDenied) {
+          _showPermissionDeniedDialog(context, '${permission.toString().split('.').last} permission is required to continue.');
         }
       }
+    });
 
-      if (!isPermissionGranted) {
-        allPermissionsGranted = false;
-        _showPermissionDeniedDialog(context, 'Storage or media permission denied.');
-      }
-    }
-
-    // Request notification permission
-    if (Platform.isAndroid) {
-      final notificationStatus = await AwesomeNotifications().requestPermissionToSendNotifications();
-      if (!notificationStatus) {
-        allPermissionsGranted = false;
-        _showPermissionDeniedDialog(context, 'Notification permission denied.');
-      }
-    }
-
-    return allPermissionsGranted;
+    return allGranted;
   }
 
   static Future<bool> checkStoragePermissions() async {
@@ -68,14 +63,14 @@ class PermissionHandler {
       final androidInfo = await deviceInfo.androidInfo;
 
       if (androidInfo.version.sdkInt >= 33) {
-        return await Permission.photos.status.isGranted;
+        return await Permission.photos.isGranted;
       } else if (androidInfo.version.sdkInt >= 30) {
-        return await Permission.manageExternalStorage.status.isGranted;
+        return await Permission.manageExternalStorage.isGranted;
       } else {
-        return await Permission.storage.status.isGranted;
+        return await Permission.storage.isGranted;
       }
     }
-    return true; // Non-Android platforms don't require storage permissions
+    return true; // Non-Android platforms don't require these specific storage permissions
   }
 
   static Future<void> requestFirstRunPermissions(BuildContext context) async {
@@ -93,7 +88,7 @@ class PermissionHandler {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Permission Required'),
-        content: Text('$message Please grant the required permissions.'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
