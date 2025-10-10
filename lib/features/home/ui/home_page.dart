@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ragalahari_downloader/features/settings/ui/update_database_page.dart';
+// import 'package:ragalahari_downloader/features/settings/ui/update_database_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
@@ -51,43 +51,43 @@ class _HomePageState extends State<HomePage> {
     final isFirstRun = prefs.getBool('isFirstRun') ?? true;
     if (isFirstRun) {
       if (mounted) {
-        _showUpdateDialog();
+        // _showUpdateDialog();
       }
       await prefs.setBool('isFirstRun', false);
     }
   }
 
-  void _showUpdateDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Update Celebrity Database'),
-          content: const Text(
-              'For the best experience, we recommend updating the celebrity database. This will ensure you have the latest celebrity information.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Later'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Update Now'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const UpdateDatabasePage(startUpdateOnLoad: true),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // void _showUpdateDialog() {
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         title: const Text('Update Celebrity Database'),
+  //         content: const Text(
+  //             'For the best experience, we recommend updating the celebrity database. This will ensure you have the latest celebrity information.'),
+  //         actions: <Widget>[
+  //           TextButton(
+  //             child: const Text('Later'),
+  //             onPressed: () {
+  //               Navigator.of(context).pop();
+  //             },
+  //           ),
+  //           TextButton(
+  //             child: const Text('Update Now'),
+  //             onPressed: () {
+  //               Navigator.of(context).pop();
+  //               Navigator.of(context).push(
+  //                 MaterialPageRoute(
+  //                   builder: (context) => const UpdateDatabasePage(startUpdateOnLoad: true),
+  //                 ),
+  //               );
+  //             },
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
 
 
   Future<void> _loadSectionOrder() async {
