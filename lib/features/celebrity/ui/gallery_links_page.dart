@@ -10,7 +10,7 @@ import 'dart:isolate';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/celebrity_utils.dart';
-import '../../downloader/ui/ragalahari_downloader.dart';
+import '../../downloader/ui/ragalahari_downloader_page.dart';
 import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
 
 // Data class for passing data to isolate

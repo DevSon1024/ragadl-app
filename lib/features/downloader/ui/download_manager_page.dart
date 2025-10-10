@@ -1,5 +1,3 @@
-// download_manager_page.dart - Enhanced version with tabs and concurrent downloads
-
 import 'dart:io';
 import 'dart:collection';
 import 'package:flutter/material.dart';

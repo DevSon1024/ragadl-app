@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../../downloader/ui/ragalahari_downloader.dart';
+import '../../downloader/ui/ragalahari_downloader_page.dart';
 import '../../celebrity/ui/gallery_links_page.dart';
 import '../../celebrity/utils/celebrity_utils.dart';
 

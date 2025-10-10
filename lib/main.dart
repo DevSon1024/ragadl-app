@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'features/downloader/ui/ragalahari_downloader.dart';
+import 'features/downloader/ui/ragalahari_downloader_page.dart';
 import 'features/history/ui/history_page.dart';
 import 'features/downloader/ui/download_manager_page.dart';
 import 'features/celebrity/ui/celebrity_list_page.dart';
 import 'features/settings/ui/settings_page.dart';
-import 'shared/widgets/theme_config.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';

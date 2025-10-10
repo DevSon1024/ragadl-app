@@ -1,161 +1,12 @@
-import 'dart:isolate';
-import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:dio/dio.dart';
-import 'package:html/parser.dart' show parse;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
-import 'dart:math';
+import '../logic/downloader_service.dart';
 import 'download_manager_page.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'link_history_page.dart';
-import 'package:ragalahari_downloader/core/permissions.dart';
 import '../../../shared/widgets/grid_utils.dart';
-
-// User agents for rotation (keeping original functionality)
-const List<String> _userAgents = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-];
-
-// Isolate entry point (keeping original background processing)
-void _processGalleryIsolate(SendPort sendPort) {
-  final receivePort = ReceivePort();
-  sendPort.send(receivePort.sendPort);
-
-  receivePort.listen((message) async {
-    final String baseUrl = message['baseUrl'];
-    final SendPort replyPort = message['replyPort'];
-
-    try {
-      final dio = Dio();
-      final galleryId = _extractGalleryId(baseUrl);
-
-      Future<int> getTotalPages(String url) async {
-        try {
-          final headers = {'User-Agent': _userAgents[Random().nextInt(_userAgents.length)]};
-          final response = await dio.get(url, options: Options(headers: headers));
-          if (response.statusCode == 200) {
-            final document = parse(response.data);
-            final pageLinks = document.querySelectorAll("a.otherPage");
-            final pages = pageLinks
-                .map((e) => int.tryParse(e.text))
-                .where((page) => page != null)
-                .cast<int>()
-                .toList();
-            return pages.isEmpty ? 1 : pages.reduce(max);
-          }
-          return 1;
-        } catch (e) {
-          return 1;
-        }
-      }
-
-      final totalPages = await getTotalPages(baseUrl);
-      final Set<ImageData> allImageUrls = {};
-
-      const int batchSize = 5;
-      for (int i = 0; i < totalPages; i += batchSize) {
-        final end = min(i + batchSize, totalPages);
-        final batchFutures = <Future>[];
-
-        for (int j = i; j < end; j++) {
-          batchFutures.add(_processPage(dio, baseUrl, galleryId, j, replyPort));
-        }
-
-        await Future.wait(batchFutures);
-        replyPort.send({'type': 'progress', 'currentPage': end, 'totalPages': totalPages});
-      }
-
-      replyPort.send({'type': 'result', 'images': allImageUrls.toList()});
-    } catch (e) {
-      replyPort.send({'type': 'error', 'error': e.toString()});
-    }
-  });
-}
-
-Future<void> _processPage(Dio dio, String baseUrl, String galleryId, int index, SendPort replyPort) async {
-  try {
-    final pageUrl = _constructPageUrl(baseUrl, galleryId, index);
-    final headers = {'User-Agent': _userAgents[Random().nextInt(_userAgents.length)]};
-    final response = await dio.get(pageUrl, options: Options(headers: headers));
-
-    if (response.statusCode == 200) {
-      final document = parse(response.data);
-      _removeUnwantedDivs(document);
-      final pageImages = _extractImageUrls(document);
-      replyPort.send({'type': 'images', 'images': pageImages});
-    } else {
-      replyPort.send({'type': 'page_error', 'page': index, 'status': response.statusCode});
-    }
-  } catch (e) {
-    if (e is DioException) {
-      replyPort.send({'type': 'dio_error', 'page': index, 'error': e.message, 'statusCode': e.response?.statusCode});
-    } else {
-      replyPort.send({'type': 'error', 'page': index, 'error': e.toString()});
-    }
-  }
-}
-
-// Helper functions (keeping original logic)
-String _extractGalleryId(String url) {
-  final RegExp regex = RegExp(r"/(\d+)/");
-  final match = regex.firstMatch(url);
-  return match?.group(1) ?? url.hashCode.abs().toString();
-}
-
-String _constructPageUrl(String baseUrl, String galleryId, int index) {
-  if (index == 0) return baseUrl;
-  return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
-}
-
-void _removeUnwantedDivs(var document) {
-  final unwantedHeadings = {"Latest Local Events", "Latest Movie Events", "Latest Starzone"};
-  for (var div in document.querySelectorAll("div#btmlatest")) {
-    var h4 = div.querySelector("h4");
-    if (h4 != null && unwantedHeadings.contains(h4.text.trim())) {
-      div.remove();
-    }
-  }
-  for (var badId in ["taboolaandnews", "news_panel"]) {
-    var div = document.querySelector("div#$badId");
-    div?.remove();
-  }
-}
-
-List<ImageData> _extractImageUrls(var document) {
-  final Set<ImageData> imageDataSet = {};
-  for (var img in document.querySelectorAll("img")) {
-    final src = img.attributes['src'];
-    if (src == null || !src.toLowerCase().endsWith(".jpg") || (!src.startsWith("http") && !src.startsWith("../"))) {
-      continue;
-    }
-
-    String thumbnailUrl = src.startsWith("http") ? src : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
-    String originalUrl = thumbnailUrl.replaceAll(RegExp(r't(?=\.jpg)', caseSensitive: false), '');
-
-    final parentA = img.parent?.querySelector('a');
-    if (parentA != null && parentA.attributes['href'] != null) {
-      final href = parentA.attributes['href']!;
-      if (href.toLowerCase().endsWith('.jpg')) {
-        originalUrl = href.startsWith('http') ? href : "https://www.ragalahari.com/$href";
-      }
-    }
-
-    imageDataSet.add(ImageData(thumbnailUrl: thumbnailUrl, originalUrl: originalUrl));
-  }
-  return imageDataSet.toList();
-}
-
-class ImageData {
-  final String thumbnailUrl;
-  final String originalUrl;
-  ImageData({required this.thumbnailUrl, required this.originalUrl});
-}
+import 'package:ragalahari_downloader/core/permissions.dart';
 
 class RagalahariDownloader extends StatefulWidget {
   final String? initialUrl;
@@ -175,12 +26,17 @@ class RagalahariDownloader extends StatefulWidget {
 
 class _RagalahariDownloaderState extends State<RagalahariDownloader>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  // Controllers
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _folderController = TextEditingController();
   final FocusNode _urlFocusNode = FocusNode();
   final FocusNode _folderFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
+  // Service
+  late DownloaderService _downloaderService;
+
+  // State variables
   List<ImageData> imageUrls = [];
   Set<int> selectedImages = {};
   bool isLoading = false;
@@ -202,18 +58,14 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
-  // For managing the isolate
-  Isolate? _isolate;
-  ReceivePort? _receivePort;
-  SendPort? _sendPort;
-
   @override
   bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _initializeAnimations(); // Add this line
+    _downloaderService = DownloaderService();
+    _initializeAnimations();
     _initializeFields();
     _urlFocusNode.addListener(_handleFocusChange);
     _folderFocusNode.addListener(_handleFocusChange);
@@ -291,8 +143,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     _scrollController.dispose();
     _fadeController.dispose();
     _scaleController.dispose();
-    _isolate?.kill(priority: Isolate.immediate);
-    _receivePort?.close();
+    _downloaderService.dispose();
     super.dispose();
   }
 
@@ -362,30 +213,14 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     }
   }
 
-  Future<void> _saveToHistory(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    const historyKey = 'link_history';
-    List<String> historyJson = prefs.getStringList(historyKey) ?? [];
-    List<LinkHistoryItem> history = historyJson
-        .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
-        .toList();
-
-    final historyItem = LinkHistoryItem(
-      url: url,
+  Future<void> _processGallery(String baseUrl) async {
+    // Save to history
+    await _downloaderService.saveToHistory(
+      url: baseUrl,
       celebrityName: mainFolderName,
       galleryTitle: widget.galleryTitle,
-      timestamp: DateTime.now(),
     );
 
-    if (!history.any((item) => item.url == url && item.celebrityName == mainFolderName)) {
-      history.add(historyItem);
-      await prefs.setStringList(
-          historyKey, history.map((h) => jsonEncode(h.toJson())).toList());
-    }
-  }
-
-  Future<void> _processGallery(String baseUrl) async {
-    await _saveToHistory(baseUrl);
     setState(() {
       isLoading = true;
       imageUrls.clear();
@@ -407,99 +242,82 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       _folderController.text = mainFolderName;
     }
 
-    subFolderName = "$mainFolderName-${_extractGalleryId(baseUrl)}";
+    subFolderName = "$mainFolderName-${_downloaderService.extractGalleryId(baseUrl)}";
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('base_download_path', '/storage/emulated/0/Download/Ragalahari Downloads');
+    await _downloaderService.setBaseDownloadPath(
+      '/storage/emulated/0/Download/Ragalahari Downloads',
+    );
 
-    // Isolate setup
-    _receivePort = ReceivePort();
-    _isolate = await Isolate.spawn(_processGalleryIsolate, _receivePort!.sendPort);
-
-    _receivePort!.listen((data) {
-      if (data is SendPort) {
-        _sendPort = data;
-        _sendPort?.send({'baseUrl': baseUrl, 'replyPort': _receivePort!.sendPort});
-      } else if (data['type'] == 'progress') {
-        setState(() {
-          currentPage = data['currentPage'];
-          totalPages = data['totalPages'];
-        });
-      } else if (data['type'] == 'images') {
-        imageUrls.addAll(data['images']);
-      } else if (data['type'] == 'result') {
-        setState(() {
-          isLoading = false;
-        });
-        _showModernSnackBar(
-          imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images',
-          imageUrls.isEmpty ? Icons.search_off_rounded : Icons.photo_library_rounded,
-        );
-        _isolate?.kill(priority: Isolate.immediate);
-        _receivePort?.close();
-      } else if (data['type'] == 'error' || data['type'] == 'dio_error' || data['type'] == 'page_error') {
-        final errorMsg = data['type'] == 'dio_error'
-            ? 'Network error on page ${data['page']}: ${data['error']}'
-            : data['type'] == 'page_error'
-            ? 'Page ${data['page']} failed with status ${data['status']}'
-            : data['error'];
-        setState(() {
-          isLoading = false;
-          _error = errorMsg;
-        });
-        _showModernSnackBar('Error: $errorMsg', Icons.error_rounded, true);
-        _isolate?.kill(priority: Isolate.immediate);
-        _receivePort?.close();
-      }
-    });
+    // Process gallery
+    _downloaderService.processGallery(
+      baseUrl: baseUrl,
+      onMessage: (data) {
+        if (data['type'] == 'progress') {
+          setState(() {
+            currentPage = data['currentPage'];
+            totalPages = data['totalPages'];
+          });
+        } else if (data['type'] == 'images') {
+          setState(() {
+            imageUrls.addAll(data['images']);
+          });
+        } else if (data['type'] == 'result') {
+          setState(() {
+            isLoading = false;
+          });
+          _showModernSnackBar(
+            imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images',
+            imageUrls.isEmpty ? Icons.search_off_rounded : Icons.photo_library_rounded,
+          );
+        } else if (data['type'] == 'error' || data['type'] == 'dio_error' || data['type'] == 'page_error') {
+          final errorMsg = data['type'] == 'dio_error'
+              ? 'Network error on page ${data['page']}: ${data['error']}'
+              : data['type'] == 'page_error'
+              ? 'Page ${data['page']} failed with status ${data['status']}'
+              : data['error'];
+          setState(() {
+            isLoading = false;
+            _error = errorMsg;
+          });
+          _showModernSnackBar('Error: $errorMsg', Icons.error_rounded, true);
+        }
+      },
+    );
   }
 
-  // In ragalahari_downloader.dart, update the _downloadAllImages and _downloadSelectedImages methods:
-
   Future<void> _downloadAllImages() async {
-    try {
-      setState(() {
-        isDownloading = true;
-        downloadsSuccessful = 0;
-        downloadsFailed = 0;
-      });
+    setState(() {
+      isDownloading = true;
+      downloadsSuccessful = 0;
+      downloadsFailed = 0;
+    });
 
-      final downloadManager = DownloadManager();
-      final batchId = DateTime.now().millisecondsSinceEpoch.toString();
-      final galleryName = widget.galleryTitle ?? mainFolderName;
+    final result = await _downloaderService.downloadAllImages(
+      imageUrls: imageUrls,
+      mainFolderName: mainFolderName,
+      subFolderName: subFolderName,
+      galleryTitle: widget.galleryTitle,
+    );
 
-      for (int i = 0; i < imageUrls.length; i++) {
-        final imageUrl = imageUrls[i].originalUrl;
-        downloadManager.addDownload(
-          url: imageUrl,
-          folder: mainFolderName,
-          subFolder: subFolderName,
-          galleryName: galleryName,
-          batchId: batchId,
-          onProgress: (progress) {},
-          onComplete: (success) {
-            setState(() {
-              if (success) {
-                downloadsSuccessful++;
-              } else {
-                downloadsFailed++;
-              }
-            });
-          },
-        );
-      }
+    setState(() {
+      isDownloading = false;
+    });
 
-      _showModernSnackBar('Added ${imageUrls.length} images to download queue', Icons.download_for_offline_rounded);
+    if (result['success']) {
+      _showModernSnackBar(
+        'Added ${result['totalAdded']} images to download queue',
+        Icons.download_for_offline_rounded,
+      );
       Navigator.push(
         context,
         _createModernPageRoute(const DownloadManagerPage()),
       );
-    } catch (e) {
-      _showModernSnackBar('Error adding downloads: $e', Icons.error_rounded, true);
-    } finally {
-      setState(() {
-        isDownloading = false;
-      });
+    } else {
+      _showModernSnackBar(
+        'Error adding downloads: ${result['error']}',
+        Icons.error_rounded,
+        true,
+      );
     }
   }
 
@@ -509,51 +327,43 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       return;
     }
 
-    try {
-      setState(() {
-        isDownloading = true;
-        downloadsSuccessful = 0;
-        downloadsFailed = 0;
-      });
+    setState(() {
+      isDownloading = true;
+      downloadsSuccessful = 0;
+      downloadsFailed = 0;
+    });
 
-      final downloadManager = DownloadManager();
-      final batchId = DateTime.now().millisecondsSinceEpoch.toString();
-      final galleryName = widget.galleryTitle ?? mainFolderName;
+    final result = await _downloaderService.downloadSelectedImages(
+      imageUrls: imageUrls,
+      selectedIndices: selectedImages,
+      mainFolderName: mainFolderName,
+      subFolderName: subFolderName,
+      galleryTitle: widget.galleryTitle,
+    );
 
-      for (int index in selectedImages) {
-        final imageUrl = imageUrls[index].originalUrl;
-        downloadManager.addDownload(
-          url: imageUrl,
-          folder: mainFolderName,
-          subFolder: subFolderName,
-          galleryName: galleryName,
-          batchId: batchId,
-          onProgress: (progress) {},
-          onComplete: (success) {
-            setState(() {
-              if (success) {
-                downloadsSuccessful++;
-              } else {
-                downloadsFailed++;
-              }
-            });
-          },
-        );
+    setState(() {
+      isDownloading = false;
+      if (result['success']) {
+        selectedImages.clear();
+        isSelectionMode = false;
       }
+    });
 
-      _showModernSnackBar('Added ${selectedImages.length} images to download queue', Icons.download_for_offline_rounded);
+    if (result['success']) {
+      _showModernSnackBar(
+        'Added ${result['totalAdded']} images to download queue',
+        Icons.download_for_offline_rounded,
+      );
       Navigator.push(
         context,
         _createModernPageRoute(const DownloadManagerPage()),
       );
-    } catch (e) {
-      _showModernSnackBar('Error adding downloads: $e', Icons.error_rounded, true);
-    } finally {
-      setState(() {
-        isDownloading = false;
-        selectedImages.clear();
-        isSelectionMode = false;
-      });
+    } else {
+      _showModernSnackBar(
+        'Error: ${result['error']}',
+        Icons.error_rounded,
+        true,
+      );
     }
   }
 
@@ -567,10 +377,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
       isSelectionMode = selectedImages.isNotEmpty;
     });
     HapticFeedback.selectionClick();
-  }
-
-  bool _isValidRagalahariUrl(String url) {
-    return url.trim().startsWith('https://www.ragalahari.com');
   }
 
   PageRoute _createModernPageRoute(Widget page) {
@@ -600,7 +406,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     super.build(context);
     final theme = Theme.of(context);
     final color = theme.colorScheme;
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: color.surface,
@@ -640,7 +445,6 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // SliverToBoxAdapter(child: _buildHeaderSection(theme, color, size)),
               SliverToBoxAdapter(child: _buildControlsSection(theme, color)),
               if (isLoading) SliverToBoxAdapter(child: _buildLoadingSection(theme, color)),
               if (_error != null) SliverToBoxAdapter(child: _buildErrorSection(theme, color)),
@@ -680,130 +484,12 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
     return null;
   }
 
-  // Widget _buildHeaderSection(ThemeData theme, ColorScheme color, Size size) {
-  //   return Container(
-  //     margin: const EdgeInsets.all(16),
-  //     decoration: BoxDecoration(
-  //       gradient: LinearGradient(
-  //         colors: [
-  //           color.primaryContainer.withOpacity(0.3),
-  //           color.primaryContainer.withOpacity(0.1),
-  //         ],
-  //         begin: Alignment.topLeft,
-  //         end: Alignment.bottomRight,
-  //       ),
-  //       borderRadius: BorderRadius.circular(20),
-  //       border: Border.all(color: color.outline.withOpacity(0.1)),
-  //     ),
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(20),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Row(
-  //             children: [
-  //               const SizedBox(width: 16),
-  //               Expanded(
-  //                 child: Column(
-  //                   crossAxisAlignment: CrossAxisAlignment.start,
-  //                   children: [
-  //                     const SizedBox(height: 4),
-  //                     Text(
-  //                       'Enter gallery URL and folder name to begin',
-  //                       style: theme.textTheme.bodyMedium?.copyWith(
-  //                         color: color.onSurfaceVariant,
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //           if (imageUrls.isNotEmpty) ...[
-  //             const SizedBox(height: 16),
-  //             _buildStatsCard(theme, color),
-  //           ],
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  Widget _buildStatsCard(ThemeData theme, ColorScheme color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.surface.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.outline.withOpacity(0.1)),
-      ),
-      child: Row(
-        children: [
-          _buildStatItem(
-            'Images Found',
-            '${imageUrls.length}',
-            Icons.photo_library_rounded,
-            color,
-            theme,
-          ),
-          const SizedBox(width: 24),
-          _buildStatItem(
-            'Selected',
-            '${selectedImages.length}',
-            Icons.check_circle_rounded,
-            color,
-            theme,
-          ),
-          const SizedBox(width: 24),
-          _buildStatItem(
-            'Progress',
-            '${((currentPage / totalPages) * 100).toInt()}%',
-            Icons.trending_up_rounded,
-            color,
-            theme,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon, ColorScheme color, ThemeData theme) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.primaryContainer.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color.primary, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: color.onSurface,
-            ),
-          ),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: color.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildControlsSection(ThemeData theme, ColorScheme color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
+          const SizedBox(height: 16),
           // Folder input
           Container(
             decoration: BoxDecoration(
@@ -859,10 +545,14 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
               color: color.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: _urlController.text.isNotEmpty && !_isValidRagalahariUrl(_urlController.text)
+                color: _urlController.text.isNotEmpty &&
+                    !_downloaderService.isValidRagalahariUrl(_urlController.text)
                     ? color.error
                     : color.outline.withOpacity(0.2),
-                width: _urlController.text.isNotEmpty && !_isValidRagalahariUrl(_urlController.text) ? 2 : 1,
+                width: _urlController.text.isNotEmpty &&
+                    !_downloaderService.isValidRagalahariUrl(_urlController.text)
+                    ? 2
+                    : 1,
               ),
               boxShadow: [
                 BoxShadow(
@@ -880,7 +570,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                 hintText: 'https://www.ragalahari.com/...',
                 prefixIcon: Icon(
                   Icons.link_rounded,
-                  color: _urlController.text.isNotEmpty && !_isValidRagalahariUrl(_urlController.text)
+                  color: _urlController.text.isNotEmpty &&
+                      !_downloaderService.isValidRagalahariUrl(_urlController.text)
                       ? color.error
                       : color.primary,
                 ),
@@ -921,7 +612,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                errorText: _urlController.text.isNotEmpty && !_isValidRagalahariUrl(_urlController.text)
+                errorText: _urlController.text.isNotEmpty &&
+                    !_downloaderService.isValidRagalahariUrl(_urlController.text)
                     ? 'URL must start with https://www.ragalahari.com'
                     : null,
               ),
@@ -987,7 +679,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                     _showModernSnackBar('Please enter a URL', Icons.warning_rounded, true);
                     return;
                   }
-                  if (!_isValidRagalahariUrl(url)) {
+                  if (!_downloaderService.isValidRagalahariUrl(url)) {
                     _showModernSnackBar('Invalid URL: Must start with https://www.ragalahari.com', Icons.error_rounded, true);
                     return;
                   }
@@ -1123,7 +815,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                 _error = null;
               });
               final url = _urlController.text.trim();
-              if (url.isNotEmpty && _isValidRagalahariUrl(url)) {
+              if (url.isNotEmpty && _downloaderService.isValidRagalahariUrl(url)) {
                 _processGallery(url);
               }
             },
@@ -1180,7 +872,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
             final imageData = imageUrls[index];
             final isSelected = selectedImages.contains(index);
 
-            return _ImageGridItem(
+            return ImageGridItem(
               imageData: imageData,
               index: index,
               isSelected: isSelected,
@@ -1194,6 +886,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
                       FullImagePage(
                         imageUrls: imageUrls,
                         initialIndex: index,
+                        downloaderService: _downloaderService,
                       ),
                     ),
                   );
@@ -1210,7 +903,8 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
   }
 }
 
-class _ImageGridItem extends StatelessWidget {
+// Separate widget for image grid item
+class ImageGridItem extends StatelessWidget {
   final ImageData imageData;
   final int index;
   final bool isSelected;
@@ -1218,7 +912,8 @@ class _ImageGridItem extends StatelessWidget {
   final VoidCallback onLongPress;
   final ThemeData theme;
 
-  const _ImageGridItem({
+  const ImageGridItem({
+    super.key,
     required this.imageData,
     required this.index,
     required this.isSelected,
@@ -1340,11 +1035,18 @@ class _ImageGridItem extends StatelessWidget {
   }
 }
 
+// Full image viewer page
 class FullImagePage extends StatefulWidget {
   final List<ImageData> imageUrls;
   final int initialIndex;
+  final DownloaderService downloaderService;
 
-  const FullImagePage({super.key, required this.imageUrls, required this.initialIndex});
+  const FullImagePage({
+    super.key,
+    required this.imageUrls,
+    required this.initialIndex,
+    required this.downloaderService,
+  });
 
   @override
   State<FullImagePage> createState() => _FullImagePageState();
@@ -1353,7 +1055,7 @@ class FullImagePage extends StatefulWidget {
 class _FullImagePageState extends State<FullImagePage> {
   late PageController pageController;
   late int currentIndex;
-  bool isDownloading = false;  // Add this state variable
+  bool isDownloading = false;
   final List<TransformationController> transformationControllers = [];
 
   @override
@@ -1375,41 +1077,29 @@ class _FullImagePageState extends State<FullImagePage> {
     super.dispose();
   }
 
-  Future<void> downloadImage(String imageUrl) async {
+  Future<void> _downloadImage(String imageUrl) async {
     setState(() {
       isDownloading = true;
     });
 
-    try {
-      final downloadManager = DownloadManager();
-      downloadManager.addDownload(
-        url: imageUrl,
-        folder: 'SingleImages',
-        subFolder: DateTime.now().toString().split(' ')[0],
-        galleryName: 'Single Image',  // Added required parameter
-        onProgress: (progress) {},
-        onComplete: (success) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(success ? 'Added to download manager' : 'Failed to add download'),
-              ),
-            );
-          }
-        },
+    final result = await widget.downloaderService.downloadSingleImage(
+      imageUrl: imageUrl,
+    );
+
+    if (mounted) {
+      setState(() {
+        isDownloading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['success']
+                ? result['message']
+                : 'Failed: ${result['error']}',
+          ),
+        ),
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to download: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isDownloading = false;
-        });
-      }
     }
   }
 
@@ -1473,7 +1163,7 @@ class _FullImagePageState extends State<FullImagePage> {
               )
                   : const Icon(Icons.download),
               color: Colors.white,
-              onPressed: isDownloading ? null : () => downloadImage(currentImageData.originalUrl),
+              onPressed: isDownloading ? null : () => _downloadImage(currentImageData.originalUrl),
             ),
           ),
         ],

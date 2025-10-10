@@ -5,7 +5,7 @@ import 'package:ragalahari_downloader/features/celebrity/data/celebrity_reposito
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/celebrity_utils.dart';
 import 'gallery_links_page.dart';
-import '../../downloader/ui/ragalahari_downloader.dart';
+import '../../downloader/ui/ragalahari_downloader_page.dart';
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
