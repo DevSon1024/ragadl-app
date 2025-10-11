@@ -17,14 +17,14 @@
 ## 📱 Screenshots
 
 <div align="center">
-<img src="screenshots/home.jpg" width="30%" />
-<img src="screenshots/celebrities.jpg" width="30%" />
-<img src="screenshots/celebrityGalleries.jpg" width="30%" />
-<img src="screenshots/downloader.jpg" width="30%" />
+<img src="screenshots/homePage.jpg" width="30%" />
+<img src="screenshots/celebritiesPage.jpg" width="30%" />
+<img src="screenshots/celebrityGalleriesPage.jpg" width="30%" />
+<img src="screenshots/downloaderPage.jpg" width="30%" />
 <img src="screenshots/downloadsPage.jpg" width="30%" />
-<img src="screenshots/history.jpg" width="30%" />
+<img src="screenshots/historyPage.jpg" width="30%" />
 <img src="screenshots/latestActresses.jpg" width="30%" />
-<img src="screenshots/linkHistory.jpg" width="30%" />
+<img src="screenshots/linkHistoryPage.jpg" width="30%" />
 
 </div>
 
