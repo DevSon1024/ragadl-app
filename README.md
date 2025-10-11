@@ -19,12 +19,12 @@
 <div align="center">
 <img src="screenshots/home.jpg" width="30%" />
 <img src="screenshots/celebrities.jpg" width="30%" />
-<img src="screenshots/celebrity_galleries.jpg" width="30%" />
+<img src="screenshots/celebrityGalleries.jpg" width="30%" />
 <img src="screenshots/downloader.jpg" width="30%" />
-<img src="screenshots/favourites.jpg" width="30%" />
+<img src="screenshots/downloadsPage.jpg" width="30%" />
 <img src="screenshots/history.jpg" width="30%" />
-<img src="screenshots/link_history.jpg" width="30%" />
-<img src="screenshots/display_setting.jpg" width="30%" />
+<img src="screenshots/latestActresses.jpg" width="30%" />
+<img src="screenshots/linkHistory.jpg" width="30%" />
 
 </div>
 
@@ -34,23 +34,22 @@
 
 **Ragalahari Gallery Downloader** is a Flutter-based Android app that lets you explore and download image galleries of your favorite celebrities from [Ragalahari.com](https://www.ragalahari.com).
 
-This app supports gallery previews, celebrity management via CSV, bulk downloads, and download history — all built with a **mobile-first approach** and sleek UI.
+This app supports gallery previews, celebrity management via CSV and JSON, bulk downloads, and download history — all built with a **mobile-first approach** and sleek UI.
 
 ---
 
 ## 🌟 Features
 
-- 🔥 **Latest Celebrity Albums** with preview
-- 👩‍🎤 **Celebrity Explorer** – Browse by actress/model
-- 📥 **Gallery Downloader** – Paste a gallery URL and download all images
+- **Latest Celebrity Albums** with preview
+- **Celebrity Explorer** – Browse by actress/model
+- **Gallery Downloader** – Paste a gallery URL and download all images
 - ✅ Select individual images before downloading (optional)
-- 📊 **Download Manager** – Pause, resume, cancel downloads
-- 🕘 **History Viewer** – Sort, delete, and share past downloads
-- ❤️ **Favorites Tab** – Save your favorite celebrities and albums
-- 🎨 **Themes & Display Settings** – Light/Dark mode with color customization
-- 💾 **Storage Settings** – Set your download folder
-- 📎 **CSV-based Celebrity Management**
-- 🔃 **Database Updater** – Easily update celebrity list
+- **Download Manager** – Pause, resume, cancel downloads
+- **History Viewer** – Sort, delete, and share past downloads
+- **Favorites Tab** – Save your favorite celebrities and albums
+- **Display Settings** – Light/Dark mode
+- **Storage Settings** – Set your download folder
+- **CSV-JSON based Celebrity Management**
 
 ---
 
@@ -69,7 +68,6 @@ This app supports gallery previews, celebrity management via CSV, bulk downloads
 - **Dio, Http, HTML Parsing**
 - **Provider for State Management**
 - **Permission Handler & Path Provider**
-- **CSV & File Picker**
 - **Mobile-First Responsive UI**
 
 ---
