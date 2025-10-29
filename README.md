@@ -6,9 +6,9 @@
 
 ### Flutter App to Download Celeb Albums from Ragalahari.com
 
-[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragadl_2025?label=Release&logo=github)](https://github.com/DevSon1024/ragadl_2025/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragadl_2025/total?logo=github)](https://github.com/DevSon1024/ragadl_2025/releases)
-[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragadl_2025)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragadl-app?label=Release&logo=github)](https://github.com/DevSon1024/ragadl-app/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragadl-app/total?logo=github)](https://github.com/DevSon1024/ragadl-app/releases)
+[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragadl-app)](LICENSE)
 
 </div>
 
