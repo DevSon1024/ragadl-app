@@ -260,8 +260,8 @@ class ContactUsPage extends StatelessWidget {
           context,
           Icons.folder,
           'Repository',
-          'ragalahari_downloader_2025',
-          'https://github.com/DevSon1024/ragalahari_downloader_2025',
+          'ragadl-app',
+          'https://github.com/DevSon1024/ragadl-app',
         ),
       ],
     );

@@ -56,7 +56,7 @@ class DownloaderService {
   }
 
   /// Validate Ragalahari URL
-  bool isValidRagalahariUrl(String url) {
+  bool isValidRagaUrl(String url) {
     return url.trim().startsWith('https://www.ragalahari.com');
   }
 

@@ -546,11 +546,11 @@ class _RagadlState extends State<RagaDL>
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _urlController.text.isNotEmpty &&
-                    !_downloaderService.isValidRagalahariUrl(_urlController.text)
+                    !_downloaderService.isValidRagaUrl(_urlController.text)
                     ? color.error
                     : color.outline.withOpacity(0.2),
                 width: _urlController.text.isNotEmpty &&
-                    !_downloaderService.isValidRagalahariUrl(_urlController.text)
+                    !_downloaderService.isValidRagaUrl(_urlController.text)
                     ? 2
                     : 1,
               ),
@@ -571,7 +571,7 @@ class _RagadlState extends State<RagaDL>
                 prefixIcon: Icon(
                   Icons.link_rounded,
                   color: _urlController.text.isNotEmpty &&
-                      !_downloaderService.isValidRagalahariUrl(_urlController.text)
+                      !_downloaderService.isValidRagaUrl(_urlController.text)
                       ? color.error
                       : color.primary,
                 ),
@@ -613,7 +613,7 @@ class _RagadlState extends State<RagaDL>
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                 errorText: _urlController.text.isNotEmpty &&
-                    !_downloaderService.isValidRagalahariUrl(_urlController.text)
+                    !_downloaderService.isValidRagaUrl(_urlController.text)
                     ? 'URL must start with https://www.ragalahari.com'
                     : null,
               ),
@@ -679,7 +679,7 @@ class _RagadlState extends State<RagaDL>
                     _showModernSnackBar('Please enter a URL', Icons.warning_rounded, true);
                     return;
                   }
-                  if (!_downloaderService.isValidRagalahariUrl(url)) {
+                  if (!_downloaderService.isValidRagaUrl(url)) {
                     _showModernSnackBar('Invalid URL: Must start with https://www.ragalahari.com', Icons.error_rounded, true);
                     return;
                   }
@@ -815,7 +815,7 @@ class _RagadlState extends State<RagaDL>
                 _error = null;
               });
               final url = _urlController.text.trim();
-              if (url.isNotEmpty && _downloaderService.isValidRagalahariUrl(url)) {
+              if (url.isNotEmpty && _downloaderService.isValidRagaUrl(url)) {
                 _processGallery(url);
               }
             },
