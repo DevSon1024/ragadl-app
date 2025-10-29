@@ -396,7 +396,7 @@ class _HomePageState extends State<HomePage> {
               icon: Icons.code_rounded,
               label: 'GitHub Repository',
               color: Colors.black87,
-              onTap: () => _launchUrl('https://github.com/DevSon1024/ragadl_2025'),
+              onTap: () => _launchUrl('https://github.com/DevSon1024/ragadl-app'),
             ),
             const SizedBox(height: 8),
             _SocialButton(
@@ -404,7 +404,7 @@ class _HomePageState extends State<HomePage> {
               label: 'Latest Release',
               color: Colors.green,
               onTap: () =>
-                  _launchUrl('https://github.com/DevSon1024/ragadl_2025/releases/latest'),
+                  _launchUrl('https://github.com/DevSon1024/ragadl-app/releases/latest'),
             ),
             const SizedBox(height: 8),
             _SocialButton(

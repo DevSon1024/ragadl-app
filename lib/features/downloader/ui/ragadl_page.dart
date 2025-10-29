@@ -21,10 +21,10 @@ class RagaDL extends StatefulWidget {
   });
 
   @override
-  State<RagaDL> createState() => _RagalahariDownloaderState();
+  State<RagaDL> createState() => _RagadlState();
 }
 
-class _RagalahariDownloaderState extends State<RagaDL>
+class _RagadlState extends State<RagaDL>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   // Controllers
   final TextEditingController _urlController = TextEditingController();
@@ -238,14 +238,14 @@ class _RagalahariDownloaderState extends State<RagaDL>
     if (mainFolderName.isEmpty && _folderController.text.isNotEmpty) {
       mainFolderName = _folderController.text.trim();
     } else if (mainFolderName.isEmpty) {
-      mainFolderName = "RagalahariDownloads";
+      mainFolderName = "RagaDownloads";
       _folderController.text = mainFolderName;
     }
 
     subFolderName = "$mainFolderName-${_downloaderService.extractGalleryId(baseUrl)}";
 
     await _downloaderService.setBaseDownloadPath(
-      '/storage/emulated/0/Download/Ragalahari Downloads',
+      '/storage/emulated/0/Download/RagaDL Downloads',
     );
 
     // Process gallery
@@ -522,7 +522,7 @@ class _RagalahariDownloaderState extends State<RagaDL>
                     onPressed: () {
                       setState(() {
                         mainFolderName = _folderController.text.trim().isEmpty
-                            ? 'RagalahariDownloads'
+                            ? 'RagaDownloads'
                             : _folderController.text.trim();
                       });
                       HapticFeedback.mediumImpact();

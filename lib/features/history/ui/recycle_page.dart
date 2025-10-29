@@ -62,18 +62,18 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
       Directory? baseDir;
       if (Platform.isWindows) {
         baseDir = await getApplicationDocumentsDirectory();
-        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+        baseDir = Directory('${baseDir.path}/RagaDL Downloads');
       } else if (Platform.isAndroid) {
-        baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
+        baseDir = Directory('/storage/emulated/0/Download/RagaDL Downloads');
         if (!await baseDir.exists()) {
           baseDir = await getExternalStorageDirectory();
           if (baseDir != null) {
-            baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+            baseDir = Directory('${baseDir.path}/RagaDL Downloads');
           }
         }
       } else {
         baseDir = await getApplicationDocumentsDirectory();
-        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+        baseDir = Directory('${baseDir.path}/RagaDL Downloads');
       }
 
       if (baseDir == null || !await baseDir.exists()) {

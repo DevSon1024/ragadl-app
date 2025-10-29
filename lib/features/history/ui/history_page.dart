@@ -231,10 +231,10 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       Directory? baseDir;
       if (Platform.isAndroid) {
-        baseDir = Directory('/storage/emulated/0/Download/Ragalahari Downloads');
+        baseDir = Directory('/storage/emulated/0/Download/RagaDL Downloads');
       } else {
         baseDir = await getApplicationDocumentsDirectory();
-        baseDir = Directory('${baseDir.path}/Ragalahari Downloads');
+        baseDir = Directory('${baseDir.path}/RagaDL Downloads');
       }
 
       if (!await baseDir.exists()) {

@@ -75,7 +75,7 @@ This app supports gallery previews, celebrity management via CSV and JSON, bulk 
 ## 📁 Folder Structure
 
 ```text
-ragadl_2025/
+ragadl-app/
 ├── android/
 ├── assets/
 │   ├── data/
@@ -153,7 +153,7 @@ ragadl_2025/
 
 ## ⬇️ Download
 
-- [GitHub Releases](https://github.com/DevSon1024/ragadl_2025/releases)
+- [GitHub Releases](https://github.com/DevSon1024/ragadl-app/releases)
 - F-Droid / Play Store (Coming soon)
 
 ---
@@ -161,7 +161,7 @@ ragadl_2025/
 ## 💬 Feedback & Contributions
 
 Found a bug or have a feature request?  
-Open an [issue](https://github.com/DevSon1024/ragadl_2025/issues) on GitHub.
+Open an [issue](https://github.com/DevSon1024/ragadl-app/issues) on GitHub.
 
 ---
 
