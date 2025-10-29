@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// import 'package:ragalahari_downloader/features/settings/ui/update_database_page.dart';
+// import 'package:ragadl/features/settings/ui/update_database_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
@@ -147,7 +147,7 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: color.surface,
         surfaceTintColor: Colors.transparent,
         title: const Text(
-          'Ragalahari Downloader',
+          'RagaDL',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
         actions: [
@@ -288,7 +288,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   Text(
-                    'Welcome to Ragalahari Downloader',
+                    'Welcome to RagaDL',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: color.onPrimary,
                       fontWeight: FontWeight.w800,
@@ -396,7 +396,7 @@ class _HomePageState extends State<HomePage> {
               icon: Icons.code_rounded,
               label: 'GitHub Repository',
               color: Colors.black87,
-              onTap: () => _launchUrl('https://github.com/DevSon1024/ragalahari_downloader_2025'),
+              onTap: () => _launchUrl('https://github.com/DevSon1024/ragadl_2025'),
             ),
             const SizedBox(height: 8),
             _SocialButton(
@@ -404,7 +404,7 @@ class _HomePageState extends State<HomePage> {
               label: 'Latest Release',
               color: Colors.green,
               onTap: () =>
-                  _launchUrl('https://github.com/DevSon1024/ragalahari_downloader_2025/releases/latest'),
+                  _launchUrl('https://github.com/DevSon1024/ragadl_2025/releases/latest'),
             ),
             const SizedBox(height: 8),
             _SocialButton(

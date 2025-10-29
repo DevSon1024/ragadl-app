@@ -1,6 +1,6 @@
 {
-    "name": "ragalahari_downloader",
-    "short_name": "ragalahari_downloader",
+    "name": "ragadl",
+    "short_name": "ragadl",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

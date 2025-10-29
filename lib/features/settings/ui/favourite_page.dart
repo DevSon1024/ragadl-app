@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../../downloader/ui/ragalahari_downloader_page.dart';
+import '../../downloader/ui/ragadl_page.dart';
 import '../../celebrity/ui/gallery_links_page.dart';
 import '../../celebrity/utils/celebrity_utils.dart';
 
@@ -240,7 +240,7 @@ class _FavouritePageState extends State<FavouritePage> with SingleTickerProvider
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => RagalahariDownloader(
+                          builder: (_) => RagaDL(
                             initialUrl: item.url,
                             initialFolder: item.celebrityName,
                           ),

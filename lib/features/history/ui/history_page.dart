@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:ragalahari_downloader/shared/widgets/grid_utils.dart';
+import 'package:ragadl/shared/widgets/grid_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
@@ -364,7 +364,7 @@ class _HistoryPageState extends State<HistoryPage> {
     }
 
     final paths = _selectedItems.map((index) => _filteredItems[index].path).toList();
-    await Share.shareFiles(paths, text: 'Sharing items from Ragalahari Downloader');
+    await Share.shareFiles(paths, text: 'Sharing items from RagaDL');
   }
 
   void _openItem(int index) {

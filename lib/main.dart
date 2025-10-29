@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'features/downloader/ui/ragalahari_downloader_page.dart';
+import 'features/downloader/ui/ragadl_page.dart';
 import 'features/history/ui/history_page.dart';
 import 'features/downloader/ui/download_manager_page.dart';
 import 'features/celebrity/ui/celebrity_list_page.dart';
@@ -39,7 +39,7 @@ void main() async {
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
     WindowManager.instance.setMinimumSize(const Size(800, 600));
-    WindowManager.instance.setTitle('Ragalahari Downloader');
+    WindowManager.instance.setTitle('RagaDL');
   }
 
   runApp(
@@ -56,7 +56,7 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeNotifier = ref.watch(themeNotifierProvider);
     return MaterialApp(
-      title: 'Ragalahari Downloader',
+      title: 'RagaDL',
       theme: themeNotifier.getThemeData(),
       darkTheme: themeNotifier.getThemeData(isDark: true),
       themeMode: themeNotifier.themeMode,
@@ -358,7 +358,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   context,
                   PageRouteBuilder(
                     pageBuilder: (context, animation, secondaryAnimation) =>
-                    const RagalahariDownloader(),
+                    const RagaDL(),
                     transitionsBuilder:
                         (context, animation, secondaryAnimation, child) {
                       const begin = Offset(0.0, 1.0);

@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.devson.ragalahari_downloader"
+    package="com.devson.ragadl"
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -12,10 +12,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="Ragalahari Downloader"
+        android:label="RagaDL"
         android:icon="@mipmap/ic_launcher">
         <activity
-            android:name=".MainActivity"
+            android:name="com.devson.ragadl.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

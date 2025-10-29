@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ragalahari_downloader/features/celebrity/data/celebrity_repository.dart';
+import 'package:ragadl/features/celebrity/data/celebrity_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/celebrity_utils.dart';
 import 'gallery_links_page.dart';
-import '../../downloader/ui/ragalahari_downloader_page.dart';
+import '../../downloader/ui/ragadl_page.dart';
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
@@ -218,7 +218,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     } else {
       Navigator.push(
         context,
-        _createPageRoute(RagalahariDownloader(initialFolder: celebrityName)),
+        _createPageRoute(RagaDL(initialFolder: celebrityName)),
       );
     }
   }

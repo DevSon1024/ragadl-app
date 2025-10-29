@@ -157,7 +157,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Ragalahari Downloader ("we", "our", or "the app") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our image downloading application for Android devices.',
+              'RagaDL ("we", "our", or "the app") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our image downloading application for Android devices.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.6,

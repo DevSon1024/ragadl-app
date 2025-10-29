@@ -6,14 +6,14 @@ import '../logic/downloader_service.dart';
 import 'download_manager_page.dart';
 import 'link_history_page.dart';
 import '../../../shared/widgets/grid_utils.dart';
-import 'package:ragalahari_downloader/core/permissions.dart';
+import 'package:ragadl/core/permissions.dart';
 
-class RagalahariDownloader extends StatefulWidget {
+class RagaDL extends StatefulWidget {
   final String? initialUrl;
   final String? initialFolder;
   final String? galleryTitle;
 
-  const RagalahariDownloader({
+  const RagaDL({
     super.key,
     this.initialUrl,
     this.initialFolder,
@@ -21,10 +21,10 @@ class RagalahariDownloader extends StatefulWidget {
   });
 
   @override
-  State<RagalahariDownloader> createState() => _RagalahariDownloaderState();
+  State<RagaDL> createState() => _RagalahariDownloaderState();
 }
 
-class _RagalahariDownloaderState extends State<RagalahariDownloader>
+class _RagalahariDownloaderState extends State<RagaDL>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   // Controllers
   final TextEditingController _urlController = TextEditingController();
@@ -100,7 +100,7 @@ class _RagalahariDownloaderState extends State<RagalahariDownloader>
   }
 
   @override
-  void didUpdateWidget(RagalahariDownloader oldWidget) {
+  void didUpdateWidget(RagaDL oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialUrl != oldWidget.initialUrl ||
         widget.initialFolder != oldWidget.initialFolder) {

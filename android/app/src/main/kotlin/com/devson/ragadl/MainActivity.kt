@@ -1,4 +1,4 @@
-package com.devson.ragalahari_downloader
+package com.devson.ragadl
 
 import io.flutter.embedding.android.FlutterActivity
 

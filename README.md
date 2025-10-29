@@ -6,9 +6,9 @@
 
 ### Flutter App to Download Celeb Albums from Ragalahari.com
 
-[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragalahari_downloader_2025?label=Release&logo=github)](https://github.com/DevSon1024/ragalahari_downloader_2025/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragalahari_downloader_2025/total?logo=github)](https://github.com/DevSon1024/ragalahari_downloader_2025/releases)
-[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragalahari_downloader_2025)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragadl_2025?label=Release&logo=github)](https://github.com/DevSon1024/ragadl_2025/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragadl_2025/total?logo=github)](https://github.com/DevSon1024/ragadl_2025/releases)
+[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragadl_2025)](LICENSE)
 
 </div>
 
@@ -75,7 +75,7 @@ This app supports gallery previews, celebrity management via CSV and JSON, bulk 
 ## 📁 Folder Structure
 
 ```text
-ragalahari_downloader_2025/
+ragadl_2025/
 ├── android/
 ├── assets/
 │   ├── data/
@@ -107,7 +107,7 @@ ragalahari_downloader_2025/
 │   │   │   └── ui/
 │   │   │       ├── download_manager_page.dart
 │   │   │       ├── link_history_page.dart
-│   │   │       └── ragalahari_downloader.dart
+│   │   │       └── ragadl.dart
 │   │   ├── history/
 │   │   │   └── ui/
 │   │   │       ├── history_full_image_viewer.dart
@@ -153,7 +153,7 @@ ragalahari_downloader_2025/
 
 ## ⬇️ Download
 
-- [GitHub Releases](https://github.com/DevSon1024/ragalahari_downloader_2025/releases)
+- [GitHub Releases](https://github.com/DevSon1024/ragadl_2025/releases)
 - F-Droid / Play Store (Coming soon)
 
 ---
@@ -161,7 +161,7 @@ ragalahari_downloader_2025/
 ## 💬 Feedback & Contributions
 
 Found a bug or have a feature request?  
-Open an [issue](https://github.com/DevSon1024/ragalahari_downloader_2025/issues) on GitHub.
+Open an [issue](https://github.com/DevSon1024/ragadl_2025/issues) on GitHub.
 
 ---
 

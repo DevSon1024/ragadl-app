@@ -221,7 +221,7 @@ class ContactUsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ragalahari Downloader Channel',
+                    'RagaDL Channel',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

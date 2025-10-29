@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ragalahari_downloader/core/permissions.dart';
+import 'package:ragadl/core/permissions.dart';
 import '../ui/download_manager_page.dart';
 import '../ui/link_history_page.dart';
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ragalahari_downloader/shared/widgets/theme_config.dart';
+import 'package:ragadl/shared/widgets/theme_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeNotifier extends ChangeNotifier {

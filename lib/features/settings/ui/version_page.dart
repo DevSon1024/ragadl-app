@@ -9,7 +9,7 @@ class VersionPage extends StatelessWidget {
 
   Future<Map<String, dynamic>> _fetchLatestRelease() async {
     final response = await http.get(
-      Uri.parse('https://api.github.com/repos/DevSon1024/ragalahari_downloader_2025/releases/latest'),
+      Uri.parse('https://api.github.com/repos/DevSon1024/ragadl_2025/releases/latest'),
       headers: {'Accept': 'application/vnd.github.v3+json'},
     );
     if (response.statusCode == 200) {
@@ -258,7 +258,7 @@ class VersionPage extends StatelessWidget {
           Icons.code,
           'Repository',
           'View on GitHub',
-          'https://github.com/DevSon1024/ragalahari_downloader_2025',
+          'https://github.com/DevSon1024/ragadl_2025',
         ),
       ],
     );

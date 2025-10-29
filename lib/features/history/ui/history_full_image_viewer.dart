@@ -177,7 +177,7 @@ class _FullImageViewerState extends State<FullImageViewer>
     HapticFeedback.mediumImpact();
     await Share.shareXFiles(
       [XFile(imagePath)],
-      text: 'Sharing image from Ragalahari Downloader',
+      text: 'Sharing image from RagaDL',
     );
   }
 
