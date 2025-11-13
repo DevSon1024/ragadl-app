@@ -37,8 +37,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 25
         targetSdk = 36
-        versionCode = 3000 // update this version to 2266 when update version to 2.6.6
-        versionName = "3.0.0"
+        versionCode = 301 // update this version to 2266 when update version to 2.6.6
+        versionName = "3.0.1"
         multiDexEnabled = true
     }
 
