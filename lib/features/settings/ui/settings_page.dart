@@ -1,13 +1,13 @@
 // Modified settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ragadl/main.dart';
+// import 'package:ragadl/main.dart';
 import 'display_settings_page.dart';
 import 'storage_settings.dart';
 import 'notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 import 'contact_us_page.dart';
-import 'package:ragadl/features/settings/ui/update_database_page.dart';
+// import 'package:ragadl/features/settings/ui/update_database_page.dart';
 import 'version_page.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -50,9 +50,7 @@ class SettingsPage extends ConsumerWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const StoragePage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const StoragePage()),
                   );
                 },
               ),
@@ -75,22 +73,22 @@ class SettingsPage extends ConsumerWidget {
           // _buildSettingsSection(
           //   context,
           //   title: 'na kcData',
-            // children: [
-              // _buildSettingsItem(
-              //   context,
-              //   icon: Icons.update,
-              //   title: 'Update Database',
-              //   subtitle: 'Fetch the latest celebrity data',
-              //   onTap: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //         builder: (_) => const UpdateDatabasePage(),
-              //       ),
-              //     );
-              //   },
-              // ),
-            // ],
+          // children: [
+          // _buildSettingsItem(
+          //   context,
+          //   icon: Icons.update,
+          //   title: 'Update Database',
+          //   subtitle: 'Fetch the latest celebrity data',
+          //   onTap: () {
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(
+          //         builder: (_) => const UpdateDatabasePage(),
+          //       ),
+          //     );
+          //   },
+          // ),
+          // ],
           // ),
           _buildSettingsSection(
             context,
@@ -116,9 +114,7 @@ class SettingsPage extends ConsumerWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const ContactUsPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const ContactUsPage()),
                   );
                 },
               ),
@@ -130,9 +126,7 @@ class SettingsPage extends ConsumerWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const VersionPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const VersionPage()),
                   );
                 },
               ),
@@ -143,8 +137,11 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSettingsSection(BuildContext context,
-      {required String title, required List<Widget> children}) {
+  Widget _buildSettingsSection(
+    BuildContext context, {
+    required String title,
+    required List<Widget> children,
+  }) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -175,24 +172,25 @@ class SettingsPage extends ConsumerWidget {
   }
 
   Widget _buildSettingsItem(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        String? subtitle,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
     final theme = Theme.of(context);
     return ListTile(
       leading: Icon(icon, color: theme.colorScheme.primary),
       title: Text(title),
-      subtitle: subtitle != null
-          ? Text(
-        subtitle,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      )
-          : null,
+      subtitle:
+          subtitle != null
+              ? Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+              : null,
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
     );

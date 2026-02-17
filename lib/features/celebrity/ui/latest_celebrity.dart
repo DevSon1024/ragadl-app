@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:ragadl/shared/widgets/grid_utils.dart';
 import '../../downloader/ui/ragadl_page.dart';
 import '../data/profile_cache_service.dart';
 import 'gallery_links_page.dart';
+import '../widgets/celebrity_card.dart';
 
 class LatestCelebrityPage extends StatefulWidget {
   const LatestCelebrityPage({super.key});
@@ -48,7 +49,7 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
 
           final partialUrl = aTag?.attributes['href'] ?? '';
           final fullUrl =
-          partialUrl.startsWith('/') ? baseUrl + partialUrl : partialUrl;
+              partialUrl.startsWith('/') ? baseUrl + partialUrl : partialUrl;
           final galleryTitle = h5Tag?.text.trim() ?? '';
           final galleryDate = h6Tag?.text.trim() ?? '';
 
@@ -101,10 +102,7 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => RagaDL(
-                    initialUrl: url,
-                    initialFolder: name,
-                  ),
+                  builder: (_) => RagaDL(initialUrl: url, initialFolder: name),
                 ),
               );
               break;
@@ -130,7 +128,9 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
 
     try {
       // Check cache first
-      String? cachedProfileLink = await ProfileCacheService.getProfileLink(galleryUrl);
+      String? cachedProfileLink = await ProfileCacheService.getProfileLink(
+        galleryUrl,
+      );
       String? celebrityName;
 
       if (cachedProfileLink != null) {
@@ -144,7 +144,11 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
         });
 
         if (celebrityName != null) {
-          _navigateToGalleryLinks(cachedProfileLink, celebrityName);
+          _navigateToGalleryLinks(
+            cachedProfileLink,
+            celebrityName,
+            thumbnailUrl: item['img'],
+          );
           return;
         }
       }
@@ -171,7 +175,7 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
               // Cache the profile link
               await ProfileCacheService.saveProfileLink(galleryUrl, href);
 
-              _navigateToGalleryLinks(href, name);
+              _navigateToGalleryLinks(href, name, thumbnailUrl: item['img']);
               return;
             }
           }
@@ -182,17 +186,17 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
         loadingProfileLinks[index] = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile link not found')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile link not found')));
     } catch (e) {
       setState(() {
         loadingProfileLinks[index] = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
     }
   }
 
@@ -204,8 +208,9 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
         final lastPart = urlParts.last.replaceAll('.aspx', '');
         final nameParts = lastPart.split('-');
         // Convert hyphenated name to proper case
-        return nameParts.map((part) =>
-        part[0].toUpperCase() + part.substring(1)).join(' ');
+        return nameParts
+            .map((part) => part[0].toUpperCase() + part.substring(1))
+            .join(' ');
       }
     } catch (e) {
       print('Error extracting celebrity name: $e');
@@ -213,14 +218,20 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
     return null;
   }
 
-  void _navigateToGalleryLinks(String profileLink, String celebrityName) {
+  void _navigateToGalleryLinks(
+    String profileLink,
+    String celebrityName, {
+    String? thumbnailUrl,
+  }) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => GalleryLinksPage(
-          profileUrl: profileLink,
-          celebrityName: celebrityName,
-        ),
+        builder:
+            (_) => GalleryLinksPage(
+              profileUrl: profileLink,
+              celebrityName: celebrityName,
+              thumbnailUrl: thumbnailUrl,
+            ),
       ),
     );
   }
@@ -232,181 +243,230 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
       appBar: AppBar(
         title: Text(
           'Latest Celebrities',
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
-      body: isLoading
-          ? _buildShimmerGrid()
-          : GridView.builder(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 100),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: calculateGridColumns(context),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.65,
-        ),
-        itemCount: celebrityList.length,
-        itemBuilder: (context, index) {
-          final item = celebrityList[index];
-          final isLoadingProfile = loadingProfileLinks[index] ?? false;
-
-          return Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => fetchCelebrityName(index),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
+      body:
+          isLoading
+              ? _buildShimmerContent()
+              : CustomScrollView(
+                slivers: [
+                  // Featured Carousel (Top 5 items)
+                  if (celebrityList.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 24),
+                        child: CarouselSlider.builder(
+                          itemCount:
+                              celebrityList.length > 5
+                                  ? 5
+                                  : celebrityList.length,
+                          options: CarouselOptions(
+                            height: MediaQuery.of(context).size.height * 0.25,
+                            autoPlay: true,
+                            enlargeCenterPage: true,
+                            viewportFraction: 0.9,
+                            aspectRatio: 16 / 9,
+                            autoPlayCurve: Curves.fastOutSlowIn,
+                            enableInfiniteScroll: true,
+                            autoPlayAnimationDuration: const Duration(
+                              milliseconds: 800,
+                            ),
+                          ),
+                          itemBuilder: (context, index, realIndex) {
+                            final item = celebrityList[index];
+                            return GestureDetector(
+                              onTap: () => fetchCelebrityName(index),
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  image: DecorationImage(
+                                    image: CachedNetworkImageProvider(
+                                      item['img'] ?? '',
+                                    ),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        Colors.black.withOpacity(0.8),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  alignment: Alignment.bottomLeft,
+                                  child: Text(
+                                    item['title'] ?? '',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                      child: CachedNetworkImage(
-                        imageUrl: item['img'] ?? '',
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        placeholder: (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
-                        errorWidget: (context, url, error) =>
-                        const Icon(Icons.error),
+                    ),
+
+                  // Section Title
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        "All Updates",
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['title'] ?? '',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item['date'] ?? '',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: isLoadingProfile
-                              ? null
-                              : () => fetchAndNavigateToProfile(index),
-                          icon: isLoadingProfile
-                              ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                              : const Icon(Icons.grid_view, size: 16),
-                          label: Text(
-                            isLoadingProfile
-                                ? 'Loading...'
-                                : 'Show Galleries',
-                            style: const TextStyle(fontSize: 12),
+
+                  // Grid View
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.55,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
                           ),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final item = celebrityList[index];
+                        final isLoadingProfile =
+                            loadingProfileLinks[index] ?? false;
+
+                        return CelebrityCard(
+                          imageUrl: item['img'] ?? '',
+                          title: item['title'] ?? '',
+                          date: item['date'],
+                          onTap: () => fetchCelebrityName(index),
+                          onActionPressed:
+                              () => fetchAndNavigateToProfile(index),
+                          isLoadingAction: isLoadingProfile,
+                          actionLabel: 'Show Galleries',
+                        );
+                      }, childCount: celebrityList.length),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+
+                  // Bottom Padding
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                ],
+              ),
     );
   }
 
-  Widget _buildShimmerGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 100),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: calculateGridColumns(context),
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.65,
-      ),
-      itemCount: 6,
-      itemBuilder: (context, index) {
-        return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Container(
+  Widget _buildShimmerContent() {
+    return CustomScrollView(
+      slivers: [
+        // Shimmer Carousel
+        SliverToBoxAdapter(
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.25,
+              margin: const EdgeInsets.only(top: 16, bottom: 24),
+              child: CarouselSlider.builder(
+                itemCount: 3,
+                options: CarouselOptions(
+                  height: MediaQuery.of(context).size.height * 0.25,
+                  enlargeCenterPage: true,
+                  viewportFraction: 0.9,
+                  aspectRatio: 16 / 9,
+                  autoPlay: false,
+                ),
+                itemBuilder: (context, index, realIndex) {
+                  return Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    width: double.infinity,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+
+        // Shimmer Grid
+        SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.7,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return Shimmer.fromColors(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: double.infinity,
-                        height: 16,
-                        color: Colors.grey[300],
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        width: 80,
-                        height: 12,
-                        color: Colors.grey[300],
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        height: 32,
-                        color: Colors.grey[300],
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(height: 16, color: Colors.grey[300]),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: 60,
+                              height: 12,
+                              color: Colors.grey[300],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(height: 32, color: Colors.grey[300]),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              );
+            }, childCount: 6),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

@@ -20,21 +20,22 @@ final themeNotifierProvider = ChangeNotifierProvider<ThemeNotifier>((ref) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await AwesomeNotifications().initialize(
-    null,
-    [
-      NotificationChannel(
-        channelKey: 'download_channel',
-        channelName: 'Download Notifications',
-        channelDescription: 'Notifications for download status',
-        defaultColor: Colors.green,
-        ledColor: Colors.white,
-        importance: NotificationImportance.High,
-        channelShowBadge: true,
-      ),
-    ],
-    debug: true,
-  );
+  // Increase ImageCache size
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      500 * 1024 * 1024; // 500 MB
+  PaintingBinding.instance.imageCache.maximumSize = 2000; // 2000 images
+
+  await AwesomeNotifications().initialize(null, [
+    NotificationChannel(
+      channelKey: 'download_channel',
+      channelName: 'Download Notifications',
+      channelDescription: 'Notifications for download status',
+      defaultColor: Colors.green,
+      ledColor: Colors.white,
+      importance: NotificationImportance.High,
+      channelShowBadge: true,
+    ),
+  ], debug: true);
 
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
@@ -42,11 +43,7 @@ void main() async {
     WindowManager.instance.setTitle('RagaDL');
   }
 
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
@@ -126,21 +123,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       vsync: this,
     );
 
-    _fabScaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.8,
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: Curves.easeInOut,
-    ));
+    _fabScaleAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
+    );
 
-    _navSlideAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _navAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _navSlideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _navAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     // Start navigation animation
     _navAnimationController.forward();
@@ -217,7 +209,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: theme.colorScheme.surface.withOpacity(1),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
@@ -285,17 +277,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     curve: Curves.easeOutCubic,
                     padding: EdgeInsets.all(isSelected ? 8 : 6),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primary.withOpacity(0.15)
-                          : Colors.transparent,
+                      color:
+                          isSelected
+                              ? theme.colorScheme.primary.withOpacity(0.15)
+                              : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       isSelected ? item.activeIcon : item.icon,
                       size: isSelected ? 26 : 24,
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withOpacity(0.6),
+                      color:
+                          isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -303,10 +297,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     duration: const Duration(milliseconds: 200),
                     style: TextStyle(
                       fontSize: isSelected ? 12 : 11,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withOpacity(0.6),
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color:
+                          isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                     child: Text(item.label),
                   ),
@@ -357,16 +353,23 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 Navigator.push(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                    const RagaDL(),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
+                    pageBuilder:
+                        (context, animation, secondaryAnimation) =>
+                            const RagaDL(),
+                    transitionsBuilder: (
+                      context,
+                      animation,
+                      secondaryAnimation,
+                      child,
+                    ) {
                       const begin = Offset(0.0, 1.0);
                       const end = Offset.zero;
                       const curve = Curves.easeOutCubic;
 
-                      var tween = Tween(begin: begin, end: end)
-                          .chain(CurveTween(curve: curve));
+                      var tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
 
                       return SlideTransition(
                         position: animation.drive(tween),

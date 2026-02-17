@@ -85,6 +85,7 @@ class FavoriteItem {
   final String url;
   final String? thumbnailUrl;
   final String? celebrityName;
+  final String? date;
 
   FavoriteItem({
     required this.type,
@@ -92,6 +93,7 @@ class FavoriteItem {
     required this.url,
     this.thumbnailUrl,
     this.celebrityName,
+    this.date,
   });
 
   Map<String, String> toJson() => {
@@ -100,6 +102,7 @@ class FavoriteItem {
     'url': url,
     'thumbnailUrl': thumbnailUrl ?? '',
     'celebrityName': celebrityName ?? '',
+    'date': date ?? '',
   };
 
   factory FavoriteItem.fromJson(Map<String, String> json) => FavoriteItem(
@@ -109,6 +112,7 @@ class FavoriteItem {
     thumbnailUrl: json['thumbnailUrl']!.isEmpty ? null : json['thumbnailUrl'],
     celebrityName:
     json['celebrityName']!.isEmpty ? null : json['celebrityName'],
+    date: json['date']!.isEmpty ? null : json['date'],
   );
 }
 

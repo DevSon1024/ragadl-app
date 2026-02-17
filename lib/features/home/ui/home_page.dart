@@ -14,7 +14,8 @@ import '../../settings/ui/favourite_page.dart';
 import '../../history/ui/history_page.dart';
 
 class HomePage extends StatefulWidget {
-  final Function({String? url, String? folder, String? title}) onDownloadSelected;
+  final Function({String? url, String? folder, String? title})
+  onDownloadSelected;
   final VoidCallback openSettings;
 
   const HomePage({
@@ -32,11 +33,23 @@ class _HomePageState extends State<HomePage> {
     {
       'title': 'Latest All Celebrities',
       'icon': Icons.star_rounded,
-      'page': const LatestCelebrityPage()
+      'page': const LatestCelebrityPage(),
     },
-    {'title': 'Latest Actress', 'icon': Icons.person_outline_rounded, 'page': const ActressPage()},
-    {'title': 'Latest Actors', 'icon': Icons.person_rounded, 'page': const ActorPage()},
-    {'title': 'Favorites', 'icon': Icons.favorite_rounded, 'page': const FavouritePage()},
+    {
+      'title': 'Latest Actress',
+      'icon': Icons.person_outline_rounded,
+      'page': const ActressPage(),
+    },
+    {
+      'title': 'Latest Actors',
+      'icon': Icons.person_rounded,
+      'page': const ActorPage(),
+    },
+    {
+      'title': 'Favorites',
+      'icon': Icons.favorite_rounded,
+      'page': const FavouritePage(),
+    },
   ];
 
   @override
@@ -89,7 +102,6 @@ class _HomePageState extends State<HomePage> {
   //   );
   // }
 
-
   Future<void> _loadSectionOrder() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -97,7 +109,10 @@ class _HomePageState extends State<HomePage> {
       if (order != null && order.length == sections.length) {
         final reordered = <Map<String, dynamic>>[];
         for (final title in order) {
-          final section = sections.firstWhere((s) => s['title'] == title, orElse: () => sections.first);
+          final section = sections.firstWhere(
+            (s) => s['title'] == title,
+            orElse: () => sections.first,
+          );
           reordered.add(section);
         }
         if (mounted) {
@@ -121,16 +136,16 @@ class _HomePageState extends State<HomePage> {
         mode: LaunchMode.externalApplication, // Force external browser
       )) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not launch URL')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Could not launch URL')));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -140,7 +155,8 @@ class _HomePageState extends State<HomePage> {
     final color = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: color.surface,
-      extendBodyBehindAppBar: false, // Changed to false to show device status bar
+      extendBodyBehindAppBar:
+          false, // Changed to false to show device status bar
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -155,7 +171,10 @@ class _HomePageState extends State<HomePage> {
             tooltip: 'Link History',
             icon: Icon(Icons.history_rounded, color: color.onSurface),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const LinkHistoryPage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
+              );
               FocusScope.of(context).unfocus();
             },
           ),
@@ -169,18 +188,16 @@ class _HomePageState extends State<HomePage> {
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              color.primaryContainer.withOpacity(0.25),
-              color.surface,
-            ],
+            colors: [color.primaryContainer.withOpacity(0.25), color.surface],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           top: false, // Don't apply safe area to top
-          bottom: true,
+          bottom: false,
           child: ListView(
+            padding: const EdgeInsets.only(bottom: 100),
             physics: const BouncingScrollPhysics(),
             children: [
               _buildHeroHeader(context),
@@ -194,16 +211,20 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   'Explore',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(height: 8),
               // Sections grid/list
-              ...sections.map((section) => _SectionCard(
-                title: section['title'] as String,
-                icon: section['icon'] as IconData,
-                onTap: () => _openPage(section['page'] as Widget),
-              )),
+              ...sections.map(
+                (section) => _SectionCard(
+                  title: section['title'] as String,
+                  icon: section['icon'] as IconData,
+                  onTap: () => _openPage(section['page'] as Widget),
+                ),
+              ),
               const SizedBox(height: 16),
               // Social Links Section
               Padding(
@@ -283,7 +304,9 @@ class _HomePageState extends State<HomePage> {
                         alignment: Alignment.center,
                         child: Text(
                           'Drag here to move window',
-                          style: TextStyle(color: color.onPrimary.withOpacity(0.7)),
+                          style: TextStyle(
+                            color: color.onPrimary.withOpacity(0.7),
+                          ),
                         ),
                       ),
                     ),
@@ -313,7 +336,9 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const HistoryPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const HistoryPage(),
+                            ),
                           );
                         },
                         foreground: color.onPrimary,
@@ -396,15 +421,18 @@ class _HomePageState extends State<HomePage> {
               icon: Icons.code_rounded,
               label: 'GitHub Repository',
               color: Colors.black87,
-              onTap: () => _launchUrl('https://github.com/DevSon1024/ragadl-app'),
+              onTap:
+                  () => _launchUrl('https://github.com/DevSon1024/ragadl-app'),
             ),
             const SizedBox(height: 8),
             _SocialButton(
               icon: Icons.new_releases_rounded,
               label: 'Latest Release',
               color: Colors.green,
-              onTap: () =>
-                  _launchUrl('https://github.com/DevSon1024/ragadl-app/releases/latest'),
+              onTap:
+                  () => _launchUrl(
+                    'https://github.com/DevSon1024/ragadl-app/releases/latest',
+                  ),
             ),
             const SizedBox(height: 8),
             _SocialButton(
@@ -473,7 +501,10 @@ class _SectionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: color.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: color.onSurfaceVariant,
+                ),
               ],
             ),
           ),
@@ -568,7 +599,11 @@ class _SocialButton extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.open_in_new_rounded, color: scheme.onSurfaceVariant, size: 18),
+            Icon(
+              Icons.open_in_new_rounded,
+              color: scheme.onSurfaceVariant,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -604,17 +639,26 @@ class _Glass extends StatelessWidget {
 
 class _ModernPageRoute extends PageRouteBuilder {
   _ModernPageRoute(Widget page)
-      : super(
-    transitionDuration: const Duration(milliseconds: 260),
-    reverseTransitionDuration: const Duration(milliseconds: 220),
-    pageBuilder: (_, __, ___) => page,
-    transitionsBuilder: (context, anim, secondary, child) {
-      final curved =
-      CurvedAnimation(parent: anim, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
-      return SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(curved),
-        child: FadeTransition(opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved), child: child),
+    : super(
+        transitionDuration: const Duration(milliseconds: 260),
+        reverseTransitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (_, __, ___) => page,
+        transitionsBuilder: (context, anim, secondary, child) {
+          final curved = CurvedAnimation(
+            parent: anim,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.04),
+              end: Offset.zero,
+            ).animate(curved),
+            child: FadeTransition(
+              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
+              child: child,
+            ),
+          );
+        },
       );
-    },
-  );
 }

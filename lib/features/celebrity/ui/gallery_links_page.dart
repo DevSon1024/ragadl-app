@@ -45,22 +45,20 @@ class GalleryScrapingResult {
   final List<GalleryItem>? items;
   final String? error;
 
-  GalleryScrapingResult({
-    this.urls,
-    this.items,
-    this.error,
-  });
+  GalleryScrapingResult({this.urls, this.items, this.error});
 }
 
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;
   final String profileUrl;
+  final String? thumbnailUrl;
   final DownloadSelectedCallback? onDownloadSelected;
 
   const GalleryLinksPage({
     super.key,
     required this.celebrityName,
     required this.profileUrl,
+    this.thumbnailUrl,
     this.onDownloadSelected,
   });
 
@@ -108,14 +106,19 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    final favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
-    ))
-        .toList();
+    final favorites =
+        favoritesJson
+            .map(
+              (json) => FavoriteItem.fromJson(
+                Map<String, String>.from(
+                  jsonDecode(json) as Map<String, dynamic>,
+                ),
+              ),
+            )
+            .toList();
     return favorites.any(
-          (item) =>
-      item.type == 'celebrity' &&
+      (item) =>
+          item.type == 'celebrity' &&
           item.name == widget.celebrityName &&
           item.url == widget.profileUrl,
     );
@@ -125,31 +128,37 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    List<FavoriteItem> favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
-    ))
-        .toList();
+    List<FavoriteItem> favorites =
+        favoritesJson
+            .map(
+              (json) => FavoriteItem.fromJson(
+                Map<String, String>.from(
+                  jsonDecode(json) as Map<String, dynamic>,
+                ),
+              ),
+            )
+            .toList();
 
     final favoriteItem = FavoriteItem(
       type: 'celebrity',
       name: widget.celebrityName,
       url: widget.profileUrl,
-      thumbnailUrl: null,
+      thumbnailUrl: widget.thumbnailUrl,
       celebrityName: widget.celebrityName,
+      date: DateFormat('MMM dd, yyyy').format(DateTime.now()),
     );
 
     final isFavorite = favorites.any(
-          (fav) =>
-      fav.type == 'celebrity' &&
+      (fav) =>
+          fav.type == 'celebrity' &&
           fav.name == widget.celebrityName &&
           fav.url == widget.profileUrl,
     );
 
     if (isFavorite) {
       favorites.removeWhere(
-            (fav) =>
-        fav.type == 'celebrity' &&
+        (fav) =>
+            fav.type == 'celebrity' &&
             fav.name == widget.celebrityName &&
             fav.url == widget.profileUrl,
       );
@@ -217,16 +226,18 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final cachedData = prefs.getString(cacheKey);
     if (cachedData != null) {
       final Map<String, dynamic> jsonData = jsonDecode(cachedData);
-      _loadedItems = jsonData.map((url, data) => MapEntry(
-        url,
-        GalleryItem(
-          url: data['url'],
-          title: data['title'],
-          thumbnailUrl: data['thumbnailUrl'],
-          pages: data['pages'],
-          date: DateTime.parse(data['date']),
+      _loadedItems = jsonData.map(
+        (url, data) => MapEntry(
+          url,
+          GalleryItem(
+            url: data['url'],
+            title: data['title'],
+            thumbnailUrl: data['thumbnailUrl'],
+            pages: data['pages'],
+            date: DateTime.parse(data['date']),
+          ),
         ),
-      ));
+      );
     }
   }
 
@@ -239,16 +250,15 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   Future<void> _cacheItems() async {
     final prefs = await SharedPreferences.getInstance();
     final cacheKey = 'gallery_items_${widget.profileUrl.hashCode}';
-    final jsonData = _loadedItems.map((url, item) => MapEntry(
-      url,
-      {
+    final jsonData = _loadedItems.map(
+      (url, item) => MapEntry(url, {
         'url': item.url,
         'title': item.title,
         'thumbnailUrl': item.thumbnailUrl,
         'pages': item.pages,
         'date': item.date.toIso8601String(),
-      },
-    ));
+      }),
+    );
     await prefs.setString(cacheKey, jsonEncode(jsonData));
   }
 
@@ -285,10 +295,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         thumbnailDomains: thumbnailDomains,
       );
 
-      await Isolate.spawn(
-        _fetchUrlsIsolate,
-        [receivePort.sendPort, scrapingData],
-      );
+      await Isolate.spawn(_fetchUrlsIsolate, [
+        receivePort.sendPort,
+        scrapingData,
+      ]);
     } catch (e) {
       setState(() {
         _error = 'Failed to fetch gallery URLs: $e';
@@ -307,9 +317,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
-        sendPort.send(GalleryScrapingResult(
-          error: 'Failed to load page: ${response.statusCode}',
-        ));
+        sendPort.send(
+          GalleryScrapingResult(
+            error: 'Failed to load page: ${response.statusCode}',
+          ),
+        );
         return;
       }
 
@@ -323,7 +335,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   }
 
   static List<String> _extractGalleryLinksIsolate(
-      dom.Document document, String profileUrl) {
+    dom.Document document,
+    String profileUrl,
+  ) {
     final galleriesPanel = document.getElementById('galleries_panel');
     if (galleriesPanel == null) return [];
 
@@ -349,7 +363,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final pageUrls = _filteredUrls.sublist(startIndex, endIndex);
 
     // Filter out already loaded items
-    final urlsToLoad = pageUrls.where((url) => !_loadedItems.containsKey(url)).toList();
+    final urlsToLoad =
+        pageUrls.where((url) => !_loadedItems.containsKey(url)).toList();
 
     if (urlsToLoad.isEmpty) {
       setState(() {
@@ -388,10 +403,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         thumbnailDomains: thumbnailDomains,
       );
 
-      await Isolate.spawn(
-        _loadBatchIsolate,
-        [receivePort.sendPort, batchData],
-      );
+      await Isolate.spawn(_loadBatchIsolate, [receivePort.sendPort, batchData]);
     } catch (e) {
       setState(() {
         _loadingPages.remove(page);
@@ -404,9 +416,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final BatchScrapingData data = args[1];
 
     try {
-      final futures = data.urls
-          .map((url) => _processSingleLinkIsolate(url, data.headers, data.thumbnailDomains))
-          .toList();
+      final futures =
+          data.urls
+              .map(
+                (url) => _processSingleLinkIsolate(
+                  url,
+                  data.headers,
+                  data.thumbnailDomains,
+                ),
+              )
+              .toList();
 
       final results = await Future.wait(futures);
       final items = results.whereType<GalleryItem>().toList();
@@ -418,9 +437,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   }
 
   static Future<GalleryItem?> _processSingleLinkIsolate(
-      String link,
-      Map<String, String> headers,
-      List<String> thumbnailDomains) async {
+    String link,
+    Map<String, String> headers,
+    List<String> thumbnailDomains,
+  ) async {
     try {
       final response = await http
           .get(Uri.parse(link), headers: headers)
@@ -430,7 +450,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       final document = html_parser.parse(response.body);
 
       String title = '';
-      final titleElement = document.querySelector('h1.gallerytitle') ??
+      final titleElement =
+          document.querySelector('h1.gallerytitle') ??
           document.querySelector('.gallerytitle') ??
           document.querySelector('h1');
 
@@ -438,10 +459,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         title = titleElement.text.trim();
       } else {
         final uri = Uri.parse(link);
-        final pathSegments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+        final pathSegments =
+            uri.pathSegments.where((s) => s.isNotEmpty).toList();
         title = link.split('/').last.replaceAll(".aspx", "");
         if (pathSegments.length > 2) {
-          title = '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
+          title =
+              '${pathSegments[pathSegments.length - 2]}-${pathSegments.last.replaceAll(".aspx", "")}';
         }
       }
 
@@ -470,7 +493,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   }
 
   static Future<(int, DateTime)> _getGalleryInfoIsolate(
-      String url, Map<String, String> headers) async {
+    String url,
+    Map<String, String> headers,
+  ) async {
     try {
       final response = await http
           .get(Uri.parse(url), headers: headers)
@@ -480,15 +505,19 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       final document = html_parser.parse(response.body);
 
       final pageLinks = document.getElementsByClassName('otherPage');
-      final lastPage = pageLinks.isEmpty
-          ? 1
-          : pageLinks.map((e) => int.tryParse(e.text.trim()) ?? 1).reduce(max);
+      final lastPage =
+          pageLinks.isEmpty
+              ? 1
+              : pageLinks
+                  .map((e) => int.tryParse(e.text.trim()) ?? 1)
+                  .reduce(max);
 
       final dateElement = document.querySelector('.gallerydate time');
       final dateStr = dateElement?.text.trim() ?? '';
-      final date = dateStr.startsWith('Updated on ')
-          ? DateFormat('MMMM dd, yyyy').parse(dateStr.substring(11))
-          : DateTime.now();
+      final date =
+          dateStr.startsWith('Updated on ')
+              ? DateFormat('MMMM dd, yyyy').parse(dateStr.substring(11))
+              : DateTime.now();
 
       return (lastPage, date);
     } catch (e) {
@@ -500,11 +529,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    List<FavoriteItem> favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
-    ))
-        .toList();
+    List<FavoriteItem> favorites =
+        favoritesJson
+            .map(
+              (json) => FavoriteItem.fromJson(
+                Map<String, String>.from(
+                  jsonDecode(json) as Map<String, dynamic>,
+                ),
+              ),
+            )
+            .toList();
 
     final favoriteItem = FavoriteItem(
       type: 'gallery',
@@ -512,19 +546,20 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       url: item.url,
       thumbnailUrl: item.thumbnailUrl,
       celebrityName: widget.celebrityName,
+      date: DateFormat('MMM dd, yyyy').format(item.date),
     );
 
     final isFavorite = favorites.any(
-          (fav) =>
-      fav.type == 'gallery' &&
+      (fav) =>
+          fav.type == 'gallery' &&
           fav.url == item.url &&
           fav.celebrityName == widget.celebrityName,
     );
 
     if (isFavorite) {
       favorites.removeWhere(
-            (fav) =>
-        fav.type == 'gallery' &&
+        (fav) =>
+            fav.type == 'gallery' &&
             fav.url == item.url &&
             fav.celebrityName == widget.celebrityName,
       );
@@ -553,10 +588,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RagaDL(
-          initialUrl: galleryUrl,
-          initialFolder: widget.celebrityName,
-        ),
+        builder:
+            (_) => RagaDL(
+              initialUrl: galleryUrl,
+              initialFolder: widget.celebrityName,
+            ),
       ),
     );
   }
@@ -567,13 +603,15 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       if (query.isEmpty) {
         _filteredUrls = List.from(_allGalleryUrls);
       } else {
-        _filteredUrls = _allGalleryUrls.where((url) {
-          final galleryId = url
-              .split('/')
-              .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
-              .firstOrNull;
-          return galleryId != null && galleryId.startsWith(query);
-        }).toList();
+        _filteredUrls =
+            _allGalleryUrls.where((url) {
+              final galleryId =
+                  url
+                      .split('/')
+                      .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
+                      .firstOrNull;
+              return galleryId != null && galleryId.startsWith(query);
+            }).toList();
       }
       _currentPage = 1;
       _loadedPages.clear();
@@ -595,9 +633,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     if (item == null || isPlaceholder) {
       return Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Shimmer.fromColors(
           baseColor: theme.colorScheme.surfaceContainerHighest,
           highlightColor: theme.colorScheme.surfaceContainerLow,
@@ -657,9 +693,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            color: isFavorite
-                ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-                : theme.colorScheme.surface,
+            color:
+                isFavorite
+                    ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                    : theme.colorScheme.surface,
             child: Stack(
               children: [
                 Column(
@@ -670,44 +707,62 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
                         ),
-                        child: item.thumbnailUrl != null &&
-                            item.thumbnailUrl!.isNotEmpty
-                            ? Image.network(
-                          item.thumbnailUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          alignment: Alignment.topCenter,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                      : null,
+                        child:
+                            item.thumbnailUrl != null &&
+                                    item.thumbnailUrl!.isNotEmpty
+                                ? Image.network(
+                                  item.thumbnailUrl!,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  alignment: Alignment.topCenter,
+                                  loadingBuilder: (
+                                    context,
+                                    child,
+                                    loadingProgress,
+                                  ) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color:
+                                          theme
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value:
+                                              loadingProgress
+                                                          .expectedTotalBytes !=
+                                                      null
+                                                  ? loadingProgress
+                                                          .cumulativeBytesLoaded /
+                                                      loadingProgress
+                                                          .expectedTotalBytes!
+                                                  : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder:
+                                      (_, __, ___) => Container(
+                                        color: theme.colorScheme.errorContainer,
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          size: 60,
+                                          color:
+                                              theme
+                                                  .colorScheme
+                                                  .onErrorContainer,
+                                        ),
+                                      ),
+                                )
+                                : Container(
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 60,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (_, __, ___) => Container(
-                            color: theme.colorScheme.errorContainer,
-                            child: Icon(
-                              Icons.broken_image,
-                              size: 60,
-                              color: theme.colorScheme.onErrorContainer,
-                            ),
-                          ),
-                        )
-                            : Container(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 60,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
                       ),
                     ),
                     Padding(
@@ -754,10 +809,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      DateFormat('MMM dd, yyyy').format(item.date),
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
+                                      DateFormat(
+                                        'MMM dd, yyyy',
+                                      ).format(item.date),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color:
+                                                theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                          ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -801,14 +862,19 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     final prefs = await SharedPreferences.getInstance();
     final favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    final favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-      Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>),
-    ))
-        .toList();
+    final favorites =
+        favoritesJson
+            .map(
+              (json) => FavoriteItem.fromJson(
+                Map<String, String>.from(
+                  jsonDecode(json) as Map<String, dynamic>,
+                ),
+              ),
+            )
+            .toList();
     return favorites.any(
-          (item) =>
-      item.type == 'gallery' &&
+      (item) =>
+          item.type == 'gallery' &&
           item.url == url &&
           item.celebrityName == widget.celebrityName,
     );
@@ -836,9 +902,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
               _isCelebrityFavorite ? Icons.star : Icons.star_border,
               color: _isCelebrityFavorite ? Colors.amber : null,
             ),
-            tooltip: _isCelebrityFavorite
-                ? 'Remove from Favorites'
-                : 'Add to Favorites',
+            tooltip:
+                _isCelebrityFavorite
+                    ? 'Remove from Favorites'
+                    : 'Add to Favorites',
             onPressed: _toggleCelebrityFavorite,
           ),
         ],
@@ -852,15 +919,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
               decoration: InputDecoration(
                 hintText: 'Search by gallery code...',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isEmpty
-                    ? null
-                    : IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    _searchFocusNode.unfocus();
-                  },
-                ),
+                suffixIcon:
+                    _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchFocusNode.unfocus();
+                          },
+                        ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
@@ -878,122 +946,128 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
           ),
         ),
       ),
-      body: _error != null
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: theme.textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      )
-          : _isLoadingUrls
-          ? const Center(child: CircularProgressIndicator())
-          : _filteredUrls.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.photo_library_outlined,
-              size: 64,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No galleries found',
-              style: theme.textTheme.bodyLarge,
-            ),
-          ],
-        ),
-      )
-          : Column(
-        children: [
-          if (_loadingPages.contains(_currentPage))
-            LinearProgressIndicator(
-              backgroundColor: theme.colorScheme.surfaceContainer,
-            ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(12),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: calculateGridColumns(context),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.68,
-              ),
-              itemCount: currentPageUrls.length,
-              itemBuilder: (context, index) {
-                final url = currentPageUrls[index];
-                return _buildGalleryCard(
-                  url,
-                  isPlaceholder: !_loadedItems.containsKey(url),
-                );
-              },
-            ),
-          ),
-          if (totalPages > 1)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body:
+          _error != null
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      style: theme.textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+              : _isLoadingUrls
+              ? const Center(child: CircularProgressIndicator())
+              : _filteredUrls.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.photo_library_outlined,
+                      size: 64,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No galleries found',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
+              )
+              : Column(
                 children: [
-                  IconButton.filledTonal(
-                    onPressed: _currentPage > 1
-                        ? () => _changePage(_currentPage - 1)
-                        : null,
-                    icon: const Icon(Icons.chevron_left),
+                  if (_loadingPages.contains(_currentPage))
+                    LinearProgressIndicator(
+                      backgroundColor: theme.colorScheme.surfaceContainer,
+                    ),
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: calculateGridColumns(context),
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.68,
+                      ),
+                      itemCount: currentPageUrls.length,
+                      itemBuilder: (context, index) {
+                        final url = currentPageUrls[index];
+                        return _buildGalleryCard(
+                          url,
+                          isPlaceholder: !_loadedItems.containsKey(url),
+                        );
+                      },
+                    ),
                   ),
-                  const SizedBox(width: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Page $_currentPage of $totalPages',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onPrimaryContainer,
+                  if (totalPages > 1)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton.filledTonal(
+                            onPressed:
+                                _currentPage > 1
+                                    ? () => _changePage(_currentPage - 1)
+                                    : null,
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Page $_currentPage of $totalPages',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          IconButton.filledTonal(
+                            onPressed:
+                                _currentPage < totalPages
+                                    ? () => _changePage(_currentPage + 1)
+                                    : null,
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  IconButton.filledTonal(
-                    onPressed: _currentPage < totalPages
-                        ? () => _changePage(_currentPage + 1)
-                        : null,
-                    icon: const Icon(Icons.chevron_right),
-                  ),
                 ],
               ),
-            ),
-        ],
-      ),
     );
   }
 }

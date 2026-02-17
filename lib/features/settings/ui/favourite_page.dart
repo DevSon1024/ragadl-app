@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import '../../downloader/ui/ragadl_page.dart';
-import '../../celebrity/ui/gallery_links_page.dart';
+
 import '../../celebrity/utils/celebrity_utils.dart';
+import '../../celebrity/ui/gallery_links_page.dart';
+import '../../celebrity/widgets/celebrity_card.dart';
+import '../../downloader/ui/ragadl_page.dart';
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});
@@ -12,254 +14,207 @@ class FavouritePage extends StatefulWidget {
   _FavouritePageState createState() => _FavouritePageState();
 }
 
-class _FavouritePageState extends State<FavouritePage> with SingleTickerProviderStateMixin {
-  List<FavoriteItem> _favorites = [];
-  late TabController _tabController;
+class _FavouritePageState extends State<FavouritePage> {
+  List<FavoriteItem> celebrities = [];
+  List<FavoriteItem> galleries = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadFavorites();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    final favoriteKey = 'favorites';
-    final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    setState(() {
-      _favorites = favoritesJson
-          .map((json) => FavoriteItem.fromJson(
-          Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>)))
-          .toList();
-    });
-  }
+    final List<String> favoritesJson = prefs.getStringList('favorites') ?? [];
 
-  Future<void> _saveFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoriteKey = 'favorites';
-    await prefs.setStringList(
-        favoriteKey, _favorites.map((item) => jsonEncode(item.toJson())).toList());
+    final List<FavoriteItem> allFavorites =
+        favoritesJson
+            .map(
+              (json) => FavoriteItem.fromJson(
+                Map<String, String>.from(
+                  jsonDecode(json) as Map<String, dynamic>,
+                ),
+              ),
+            )
+            .toList();
+
+    setState(() {
+      celebrities =
+          allFavorites.where((item) => item.type == 'celebrity').toList();
+      galleries = allFavorites.where((item) => item.type == 'gallery').toList();
+      isLoading = false;
+    });
   }
 
   Future<void> _removeFavorite(FavoriteItem item) async {
     final prefs = await SharedPreferences.getInstance();
-    final favoriteKey = 'favorites';
-    List<String> favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    List<FavoriteItem> favorites = favoritesJson
-        .map((json) => FavoriteItem.fromJson(
-        Map<String, String>.from(jsonDecode(json) as Map<String, dynamic>)))
-        .toList();
+    final List<String> favoritesJson = prefs.getStringList('favorites') ?? [];
 
-    favorites.removeWhere((fav) =>
-    fav.type == item.type &&
-        fav.url == item.url &&
-        fav.name == item.name &&
-        fav.celebrityName == item.celebrityName);
-    await prefs.setStringList(
-        favoriteKey, favorites.map((item) => jsonEncode(item.toJson())).toList());
+    final List<FavoriteItem> allFavorites =
+        favoritesJson
+            .map(
+              (json) => FavoriteItem.fromJson(
+                Map<String, String>.from(
+                  jsonDecode(json) as Map<String, dynamic>,
+                ),
+              ),
+            )
+            .toList();
 
-    setState(() {
-      _favorites = favorites;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${item.name} removed from favorites'),
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-      ),
+    allFavorites.removeWhere(
+      (fav) =>
+          fav.type == item.type &&
+          fav.url == item.url &&
+          fav.celebrityName == item.celebrityName,
     );
+
+    await prefs.setStringList(
+      'favorites',
+      allFavorites.map((item) => jsonEncode(item.toJson())).toList(),
+    );
+
+    _loadFavorites();
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Removed from favorites')));
+    }
   }
 
-  void _onReorder(int oldIndex, int newIndex, String type) {
-    setState(() {
-      if (newIndex > oldIndex) newIndex -= 1;
-      final items = _favorites.where((item) => item.type == type).toList();
-      final item = items[oldIndex];
-      items.removeAt(oldIndex);
-      items.insert(newIndex, item);
-      _favorites = [
-        if (type == 'celebrity') ...items,
-        if (type == 'gallery') ..._favorites.where((item) => item.type == 'celebrity'),
-        if (type == 'celebrity') ..._favorites.where((item) => item.type == 'gallery'),
-        if (type == 'gallery') ...items,
-      ];
-    });
-    _saveFavorites();
+  void _navigateToItem(FavoriteItem item) {
+    if (item.type == 'celebrity') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => GalleryLinksPage(
+                profileUrl: item.url,
+                celebrityName: item.name,
+                thumbnailUrl: item.thumbnailUrl,
+              ),
+        ),
+      );
+    } else {
+      // For galleries, navigate to RagaDL
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => RagaDL(
+                initialUrl: item.url,
+                galleryTitle: item.name,
+                initialFolder: item.celebrityName ?? '',
+              ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final celebrities = _favorites.where((item) => item.type == 'celebrity').toList();
-    final galleries = _favorites.where((item) => item.type == 'gallery').toList();
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (celebrities.isEmpty && galleries.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Favorites')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text('No favorites yet'),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Favourites',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: theme.colorScheme.surface,
-        surfaceTintColor: theme.colorScheme.surfaceTint,
-        elevation: 2,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-          indicatorColor: theme.colorScheme.primary,
-          tabs: const [
-            Tab(text: 'Celebrities'),
-            Tab(text: 'Galleries'),
+      appBar: AppBar(title: const Text('Favorites')),
+      body: CustomScrollView(
+        slivers: [
+          // Favorite Celebrities Section
+          if (celebrities.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  'Favorite Celebrities',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.55,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final item = celebrities[index];
+                  return CelebrityCard(
+                    imageUrl: item.thumbnailUrl ?? '',
+                    title: item.name,
+                    date: item.date,
+                    onTap: () => _navigateToItem(item),
+                    onActionPressed: () => _removeFavorite(item),
+                    isLoadingAction: false,
+                    actionLabel: 'Remove',
+                  );
+                }, childCount: celebrities.length),
+              ),
+            ),
           ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Celebrities Tab
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: celebrities.isEmpty
-                ? Center(
-              child: Text(
-                'No favorite celebrities',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+
+          // Favorite Galleries Section
+          if (galleries.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                child: Text(
+                  'Favorite Galleries',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
-            )
-                : ReorderableListView(
-              onReorder: (oldIndex, newIndex) => _onReorder(oldIndex, newIndex, 'celebrity'),
-              children: List.generate(celebrities.length, (index) {
-                final item = celebrities[index];
-                return Card(
-                  key: ValueKey(item.url),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  surfaceTintColor: theme.colorScheme.surfaceTint,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    title: Text(
-                      item.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => GalleryLinksPage(
-                            celebrityName: item.name,
-                            profileUrl: item.url,
-                          ),
-                        ),
-                      );
-                    },
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.delete,
-                        color: theme.colorScheme.error,
-                      ),
-                      onPressed: () => _removeFavorite(item),
-                      tooltip: 'Remove from favorites',
-                    ),
-                  ),
-                );
-              }),
             ),
-          ),
-          // Galleries Tab
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: galleries.isEmpty
-                ? Center(
-              child: Text(
-                'No favorite galleries',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.55,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
                 ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final item = galleries[index];
+                  return CelebrityCard(
+                    imageUrl: item.thumbnailUrl ?? '',
+                    title: item.name,
+                    date: item.date,
+                    onTap: () => _navigateToItem(item),
+                    onActionPressed: () => _removeFavorite(item),
+                    isLoadingAction: false,
+                    actionLabel: 'Remove',
+                  );
+                }, childCount: galleries.length),
               ),
-            )
-                : ReorderableListView(
-              onReorder: (oldIndex, newIndex) => _onReorder(oldIndex, newIndex, 'gallery'),
-              children: List.generate(galleries.length, (index) {
-                final item = galleries[index];
-                return Card(
-                  key: ValueKey(item.url),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  surfaceTintColor: theme.colorScheme.surfaceTint,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
-                        ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        item.thumbnailUrl!,
-                        width: 60,
-                        height: 60,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.broken_image,
-                          size: 60,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    )
-                        : Icon(
-                      Icons.image,
-                      size: 60,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    title: Text(
-                      item.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Celebrity: ${item.celebrityName ?? 'Unknown'}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RagaDL(
-                            initialUrl: item.url,
-                            initialFolder: item.celebrityName,
-                          ),
-                        ),
-                      );
-                    },
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.delete,
-                        color: theme.colorScheme.error,
-                      ),
-                      onPressed: () => _removeFavorite(item),
-                      tooltip: 'Remove from favorites',
-                    ),
-                  ),
-                );
-              }),
             ),
-          ),
+          ],
+
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
