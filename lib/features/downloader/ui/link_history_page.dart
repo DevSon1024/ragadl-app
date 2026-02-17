@@ -83,7 +83,9 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
   }
 
   @override
@@ -105,9 +107,10 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
 
       if (mounted) {
         setState(() {
-          _history = historyJson
-              .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
-              .toList();
+          _history =
+              historyJson
+                  .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
+                  .toList();
           _filteredHistory = List.from(_history);
           _isLoading = false;
           _sortHistory();
@@ -120,7 +123,11 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showModernSnackBar('Error loading history: $e', Icons.error_rounded, true);
+        _showModernSnackBar(
+          'Error loading history: $e',
+          Icons.error_rounded,
+          true,
+        );
       }
     }
   }
@@ -136,17 +143,22 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
       final prefs = await SharedPreferences.getInstance();
       const historyKey = 'link_history';
       List<String> historyJson = prefs.getStringList(historyKey) ?? [];
-      List<LinkHistoryItem> history = historyJson
-          .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
-          .toList();
+      List<LinkHistoryItem> history =
+          historyJson
+              .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
+              .toList();
 
-      history.removeWhere((h) =>
-      h.url == item.url &&
-          h.celebrityName == item.celebrityName &&
-          h.timestamp == item.timestamp);
+      history.removeWhere(
+        (h) =>
+            h.url == item.url &&
+            h.celebrityName == item.celebrityName &&
+            h.timestamp == item.timestamp,
+      );
 
       await prefs.setStringList(
-          historyKey, history.map((h) => jsonEncode(h.toJson())).toList());
+        historyKey,
+        history.map((h) => jsonEncode(h.toJson())).toList(),
+      );
 
       if (mounted) {
         setState(() {
@@ -173,65 +185,77 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
 
   Future<bool> _showDeleteConfirmation(LinkHistoryItem item) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Remove from History',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Are you sure you want to remove this link?'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.celebrityName,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  if (item.galleryTitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      item.galleryTitle!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                title: const Text(
+                  'Remove from History',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Are you sure you want to remove this link?'),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceVariant.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.celebrityName,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          if (item.galleryTitle != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              item.galleryTitle!,
+                              style: TextStyle(
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                    child: const Text('Remove'),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    ) ??
+        ) ??
         false;
   }
 
-  void _showModernSnackBar(String message, IconData icon, [bool isError = false]) {
+  void _showModernSnackBar(
+    String message,
+    IconData icon, [
+    bool isError = false,
+  ]) {
     if (!mounted) return;
     final color = Theme.of(context).colorScheme;
 
@@ -302,12 +326,16 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
       final query = _searchController.text.toLowerCase();
 
       if (query.isNotEmpty) {
-        _filteredHistory = _filteredHistory
-            .where((item) =>
-        item.celebrityName.toLowerCase().contains(query) ||
-            (item.galleryTitle?.toLowerCase().contains(query) ?? false) ||
-            (_extractGalleryId(item.url)?.contains(query) ?? false))
-            .toList();
+        _filteredHistory =
+            _filteredHistory
+                .where(
+                  (item) =>
+                      item.celebrityName.toLowerCase().contains(query) ||
+                      (item.galleryTitle?.toLowerCase().contains(query) ??
+                          false) ||
+                      (_extractGalleryId(item.url)?.contains(query) ?? false),
+                )
+                .toList();
       }
 
       switch (_currentSortOption) {
@@ -329,29 +357,32 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
   Future<void> _clearAllHistory() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Clear All History',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        content: const Text(
-          'Are you sure you want to clear all link history? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('Clear All'),
+            title: const Text(
+              'Clear All History',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            content: const Text(
+              'Are you sure you want to clear all link history? This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+                child: const Text('Clear All'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -376,9 +407,15 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
         const curve = Curves.easeOutCubic;
 
         final tween = Tween(begin: begin, end: end);
-        final curvedAnimation = CurvedAnimation(parent: animation, curve: curve);
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: curve,
+        );
         final offsetAnimation = tween.animate(curvedAnimation);
-        final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation);
+        final fadeAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(curvedAnimation);
 
         return SlideTransition(
           position: offsetAnimation,
@@ -424,7 +461,9 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
           ),
           child: PopupMenuButton<HistorySortOption>(
             icon: Icon(Icons.sort_rounded, color: color.primary),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             onSelected: (HistorySortOption newValue) {
               setState(() {
                 _currentSortOption = newValue;
@@ -432,22 +471,23 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
               });
               HapticFeedback.selectionClick();
             },
-            itemBuilder: (BuildContext context) => [
-              _buildPopupMenuItem(
-                HistorySortOption.newestFirst,
-                'Newest First',
-                Icons.arrow_downward_rounded,
-                color,
-                theme,
-              ),
-              _buildPopupMenuItem(
-                HistorySortOption.oldestFirst,
-                'Oldest First',
-                Icons.arrow_upward_rounded,
-                color,
-                theme,
-              ),
-            ],
+            itemBuilder:
+                (BuildContext context) => [
+                  _buildPopupMenuItem(
+                    HistorySortOption.newestFirst,
+                    'Newest First',
+                    Icons.arrow_downward_rounded,
+                    color,
+                    theme,
+                  ),
+                  _buildPopupMenuItem(
+                    HistorySortOption.oldestFirst,
+                    'Oldest First',
+                    Icons.arrow_upward_rounded,
+                    color,
+                    theme,
+                  ),
+                ],
           ),
         ),
         if (_history.isNotEmpty)
@@ -468,12 +508,12 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
   }
 
   PopupMenuItem<HistorySortOption> _buildPopupMenuItem(
-      HistorySortOption option,
-      String title,
-      IconData icon,
-      ColorScheme color,
-      ThemeData theme,
-      ) {
+    HistorySortOption option,
+    String title,
+    IconData icon,
+    ColorScheme color,
+    ThemeData theme,
+  ) {
     final isSelected = _currentSortOption == option;
 
     return PopupMenuItem<HistorySortOption>(
@@ -485,7 +525,10 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isSelected ? color.primary.withOpacity(0.1) : Colors.transparent,
+                color:
+                    isSelected
+                        ? color.primary.withOpacity(0.1)
+                        : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -536,19 +579,29 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
           decoration: InputDecoration(
             hintText: 'Search by name, title, or gallery ID...',
             hintStyle: TextStyle(color: color.onSurfaceVariant),
-            prefixIcon: Icon(Icons.search_rounded, color: color.onSurfaceVariant),
-            suffixIcon: _searchController.text.isEmpty
-                ? null
-                : IconButton(
-              icon: Icon(Icons.clear_rounded, color: color.onSurfaceVariant),
-              onPressed: () {
-                _searchController.clear();
-                _filterHistory();
-                HapticFeedback.lightImpact();
-              },
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: color.onSurfaceVariant,
             ),
+            suffixIcon:
+                _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                      icon: Icon(
+                        Icons.clear_rounded,
+                        color: color.onSurfaceVariant,
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        _filterHistory();
+                        HapticFeedback.lightImpact();
+                      },
+                    ),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
           ),
           onChanged: (value) {
             setState(() {});
@@ -627,14 +680,18 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
               _searchController.text.isNotEmpty
                   ? 'No matching history found'
                   : 'No link history yet',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               _searchController.text.isNotEmpty
                   ? 'Try adjusting your search terms.'
                   : 'Visit gallery pages to build your history.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: color.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: color.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -769,13 +826,23 @@ class _HistoryCard extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: color.primaryContainer.withOpacity(0.7),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              item.celebrityName,
+                              () {
+                                final words = item.celebrityName.split(
+                                  RegExp(r'\s+'),
+                                );
+                                return words.length > 2
+                                    ? '${words[0]} ${words[1]}...'
+                                    : item.celebrityName;
+                              }(),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: color.primary,
                                 fontWeight: FontWeight.w600,
@@ -785,7 +852,10 @@ class _HistoryCard extends StatelessWidget {
                           if (galleryId != null) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: color.surfaceVariant.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(6),
@@ -819,11 +889,18 @@ class _HistoryCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: IconButton(
-                    icon: Icon(Icons.delete_outline_rounded, color: color.error, size: 20),
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      color: color.error,
+                      size: 20,
+                    ),
                     onPressed: onDelete,
                     tooltip: 'Remove from history',
                     padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
                   ),
                 ),
               ],
