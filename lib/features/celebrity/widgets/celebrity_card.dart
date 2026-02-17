@@ -9,6 +9,7 @@ class CelebrityCard extends StatelessWidget {
   final VoidCallback onActionPressed;
   final bool isLoadingAction;
   final String actionLabel;
+  final bool showActionButton;
 
   const CelebrityCard({
     super.key,
@@ -19,6 +20,7 @@ class CelebrityCard extends StatelessWidget {
     required this.onActionPressed,
     this.isLoadingAction = false,
     this.actionLabel = 'Show Galleries',
+    this.showActionButton = true,
   });
 
   @override
@@ -71,31 +73,35 @@ class CelebrityCard extends StatelessWidget {
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: isLoadingAction ? null : onActionPressed,
-                    icon:
-                        isLoadingAction
-                            ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                            : const Icon(Icons.grid_view, size: 18),
-                    label: Text(
-                      isLoadingAction ? 'Loading...' : actionLabel,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                if (showActionButton) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isLoadingAction ? null : onActionPressed,
+                      icon:
+                          isLoadingAction
+                              ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Icon(Icons.grid_view, size: 18),
+                      label: Text(
+                        isLoadingAction ? 'Loading...' : actionLabel,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
