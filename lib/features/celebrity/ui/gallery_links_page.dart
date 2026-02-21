@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
@@ -76,8 +75,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   final int _itemsPerPage = 30;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  Set<int> _loadingPages = {};
-  Set<int> _loadedPages = {};
+  final Set<int> _loadingPages = {};
+  final Set<int> _loadedPages = {};
   bool _isCelebrityFavorite = false;
 
   @override

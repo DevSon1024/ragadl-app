@@ -585,7 +585,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.surfaceVariant.withOpacity(0.5),
+                color: color.surfaceContainerHighest.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.search_off_rounded,
@@ -787,7 +787,7 @@ class _CelebrityCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isFavorite
                             ? Colors.amber.withOpacity(0.1)
-                            : color.surfaceVariant.withOpacity(0.5),
+                            : color.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(

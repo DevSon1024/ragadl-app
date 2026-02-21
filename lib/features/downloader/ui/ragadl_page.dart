@@ -582,7 +582,7 @@ class _RagadlState extends State<RagaDL>
                       Container(
                         margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: color.surfaceVariant.withOpacity(0.5),
+                          color: color.surfaceContainerHighest.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
@@ -598,7 +598,7 @@ class _RagadlState extends State<RagaDL>
                     Container(
                       margin: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: color.surfaceVariant.withOpacity(0.5),
+                        color: color.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
@@ -767,7 +767,7 @@ class _RagadlState extends State<RagaDL>
           const SizedBox(height: 8),
           LinearProgressIndicator(
             value: totalPages > 0 ? (currentPage / totalPages) : null,
-            backgroundColor: color.surfaceVariant,
+            backgroundColor: color.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(color.primary),
           ),
         ],
@@ -836,7 +836,7 @@ class _RagadlState extends State<RagaDL>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: color.surfaceVariant.withOpacity(0.5),
+              color: color.surfaceContainerHighest.withOpacity(0.5),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.photo_library_outlined, size: 64, color: color.onSurfaceVariant),
@@ -954,9 +954,9 @@ class ImageGridItem extends StatelessWidget {
                       imageUrl: imageData.thumbnailUrl,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Shimmer.fromColors(
-                        baseColor: color.surfaceVariant.withOpacity(0.3),
+                        baseColor: color.surfaceContainerHighest.withOpacity(0.3),
                         highlightColor: color.surface,
-                        child: Container(color: color.surfaceVariant),
+                        child: Container(color: color.surfaceContainerHighest),
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: color.errorContainer.withOpacity(0.1),

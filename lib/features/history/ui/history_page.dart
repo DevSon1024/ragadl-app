@@ -20,7 +20,7 @@ Future<List<FileSystemEntity>> _loadItemsIsolate(
   final SortOption currentSort = args['currentSort'];
   final List<FileSystemEntity> items = [];
 
-  Future<void> _collectItems(
+  Future<void> collectItems(
     Directory dir,
     List<FileSystemEntity> items,
   ) async {
@@ -41,7 +41,7 @@ Future<List<FileSystemEntity>> _loadItemsIsolate(
     }
   }
 
-  await _collectItems(baseDir, items);
+  await collectItems(baseDir, items);
   items.sort((a, b) {
     final aStat = a.statSync();
     final bStat = b.statSync();
@@ -622,11 +622,11 @@ class _HistoryPageState extends State<HistoryPage> {
       itemCount: 12,
       itemBuilder: (context, index) {
         return Shimmer.fromColors(
-          baseColor: color.surfaceVariant.withOpacity(0.3),
+          baseColor: color.surfaceContainerHighest.withOpacity(0.3),
           highlightColor: color.surface,
           child: Container(
             decoration: BoxDecoration(
-              color: color.surfaceVariant,
+              color: color.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
             ),
           ),
@@ -829,7 +829,7 @@ class _ImageCard extends StatelessWidget {
                                 if (state.extendedImageLoadState ==
                                     LoadState.failed) {
                                   return Container(
-                                    color: color.surfaceVariant,
+                                    color: color.surfaceContainerHighest,
                                     child: Icon(
                                       Icons.broken_image_rounded,
                                       color: color.onSurfaceVariant,
@@ -841,7 +841,7 @@ class _ImageCard extends StatelessWidget {
                             ),
                           )
                           : Container(
-                            color: color.surfaceVariant,
+                            color: color.surfaceContainerHighest,
                             child: Icon(
                               Icons.folder_rounded,
                               size: 48,
@@ -991,7 +991,7 @@ class _ImageListTile extends StatelessWidget {
                                   if (state.extendedImageLoadState ==
                                       LoadState.failed) {
                                     return Container(
-                                      color: color.surfaceVariant,
+                                      color: color.surfaceContainerHighest,
                                       child: Icon(
                                         Icons.broken_image_rounded,
                                         color: color.onSurfaceVariant,
@@ -1003,7 +1003,7 @@ class _ImageListTile extends StatelessWidget {
                               ),
                             )
                             : Container(
-                              color: color.surfaceVariant,
+                              color: color.surfaceContainerHighest,
                               child: Icon(
                                 Icons.folder_rounded,
                                 color: color.onSurfaceVariant,

@@ -3,7 +3,6 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:open_file/open_file.dart';
@@ -638,7 +637,7 @@ class _DownloadManagerPageState extends State<DownloadManagerPage> with SingleTi
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Threads: $currentValue', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text('${currentValue} at once'),
+                      Text('$currentValue at once'),
                     ],
                   ),
                   Slider(

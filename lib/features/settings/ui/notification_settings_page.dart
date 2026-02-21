@@ -83,7 +83,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   });
                   await _saveNotificationSettings(value);
                 },
-                activeColor: theme.colorScheme.primary,
+                activeThumbColor: theme.colorScheme.primary,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
             ),

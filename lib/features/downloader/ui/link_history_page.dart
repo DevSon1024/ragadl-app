@@ -206,7 +206,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
                       decoration: BoxDecoration(
                         color: Theme.of(
                           context,
-                        ).colorScheme.surfaceVariant.withOpacity(0.5),
+                        ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -290,9 +290,9 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
     final RegExp regex = RegExp(r'/\d+/');
     final match = regex.firstMatch(url);
     if (match != null) {
-      return url.substring(0, match.end) + '...';
+      return '${url.substring(0, match.end)}...';
     }
-    return url.length > 50 ? url.substring(0, 50) + '...' : url;
+    return url.length > 50 ? '${url.substring(0, 50)}...' : url;
   }
 
   String? _extractGalleryId(String url) {
@@ -664,7 +664,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.surfaceVariant.withOpacity(0.5),
+                color: color.surfaceContainerHighest.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -857,7 +857,7 @@ class _HistoryCard extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: color.surfaceVariant.withOpacity(0.7),
+                                color: color.surfaceContainerHighest.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(

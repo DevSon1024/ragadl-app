@@ -36,6 +36,7 @@ dependencies:
   extended_image: ^8.2.0
   carousel_slider: ^5.1.2
 
+  http: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

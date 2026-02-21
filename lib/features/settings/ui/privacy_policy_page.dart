@@ -135,7 +135,7 @@ class PrivacyPolicyPage extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: color.surfaceVariant.withOpacity(0.3),
+      color: color.surfaceContainerHighest.withOpacity(0.3),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

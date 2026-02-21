@@ -650,7 +650,7 @@ class _ActionButton extends StatelessWidget {
 
     return Material(
       color: onTap == null
-          ? scheme.surfaceVariant.withOpacity(0.3)
+          ? scheme.surfaceContainerHighest.withOpacity(0.3)
           : color.withOpacity(0.12),
       elevation: 0,
       borderRadius: BorderRadius.circular(12),
@@ -711,7 +711,7 @@ class _SettingsTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: scheme.surfaceVariant.withOpacity(0.3),
+      color: scheme.surfaceContainerHighest.withOpacity(0.3),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
