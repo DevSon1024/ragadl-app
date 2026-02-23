@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,8 +36,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   bool _hasMore = true;
   String? _errorMessage;
 
-  static const int _pageSize = 60;
+  static const int _pageSize = 50;
   int _nextOffset = 0;
+  Timer? _searchDebouncer;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -50,7 +52,6 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     _loadSortOption();
     _initializePaged();
     _searchController.addListener(_onSearchChanged);
-    _scrollController.addListener(_onScroll);
   }
 
   void _setupAnimations() {
@@ -68,11 +69,14 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
   }
 
   @override
   void dispose() {
+    _searchDebouncer?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -155,37 +159,30 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     }
   }
 
-  Future<void> _onSearchChanged() async {
-    final q = _searchController.text.trim();
-    if (q.isEmpty) {
-      if (mounted) setState(() => _searchResults.clear());
-      return;
-    }
-
-    try {
-      final matches = await _repository.searchByName(
-        query: q,
-        limit: 120,
-        category: _sortToCategory(_currentSortOption),
-      );
-      if (mounted) {
-        setState(() {
-          _searchResults
-            ..clear()
-            ..addAll(matches);
-        });
+  void _onSearchChanged() {
+    if (_searchDebouncer?.isActive ?? false) _searchDebouncer!.cancel();
+    _searchDebouncer = Timer(const Duration(milliseconds: 500), () async {
+      final q = _searchController.text.trim();
+      if (q.isEmpty) {
+        if (mounted) setState(() => _searchResults.clear());
+        return;
       }
-    } catch (_) {}
-  }
 
-  void _onScroll() {
-    if (_searchController.text.isNotEmpty) return;
-    if (!_hasMore || _isFetching) return;
-
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent * 0.7) {
-      _fetchNextPage();
-    }
+      try {
+        final matches = await _repository.searchByName(
+          query: q,
+          limit: 120,
+          category: _sortToCategory(_currentSortOption),
+        );
+        if (mounted) {
+          setState(() {
+            _searchResults
+              ..clear()
+              ..addAll(matches);
+          });
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _loadSortOption() async {
@@ -194,7 +191,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     if (savedSortOption != null) {
       setState(() {
         _currentSortOption = SortOption.values.firstWhere(
-              (option) => option.toString() == savedSortOption,
+          (option) => option.toString() == savedSortOption,
           orElse: () => SortOption.az,
         );
       });
@@ -229,22 +226,25 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     const favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
 
-    List<FavoriteItem> favorites = favoritesJson
-        .map((json) {
-      final decoded = jsonDecode(json) as Map<String, dynamic>;
-      return FavoriteItem.fromJson(
-        decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
-      );
-    })
-        .toList();
+    List<FavoriteItem> favorites =
+        favoritesJson.map((json) {
+          final decoded = jsonDecode(json) as Map<String, dynamic>;
+          return FavoriteItem.fromJson(
+            decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+          );
+        }).toList();
 
     final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
-    final isFavorite = favorites.any((item) =>
-    item.type == 'celebrity' && item.name == name && item.url == url);
+    final isFavorite = favorites.any(
+      (item) =>
+          item.type == 'celebrity' && item.name == name && item.url == url,
+    );
 
     if (isFavorite) {
-      favorites.removeWhere((item) =>
-      item.type == 'celebrity' && item.name == name && item.url == url);
+      favorites.removeWhere(
+        (item) =>
+            item.type == 'celebrity' && item.name == name && item.url == url,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           _createModernSnackBar('$name removed from favorites', false),
@@ -253,9 +253,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     } else {
       favorites.add(favoriteItem);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          _createModernSnackBar('$name added to favorites', true),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(_createModernSnackBar('$name added to favorites', true));
       }
     }
 
@@ -270,19 +270,19 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     final prefs = await SharedPreferences.getInstance();
     const favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    final favorites = favoritesJson
-        .map((json) {
-      final decoded = jsonDecode(json) as Map<String, dynamic>;
-      return FavoriteItem.fromJson(
-        decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
-      );
-    })
-        .toList();
+    final favorites =
+        favoritesJson.map((json) {
+          final decoded = jsonDecode(json) as Map<String, dynamic>;
+          return FavoriteItem.fromJson(
+            decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+          );
+        }).toList();
 
-    return favorites.any((item) =>
-    item.type == 'celebrity' && item.name == name && item.url == url);
+    return favorites.any(
+      (item) =>
+          item.type == 'celebrity' && item.name == name && item.url == url,
+    );
   }
-
 
   SnackBar _createModernSnackBar(String message, bool isPositive) {
     final color = Theme.of(context).colorScheme;
@@ -300,9 +300,8 @@ class _CelebrityListPageState extends State<CelebrityListPage>
       ),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      backgroundColor: isPositive
-          ? Colors.amber.withOpacity(0.9)
-          : color.inverseSurface,
+      backgroundColor:
+          isPositive ? Colors.amber.withOpacity(0.9) : color.inverseSurface,
       duration: const Duration(milliseconds: 2000),
     );
   }
@@ -316,10 +315,15 @@ class _CelebrityListPageState extends State<CelebrityListPage>
         const end = Offset.zero;
         const curve = Curves.easeOutCubic;
         final tween = Tween(begin: begin, end: end);
-        final curvedAnimation = CurvedAnimation(parent: animation, curve: curve);
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: curve,
+        );
         final offsetAnimation = tween.animate(curvedAnimation);
-        final fadeAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation);
+        final fadeAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(curvedAnimation);
 
         return SlideTransition(
           position: offsetAnimation,
@@ -365,7 +369,9 @@ class _CelebrityListPageState extends State<CelebrityListPage>
           ),
           child: PopupMenuButton<SortOption>(
             icon: Icon(Icons.sort_rounded, color: color.primary),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             onSelected: (SortOption newValue) {
               setState(() {
                 _currentSortOption = newValue;
@@ -373,19 +379,35 @@ class _CelebrityListPageState extends State<CelebrityListPage>
               _sortCelebrities();
               HapticFeedback.selectionClick();
             },
-            itemBuilder: (BuildContext context) => [
-              _buildPopupMenuItem(
-                  SortOption.az, 'A-Z', Icons.sort_by_alpha_rounded),
-              _buildPopupMenuItem(
-                  SortOption.za, 'Z-A', Icons.sort_by_alpha_rounded),
-              const PopupMenuDivider(),
-              _buildPopupMenuItem(SortOption.celebrityAll, 'All Celebrities',
-                  Icons.people_rounded),
-              _buildPopupMenuItem(
-                  SortOption.celebrityActors, 'Actors', Icons.person_rounded),
-              _buildPopupMenuItem(SortOption.celebrityActresses, 'Actresses',
-                  Icons.person_outline_rounded),
-            ],
+            itemBuilder:
+                (BuildContext context) => [
+                  _buildPopupMenuItem(
+                    SortOption.az,
+                    'A-Z',
+                    Icons.sort_by_alpha_rounded,
+                  ),
+                  _buildPopupMenuItem(
+                    SortOption.za,
+                    'Z-A',
+                    Icons.sort_by_alpha_rounded,
+                  ),
+                  const PopupMenuDivider(),
+                  _buildPopupMenuItem(
+                    SortOption.celebrityAll,
+                    'All Celebrities',
+                    Icons.people_rounded,
+                  ),
+                  _buildPopupMenuItem(
+                    SortOption.celebrityActors,
+                    'Actors',
+                    Icons.person_rounded,
+                  ),
+                  _buildPopupMenuItem(
+                    SortOption.celebrityActresses,
+                    'Actresses',
+                    Icons.person_outline_rounded,
+                  ),
+                ],
           ),
         ),
       ],
@@ -393,7 +415,10 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   }
 
   PopupMenuItem<SortOption> _buildPopupMenuItem(
-      SortOption option, String title, IconData icon) {
+    SortOption option,
+    String title,
+    IconData icon,
+  ) {
     final color = Theme.of(context).colorScheme;
     final isSelected = _currentSortOption == option;
 
@@ -406,9 +431,10 @@ class _CelebrityListPageState extends State<CelebrityListPage>
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? color.primary.withOpacity(0.1)
-                    : Colors.transparent,
+                color:
+                    isSelected
+                        ? color.primary.withOpacity(0.1)
+                        : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -460,19 +486,29 @@ class _CelebrityListPageState extends State<CelebrityListPage>
           decoration: InputDecoration(
             hintText: 'Search celebrities...',
             hintStyle: TextStyle(color: color.onSurfaceVariant),
-            prefixIcon: Icon(Icons.search_rounded, color: color.onSurfaceVariant),
-            suffixIcon: _searchController.text.isEmpty
-                ? null
-                : IconButton(
-              icon: Icon(Icons.clear_rounded, color: color.onSurfaceVariant),
-              onPressed: () {
-                _searchController.clear();
-                _searchFocusNode.unfocus();
-                HapticFeedback.lightImpact();
-              },
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: color.onSurfaceVariant,
             ),
+            suffixIcon:
+                _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                      icon: Icon(
+                        Icons.clear_rounded,
+                        color: color.onSurfaceVariant,
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        _searchFocusNode.unfocus();
+                        HapticFeedback.lightImpact();
+                      },
+                    ),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
           ),
           onChanged: (value) {
             setState(() {});
@@ -491,13 +527,73 @@ class _CelebrityListPageState extends State<CelebrityListPage>
       return _buildErrorState(theme, color);
     }
 
-    final list = _searchController.text.isNotEmpty ? _searchResults : _items;
+    if (_searchController.text.isNotEmpty) {
+      return _buildSearchRecommendations(theme, color);
+    }
 
-    if (list.isEmpty && !_isLoading) {
+    if (_items.isEmpty && !_isLoading) {
       return _buildEmptyState(theme, color);
     }
 
     return _buildCelebrityList(theme, color);
+  }
+
+  Widget _buildSearchRecommendations(ThemeData theme, ColorScheme color) {
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Text(
+          'No recommendations found.',
+          style: TextStyle(color: color.onSurfaceVariant),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _searchResults.length,
+      physics: const BouncingScrollPhysics(),
+      separatorBuilder:
+          (context, index) =>
+              Divider(color: color.outlineVariant.withOpacity(0.5)),
+      itemBuilder: (context, index) {
+        final celebrity = _searchResults[index];
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.primaryContainer.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.search_rounded, color: color.primary, size: 20),
+          ),
+          title: Text(
+            celebrity['name'] ?? 'Unknown',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 14,
+            color: color.onSurfaceVariant,
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              _createPageRoute(
+                GalleryLinksPage(
+                  celebrityName: celebrity['name']!,
+                  profileUrl: celebrity['url']!,
+                  onDownloadSelected: widget.onDownloadSelected,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildLoadingState(ColorScheme color) {
@@ -543,18 +639,26 @@ class _CelebrityListPageState extends State<CelebrityListPage>
                 color: color.errorContainer.withOpacity(0.3),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.error_outline_rounded, size: 64, color: color.error),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: color.error,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'Oops! Something went wrong',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               _errorMessage!,
-              style: theme.textTheme.bodyMedium?.copyWith(color: color.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: color.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -588,18 +692,25 @@ class _CelebrityListPageState extends State<CelebrityListPage>
                 color: color.surfaceContainerHighest.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.search_off_rounded,
-                  size: 64, color: color.onSurfaceVariant),
+              child: Icon(
+                Icons.search_off_rounded,
+                size: 64,
+                color: color.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'No celebrities found',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Try adjusting your search or filter options.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: color.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: color.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -609,8 +720,8 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   }
 
   Widget _buildCelebrityList(ThemeData theme, ColorScheme color) {
-    final list = _searchController.text.isNotEmpty ? _searchResults : _items;
-    final itemCount = list.length + ((_hasMore && _searchController.text.isEmpty) ? 1 : 0);
+    final list = _items;
+    final itemCount = list.length + (_hasMore ? 1 : 0);
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -624,16 +735,27 @@ class _CelebrityListPageState extends State<CelebrityListPage>
           itemBuilder: (context, index) {
             if (index >= list.length) {
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
                 child: Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation(color.primary),
-                    ),
-                  ),
+                  child:
+                      _isFetching
+                          ? CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(color.primary),
+                          )
+                          : FilledButton.tonalIcon(
+                            onPressed: _fetchNextPage,
+                            icon: const Icon(Icons.expand_more_rounded),
+                            label: const Text('Load More Celebrities'),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
                 ),
               );
             }
@@ -643,29 +765,33 @@ class _CelebrityListPageState extends State<CelebrityListPage>
               duration: Duration(milliseconds: 100 + (index * 20)),
               child: FutureBuilder<bool>(
                 future: _isCelebrityFavorite(
-                    celebrity['name']!, celebrity['url']!),
+                  celebrity['name']!,
+                  celebrity['url']!,
+                ),
                 builder: (context, snapshot) {
                   final isFavorite = snapshot.data ?? false;
                   return _CelebrityCard(
                     celebrity: celebrity,
                     isFavorite: isFavorite,
                     theme: theme,
-                    onTap: () => Navigator.push(
-                      context,
-                      _createPageRoute(
-                        GalleryLinksPage(
-                          celebrityName: celebrity['name']!,
-                          profileUrl: celebrity['url']!,
-                          onDownloadSelected: widget.onDownloadSelected,
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          _createPageRoute(
+                            GalleryLinksPage(
+                              celebrityName: celebrity['name']!,
+                              profileUrl: celebrity['url']!,
+                              onDownloadSelected: widget.onDownloadSelected,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    onFavoriteToggle: () => _toggleCelebrityFavorite(
-                      celebrity['name']!,
-                      celebrity['url']!,
-                    ),
-                    onDownloadPress: () =>
-                        _handleDownloadPress(celebrity['name']!),
+                    onFavoriteToggle:
+                        () => _toggleCelebrityFavorite(
+                          celebrity['name']!,
+                          celebrity['url']!,
+                        ),
+                    onDownloadPress:
+                        () => _handleDownloadPress(celebrity['name']!),
                   );
                 },
               ),
@@ -701,13 +827,15 @@ class _CelebrityCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
-        color: isFavorite
-            ? color.primaryContainer.withOpacity(0.3)
-            : color.surface,
+        color:
+            isFavorite
+                ? color.primaryContainer.withOpacity(0.3)
+                : color.surface,
         elevation: isFavorite ? 4 : 1,
-        shadowColor: isFavorite
-            ? color.primary.withOpacity(0.2)
-            : color.shadow.withOpacity(0.1),
+        shadowColor:
+            isFavorite
+                ? color.primary.withOpacity(0.2)
+                : color.shadow.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -716,9 +844,10 @@ class _CelebrityCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: isFavorite
-                  ? Border.all(color: color.primary.withOpacity(0.2))
-                  : null,
+              border:
+                  isFavorite
+                      ? Border.all(color: color.primary.withOpacity(0.2))
+                      : null,
             ),
             child: Row(
               children: [
@@ -763,7 +892,11 @@ class _CelebrityCard extends StatelessWidget {
                       if (isFavorite)
                         Row(
                           children: [
-                            Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                            Icon(
+                              Icons.star_rounded,
+                              size: 14,
+                              color: Colors.amber,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Favorite',
@@ -785,9 +918,12 @@ class _CelebrityCard extends StatelessWidget {
                     // Favorite button
                     Container(
                       decoration: BoxDecoration(
-                        color: isFavorite
-                            ? Colors.amber.withOpacity(0.1)
-                            : color.surfaceContainerHighest.withOpacity(0.5),
+                        color:
+                            isFavorite
+                                ? Colors.amber.withOpacity(0.1)
+                                : color.surfaceContainerHighest.withOpacity(
+                                  0.5,
+                                ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
@@ -795,15 +931,22 @@ class _CelebrityCard extends StatelessWidget {
                           isFavorite
                               ? Icons.star_rounded
                               : Icons.star_border_rounded,
-                          color: isFavorite ? Colors.amber : color.onSurfaceVariant,
+                          color:
+                              isFavorite
+                                  ? Colors.amber
+                                  : color.onSurfaceVariant,
                           size: 20,
                         ),
                         onPressed: onFavoriteToggle,
-                        tooltip: isFavorite
-                            ? 'Remove from favorites'
-                            : 'Add to favorites',
+                        tooltip:
+                            isFavorite
+                                ? 'Remove from favorites'
+                                : 'Add to favorites',
                         padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
