@@ -96,9 +96,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
   Future<void> _checkCelebrityFavorite() async {
     final isFav = await _isCelebrityInFavorites();
-    setState(() {
-      _isCelebrityFavorite = isFav;
-    });
+    if (mounted) {
+      setState(() {
+        _isCelebrityFavorite = isFav;
+      });
+    }
   }
 
   Future<bool> _isCelebrityInFavorites() async {
@@ -170,7 +172,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         );
       }
     } else {
-      favorites.add(favoriteItem);
+      favorites.insert(0, favoriteItem);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -186,15 +188,19 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       favorites.map((item) => jsonEncode(item.toJson())).toList(),
     );
 
-    setState(() {
-      _isCelebrityFavorite = !isFavorite;
-    });
+    if (mounted) {
+      setState(() {
+        _isCelebrityFavorite = !isFavorite;
+      });
+    }
   }
 
   Future<void> _loadAllData() async {
     // Load cached URLs and items
     await _loadCachedUrls();
     await _loadCachedItems();
+
+    if (!mounted) return;
 
     if (_allGalleryUrls.isNotEmpty) {
       setState(() {
@@ -266,6 +272,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       final receivePort = ReceivePort();
 
       receivePort.listen((message) {
+        if (!mounted) {
+          receivePort.close();
+          return;
+        }
         if (message is GalleryScrapingResult) {
           if (message.error != null) {
             setState(() {
@@ -299,10 +309,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         scrapingData,
       ]);
     } catch (e) {
-      setState(() {
-        _error = 'Failed to fetch gallery URLs: $e';
-        _isLoadingUrls = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to fetch gallery URLs: $e';
+          _isLoadingUrls = false;
+        });
+      }
     }
   }
 
@@ -353,6 +365,8 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       return;
     }
 
+    if (!mounted) return;
+
     setState(() {
       _loadingPages.add(page);
     });
@@ -366,10 +380,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
         pageUrls.where((url) => !_loadedItems.containsKey(url)).toList();
 
     if (urlsToLoad.isEmpty) {
-      setState(() {
-        _loadingPages.remove(page);
-        _loadedPages.add(page);
-      });
+      if (mounted) {
+        setState(() {
+          _loadingPages.remove(page);
+          _loadedPages.add(page);
+        });
+      }
       return;
     }
 
@@ -377,6 +393,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       final receivePort = ReceivePort();
 
       receivePort.listen((message) {
+        if (!mounted) {
+          receivePort.close();
+          return;
+        }
         if (message is GalleryScrapingResult) {
           if (message.items != null) {
             setState(() {
@@ -404,9 +424,11 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
       await Isolate.spawn(_loadBatchIsolate, [receivePort.sendPort, batchData]);
     } catch (e) {
-      setState(() {
-        _loadingPages.remove(page);
-      });
+      if (mounted) {
+        setState(() {
+          _loadingPages.remove(page);
+        });
+      }
     }
   }
 
@@ -580,7 +602,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       favoriteKey,
       favorites.map((item) => jsonEncode(item.toJson())).toList(),
     );
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _navigateToDownloader(String galleryUrl, String galleryTitle) {
@@ -625,6 +649,26 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     _loadPageItems(page);
   }
 
+  Widget _buildAnimatedItem({
+    required Widget child,
+    required String keyId,
+    required int index,
+  }) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(keyId),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 300 + (index * 50).clamp(0, 500)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: child,
+    );
+  }
+
   Widget _buildGalleryCard(String url, {bool isPlaceholder = false}) {
     final theme = Theme.of(context);
     final item = _loadedItems[url];
@@ -632,7 +676,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     if (item == null || isPlaceholder) {
       return Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Shimmer.fromColors(
           baseColor: theme.colorScheme.surfaceContainerHighest,
           highlightColor: theme.colorScheme.surfaceContainerLow,
@@ -641,10 +685,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
             children: [
               Expanded(
                 child: Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.grey,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
                     ),
                   ),
                 ),
@@ -684,168 +728,152 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       future: _isGalleryFavorite(item.url),
       builder: (context, snapshot) {
         final isFavorite = snapshot.data ?? false;
-        return GestureDetector(
-          onTap: () => _navigateToDownloader(item.url, item.title),
-          onLongPress: () => _toggleGalleryFavorite(item),
-          child: Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            color:
-                isFavorite
-                    ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-                    : theme.colorScheme.surface,
+
+        return Card(
+          elevation: 6,
+          shadowColor: Colors.black26,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: InkWell(
+            onTap: () => _navigateToDownloader(item.url, item.title),
+            onLongPress: () => _toggleGalleryFavorite(item),
             child: Stack(
+              fit: StackFit.expand,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
-                        ),
-                        child:
-                            item.thumbnailUrl != null &&
-                                    item.thumbnailUrl!.isNotEmpty
-                                ? Image.network(
-                                  item.thumbnailUrl!,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  alignment: Alignment.topCenter,
-                                  loadingBuilder: (
-                                    context,
-                                    child,
-                                    loadingProgress,
-                                  ) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      color:
-                                          theme
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          value:
-                                              loadingProgress
-                                                          .expectedTotalBytes !=
-                                                      null
-                                                  ? loadingProgress
-                                                          .cumulativeBytesLoaded /
-                                                      loadingProgress
-                                                          .expectedTotalBytes!
-                                                  : null,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder:
-                                      (_, __, ___) => Container(
-                                        color: theme.colorScheme.errorContainer,
-                                        child: Icon(
-                                          Icons.broken_image,
-                                          size: 60,
-                                          color:
-                                              theme
-                                                  .colorScheme
-                                                  .onErrorContainer,
-                                        ),
-                                      ),
-                                )
-                                : Container(
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                  child: Icon(
-                                    Icons.image_not_supported,
-                                    size: 60,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
+                // Image
+                item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
+                    ? Image.network(
+                      item.thumbnailUrl!,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value:
+                                  loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder:
+                          (_, __, ___) => Container(
+                            color: theme.colorScheme.errorContainer,
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 60,
+                              color: theme.colorScheme.onErrorContainer,
+                            ),
+                          ),
+                    )
+                    : Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.image_not_supported,
+                        size: 60,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Gradient overlay
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.1),
+                        Colors.black.withOpacity(0.85),
+                      ],
+                      stops: const [0.4, 0.65, 1.0],
+                    ),
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.white,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
                         children: [
-                          Text(
-                            item.title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          const Icon(
+                            Icons.photo_library_outlined,
+                            size: 14,
+                            color: Colors.white70,
                           ),
-                          const SizedBox(height: 4),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.photo_library_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${item.pages} Page(s)',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat(
-                                        'MMM dd, yyyy',
-                                      ).format(item.date),
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color:
-                                                theme
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                          ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '${item.pages} Page(s)',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 14,
+                            color: Colors.white70,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              DateFormat('MMM dd, yyyy').format(item.date),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+                // Sleek favorite icon button top right
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: GestureDetector(
-                    onTap: () => _toggleGalleryFavorite(item),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        isFavorite ? Icons.star : Icons.star_border,
+                  child: Material(
+                    color: Colors.black.withOpacity(0.4),
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: IconButton(
+                      iconSize: 20,
+                      icon: Icon(
+                        isFavorite
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
                         color: isFavorite ? Colors.amber : Colors.white,
-                        size: 20,
                       ),
+                      onPressed: () => _toggleGalleryFavorite(item),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
                     ),
                   ),
                 ),
@@ -998,14 +1026,18 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
                         crossAxisCount: calculateGridColumns(context),
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 0.68,
+                        childAspectRatio: 0.75,
                       ),
                       itemCount: currentPageUrls.length,
                       itemBuilder: (context, index) {
                         final url = currentPageUrls[index];
-                        return _buildGalleryCard(
-                          url,
-                          isPlaceholder: !_loadedItems.containsKey(url),
+                        return _buildAnimatedItem(
+                          keyId: url,
+                          index: index,
+                          child: _buildGalleryCard(
+                            url,
+                            isPlaceholder: !_loadedItems.containsKey(url),
+                          ),
                         );
                       },
                     ),

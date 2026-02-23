@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../downloader/ui/ragadl_page.dart';
 import '../data/profile_cache_service.dart';
 import 'gallery_links_page.dart';
@@ -22,11 +24,91 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
   List<Map<String, String>> celebrityList = [];
   bool isLoading = true;
   Map<int, bool> loadingProfileLinks = {};
+  Set<String> favoriteUrls = {};
 
   @override
   void initState() {
     super.initState();
+    _loadFavorites();
     fetchStarzoneLinks();
+  }
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> favoritesJson = prefs.getStringList('favorites') ?? [];
+    Set<String> urls = {};
+    for (var jsonStr in favoritesJson) {
+      final map = jsonDecode(jsonStr);
+      if (map['type'] == 'gallery') {
+        urls.add((map['url'] as String?) ?? '');
+      }
+    }
+    if (mounted) {
+      setState(() {
+        favoriteUrls = urls;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorite(int index) async {
+    final item = celebrityList[index];
+    final url = item['url']!;
+    final fallbackName =
+        (item['name'] != null && item['name']!.isNotEmpty)
+            ? item['name']!
+            : (item['title'] ?? 'Unknown');
+
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> favoritesJson = prefs.getStringList('favorites') ?? [];
+    List<dynamic> allFavorites =
+        favoritesJson.map((json) => jsonDecode(json)).toList();
+
+    final isFavorite = favoriteUrls.contains(url);
+
+    if (isFavorite) {
+      allFavorites.removeWhere(
+        (fav) => fav['type'] == 'gallery' && fav['url'] == url,
+      );
+      setState(() {
+        favoriteUrls.remove(url);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed $fallbackName from favorites'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else {
+      final newItem = {
+        'type': 'gallery',
+        'name': fallbackName,
+        'url': url,
+        'thumbnailUrl': item['img'],
+        'celebrityName': fallbackName,
+        'date': item['date'] ?? '',
+      };
+      allFavorites.insert(0, newItem);
+      setState(() {
+        favoriteUrls.add(url);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added $fallbackName to favorites'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    await prefs.setStringList(
+      'favorites',
+      allFavorites.map((i) => jsonEncode(i)).toList(),
+    );
   }
 
   Future<void> fetchStarzoneLinks() async {
@@ -367,6 +449,8 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
                               () => fetchAndNavigateToProfile(index),
                           isLoadingAction: isLoadingProfile,
                           actionLabel: 'Show Galleries',
+                          isFavorite: favoriteUrls.contains(item['url']),
+                          onFavoriteTap: () => _toggleFavorite(index),
                         );
                       }, childCount: celebrityList.length),
                     ),
