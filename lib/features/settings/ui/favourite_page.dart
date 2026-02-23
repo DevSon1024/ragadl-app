@@ -120,24 +120,38 @@ class _FavouritePageState extends State<FavouritePage> {
 
     if (celebrities.isEmpty && galleries.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Favorites')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text('No favorites yet'),
-            ],
-          ),
+        body: CustomScrollView(
+          slivers: [
+            const SliverAppBar(
+              title: Text('Favorites'),
+              floating: true,
+              snap: true,
+            ),
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text('No favorites yet'),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Favorites')),
       body: CustomScrollView(
         slivers: [
+          const SliverAppBar(
+            title: Text('Favorites'),
+            floating: true,
+            snap: true,
+          ),
           // Favorite Celebrities Section
           if (celebrities.isNotEmpty) ...[
             SliverToBoxAdapter(

@@ -240,19 +240,21 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Latest Celebrities',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
       body:
           isLoading
               ? _buildShimmerContent()
               : CustomScrollView(
                 slivers: [
+                  SliverAppBar(
+                    title: Text(
+                      'Latest Celebrities',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    floating: true,
+                    snap: true,
+                  ),
                   // Featured Carousel (Top 5 items)
                   if (celebrityList.isNotEmpty)
                     SliverToBoxAdapter(
@@ -380,6 +382,16 @@ class _LatestCelebrityPageState extends State<LatestCelebrityPage> {
   Widget _buildShimmerContent() {
     return CustomScrollView(
       slivers: [
+        SliverAppBar(
+          title: Text(
+            'Latest Celebrities',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          floating: true,
+          snap: true,
+        ),
         // Shimmer Carousel
         SliverToBoxAdapter(
           child: Shimmer.fromColors(

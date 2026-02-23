@@ -432,18 +432,24 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
 
     return Scaffold(
       backgroundColor: color.surface,
-      appBar: _buildModernAppBar(theme, color),
-      body: Column(
-        children: [
-          _buildSearchSection(theme, color),
-          Expanded(child: _buildContent(theme, color)),
-        ],
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [_buildModernAppBar(theme, color)];
+        },
+        body: Column(
+          children: [
+            _buildSearchSection(theme, color),
+            Expanded(child: _buildContent(theme, color)),
+          ],
+        ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildModernAppBar(ThemeData theme, ColorScheme color) {
-    return AppBar(
+  SliverAppBar _buildModernAppBar(ThemeData theme, ColorScheme color) {
+    return SliverAppBar(
+      floating: true,
+      snap: true,
       elevation: 0,
       scrolledUnderElevation: 1,
       backgroundColor: color.surface,
@@ -857,7 +863,8 @@ class _HistoryCard extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: color.surfaceContainerHighest.withOpacity(0.7),
+                                color: color.surfaceContainerHighest
+                                    .withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(

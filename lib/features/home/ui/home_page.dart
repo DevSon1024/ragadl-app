@@ -160,84 +160,93 @@ class _HomePageState extends State<HomePage> {
     final color = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: color.surface,
-      extendBodyBehindAppBar:
-          false, // Changed to false to show device status bar
-      appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: color.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'RagaDL',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Link History',
-            icon: Icon(Icons.history_rounded, color: color.onSurface),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LinkHistoryPage()),
-              );
-              FocusScope.of(context).unfocus();
-            },
-          ),
-          IconButton(
-            tooltip: 'Settings',
-            icon: Icon(Icons.settings_rounded, color: color.onSurface),
-            onPressed: widget.openSettings,
-          ),
-        ],
-      ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color.primaryContainer.withOpacity(0.25), color.surface],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          top: false, // Don't apply safe area to top
-          bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 100),
-            physics: const BouncingScrollPhysics(),
-            children: [
-              _buildHeroHeader(context),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildQuickActions(context),
+      extendBodyBehindAppBar: false,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              backgroundColor: color.surface,
+              surfaceTintColor: Colors.transparent,
+              title: const Text(
+                'RagaDL',
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Explore',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              floating: true,
+              snap: true,
+              actions: [
+                IconButton(
+                  tooltip: 'Link History',
+                  icon: Icon(Icons.history_rounded, color: color.onSurface),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LinkHistoryPage(),
+                      ),
+                    );
+                    FocusScope.of(context).unfocus();
+                  },
                 ),
-              ),
-              const SizedBox(height: 8),
-              // Sections grid/list
-              ...sections.map(
-                (section) => _SectionCard(
-                  title: section['title'] as String,
-                  icon: section['icon'] as IconData,
-                  onTap: () => _openPage(section['page'] as Widget),
+                IconButton(
+                  tooltip: 'Settings',
+                  icon: Icon(Icons.settings_rounded, color: color.onSurface),
+                  onPressed: widget.openSettings,
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Social Links Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildSocialLinks(context),
-              ),
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
+          ];
+        },
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color.primaryContainer.withOpacity(0.25), color.surface],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SafeArea(
+            top: false, // Don't apply safe area to top
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              physics: const BouncingScrollPhysics(),
+              children: [
+                _buildHeroHeader(context),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildQuickActions(context),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Explore',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Sections grid/list
+                ...sections.map(
+                  (section) => _SectionCard(
+                    title: section['title'] as String,
+                    icon: section['icon'] as IconData,
+                    onTap: () => _openPage(section['page'] as Widget),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Social Links Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildSocialLinks(context),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
