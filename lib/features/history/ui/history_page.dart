@@ -20,10 +20,7 @@ Future<List<FileSystemEntity>> _loadItemsIsolate(
   final SortOption currentSort = args['currentSort'];
   final List<FileSystemEntity> items = [];
 
-  Future<void> collectItems(
-    Directory dir,
-    List<FileSystemEntity> items,
-  ) async {
+  Future<void> collectItems(Directory dir, List<FileSystemEntity> items) async {
     try {
       final entities = await dir.list(recursive: true).toList();
       for (var entity in entities) {
@@ -610,14 +607,87 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildLoadingShimmer() {
     final color = Theme.of(context).colorScheme;
+
+    if (_viewType == ViewType.list) {
+      return ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        physics: const BouncingScrollPhysics(),
+        itemCount: 8,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Shimmer.fromColors(
+              baseColor: color.surfaceContainerHighest.withOpacity(0.3),
+              highlightColor: color.surface,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: color.outline.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: color.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: color.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: 100,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: color.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: color.surfaceContainerHighest,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     return GridView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      physics: const BouncingScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: calculateGridColumns(context),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.8,
+        childAspectRatio: 0.85,
       ),
       itemCount: 12,
       itemBuilder: (context, index) {
@@ -1091,15 +1161,9 @@ class _ModernPageRoute extends PageRouteBuilder {
             curve: Curves.easeOutCubic,
             reverseCurve: Curves.easeInCubic,
           );
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04),
-              end: Offset.zero,
-            ).animate(curved),
-            child: FadeTransition(
-              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
-              child: child,
-            ),
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
+            child: child,
           );
         },
       );

@@ -44,7 +44,7 @@ class _FullImageViewerState extends State<FullImageViewer>
     _pageController = PageController(initialPage: widget.initialIndex);
     _controllers = List.generate(
       widget.images.length,
-          (_) => TransformationController(),
+      (_) => TransformationController(),
     );
 
     _appBarAnimationController = AnimationController(
@@ -104,11 +104,13 @@ class _FullImageViewerState extends State<FullImageViewer>
         final imageProvider = FileImage(widget.images[index]);
         _imageCache[index] = imageProvider;
 
-        precacheImage(imageProvider, context).then((_) {
-          _precachedIndices.add(index);
-        }).catchError((error) {
-          debugPrint('Failed to precache image at index $index: $error');
-        });
+        precacheImage(imageProvider, context)
+            .then((_) {
+              _precachedIndices.add(index);
+            })
+            .catchError((error) {
+              debugPrint('Failed to precache image at index $index: $error');
+            });
       }
     }
 
@@ -163,10 +165,9 @@ class _FullImageViewerState extends State<FullImageViewer>
     final idx = _currentIndexNotifier.value;
     final imagePath = widget.images[idx].path;
     HapticFeedback.mediumImpact();
-    await Share.shareXFiles(
-      [XFile(imagePath)],
-      text: 'Sharing image from RagaDL',
-    );
+    await Share.shareXFiles([
+      XFile(imagePath),
+    ], text: 'Sharing image from RagaDL');
   }
 
   Future<void> _deleteImage() async {
@@ -231,41 +232,39 @@ class _FullImageViewerState extends State<FullImageViewer>
   Future<bool?> _showDeleteDialog() {
     return showDialog<bool>(
       context: context,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Delete Image',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          content: const Text(
-            'Are you sure you want to move this image to the recycle bin?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
+            title: const Text(
+              'Delete Image',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            content: const Text(
+              'Are you sure you want to move this image to the recycle bin?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
               ),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
     );
   }
 
   void _onInteractionUpdate(
-      ScaleUpdateDetails details,
-      TransformationController controller,
-      ) {
+    ScaleUpdateDetails details,
+    TransformationController controller,
+  ) {
     final scale = controller.value.getMaxScaleOnAxis();
     final newIsZoomed = scale > 1.1;
 
@@ -307,21 +306,21 @@ class _FullImageViewerState extends State<FullImageViewer>
     final centerY = size.height / 2;
 
     final begin = controller.value;
-    final end = targetScale == 1.0
-        ? Matrix4.identity()
-        : Matrix4.identity()
-      ..translate(centerX, centerY)
-      ..scale(targetScale)
-      ..translate(-centerX, -centerY);
+    final end =
+        targetScale == 1.0 ? Matrix4.identity() : Matrix4.identity()
+          ..translate(centerX, centerY)
+          ..scale(targetScale)
+          ..translate(-centerX, -centerY);
 
     final animController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
 
-    final animation = Matrix4Tween(begin: begin, end: end).animate(
-      CurvedAnimation(parent: animController, curve: Curves.easeOut),
-    );
+    final animation = Matrix4Tween(
+      begin: begin,
+      end: end,
+    ).animate(CurvedAnimation(parent: animController, curve: Curves.easeOut));
 
     animation.addListener(() {
       controller.value = animation.value;
@@ -389,14 +388,15 @@ class _FullImageViewerState extends State<FullImageViewer>
                 ),
                 title: ValueListenableBuilder<int>(
                   valueListenable: _currentIndexNotifier,
-                  builder: (context, index, child) => Text(
-                    '${index + 1} of ${widget.images.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
+                  builder:
+                      (context, index, child) => Text(
+                        '${index + 1} of ${widget.images.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
                 ),
                 centerTitle: true,
                 actions: [
@@ -423,23 +423,17 @@ class _FullImageViewerState extends State<FullImageViewer>
   }) {
     return Padding(
       padding: const EdgeInsets.all(4),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: IconButton(
-              icon: Icon(icon, color: Colors.white, size: 20),
-              onPressed: onPressed,
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            ),
-          ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: IconButton(
+          icon: Icon(icon, color: Colors.white, size: 20),
+          onPressed: onPressed,
+          padding: const EdgeInsets.all(8),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         ),
       ),
     );
@@ -449,9 +443,10 @@ class _FullImageViewerState extends State<FullImageViewer>
     return PageView.builder(
       controller: _pageController,
       itemCount: widget.images.length,
-      physics: _isZoomed
-          ? const NeverScrollableScrollPhysics()
-          : const PageScrollPhysics(),
+      physics:
+          _isZoomed
+              ? const NeverScrollableScrollPhysics()
+              : const PageScrollPhysics(),
       onPageChanged: (int i) {
         _isPageTransitioning = true;
         _currentIndexNotifier.value = i;
@@ -506,14 +501,12 @@ class _FullImageViewerState extends State<FullImageViewer>
         panEnabled: _isZoomed,
         scaleEnabled: true,
         constrained: true,
-        onInteractionUpdate: (details) =>
-            _onInteractionUpdate(details, controller),
+        onInteractionUpdate:
+            (details) => _onInteractionUpdate(details, controller),
         onInteractionEnd: (details) => _onInteractionEnd(details, index),
         child: Hero(
           tag: widget.images[index].path,
-          child: Center(
-            child: _buildCachedImage(index),
-          ),
+          child: Center(child: _buildCachedImage(index)),
         ),
       ),
     );
@@ -536,40 +529,43 @@ class _FullImageViewerState extends State<FullImageViewer>
             opacity: frame == null ? 0.0 : 1.0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
-            child: frame == null
-                ? Container(
-              color: Colors.grey[900],
-              child: const Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor:
-                  AlwaysStoppedAnimation<Color>(Colors.white70),
-                ),
-              ),
-            )
-                : child,
+            child:
+                frame == null
+                    ? Container(
+                      color: Colors.grey[900],
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white70,
+                          ),
+                        ),
+                      ),
+                    )
+                    : child,
           );
         },
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: Colors.grey[900],
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.broken_image_rounded,
-                  color: Colors.white70,
-                  size: 64,
+        errorBuilder:
+            (context, error, stackTrace) => Container(
+              color: Colors.grey[900],
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.broken_image_rounded,
+                      color: Colors.white70,
+                      size: 64,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Failed to load image',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 16),
-                Text(
-                  'Failed to load image',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
       ),
     );
   }
@@ -626,21 +622,16 @@ class _FullImageViewerState extends State<FullImageViewer>
     required IconData icon,
     required VoidCallback onPressed,
   }) {
-    return ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: IconButton(
-            icon: Icon(icon, color: Colors.white, size: 32),
-            onPressed: onPressed,
-            padding: const EdgeInsets.all(12),
-          ),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 32),
+        onPressed: onPressed,
+        padding: const EdgeInsets.all(12),
       ),
     );
   }
@@ -661,89 +652,81 @@ class _FullImageViewerState extends State<FullImageViewer>
                 valueListenable: _currentIndexNotifier,
                 builder: (context, index, child) {
                   final fileName = widget.images[index].path.split('/').last;
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.image_rounded,
+                            color: Colors.white70,
+                            size: 20,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                fileName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              child: const Icon(
-                                Icons.image_rounded,
-                                color: Colors.white70,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                              Row(
                                 children: [
-                                  Text(
-                                    fileName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  FutureBuilder<int>(
+                                    future: widget.images[index].length(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasData) {
+                                        final sizeKB = (snapshot.data! / 1024)
+                                            .toStringAsFixed(1);
+                                        return Text(
+                                          '$sizeKB KB',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.7,
+                                            ),
+                                            fontSize: 12,
+                                          ),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
                                   ),
-                                  Row(
-                                    children: [
-                                      FutureBuilder<int>(
-                                        future: widget.images[index].length(),
-                                        builder: (context, snapshot) {
-                                          if (snapshot.hasData) {
-                                            final sizeKB =
-                                            (snapshot.data! / 1024)
-                                                .toStringAsFixed(1);
-                                            return Text(
-                                              '$sizeKB KB',
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.7),
-                                                fontSize: 12,
-                                              ),
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        },
-                                      ),
-                                      Text(
-                                        ' • Tap: controls • Double tap: zoom',
-                                        style: TextStyle(
-                                          color: Colors.blue[300],
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                                  Text(
+                                    ' • Tap: controls • Double tap: zoom',
+                                    style: TextStyle(
+                                      color: Colors.blue[300],
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   );
                 },

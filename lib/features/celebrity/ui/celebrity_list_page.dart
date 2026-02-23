@@ -39,6 +39,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
   static const int _pageSize = 50;
   int _nextOffset = 0;
   Timer? _searchDebouncer;
+  Set<String> _favoriteUrls = {};
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -50,6 +51,7 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     super.initState();
     _setupAnimations();
     _loadSortOption();
+    _loadFavorites();
     _initializePaged();
     _searchController.addListener(_onSearchChanged);
   }
@@ -220,8 +222,54 @@ class _CelebrityListPageState extends State<CelebrityListPage>
     }
   }
 
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoritesJson = prefs.getStringList('favorites') ?? [];
+
+    final urls = <String>{};
+    for (var jsonStr in favoritesJson) {
+      try {
+        final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+        if (decoded['type'] == 'celebrity' && decoded['url'] != null) {
+          urls.add(decoded['url'].toString());
+        }
+      } catch (_) {
+        // Ignore malformed JSON entries
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _favoriteUrls = urls;
+      });
+    }
+  }
+
   Future<void> _toggleCelebrityFavorite(String name, String url) async {
     HapticFeedback.mediumImpact();
+
+    // Optimistic UI update
+    final isFavorite = _favoriteUrls.contains(url);
+    setState(() {
+      if (isFavorite) {
+        _favoriteUrls.remove(url);
+      } else {
+        _favoriteUrls.add(url);
+      }
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        _createModernSnackBar(
+          isFavorite
+              ? '$name removed from favorites'
+              : '$name added to favorites',
+          !isFavorite,
+        ),
+      );
+    }
+
+    // Background preferences update
     final prefs = await SharedPreferences.getInstance();
     const favoriteKey = 'favorites';
     final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
@@ -234,53 +282,23 @@ class _CelebrityListPageState extends State<CelebrityListPage>
           );
         }).toList();
 
-    final favoriteItem = FavoriteItem(type: 'celebrity', name: name, url: url);
-    final isFavorite = favorites.any(
-      (item) =>
-          item.type == 'celebrity' && item.name == name && item.url == url,
-    );
-
     if (isFavorite) {
       favorites.removeWhere(
         (item) =>
             item.type == 'celebrity' && item.name == name && item.url == url,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          _createModernSnackBar('$name removed from favorites', false),
-        );
-      }
     } else {
-      favorites.add(favoriteItem);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(_createModernSnackBar('$name added to favorites', true));
-      }
+      final favoriteItem = FavoriteItem(
+        type: 'celebrity',
+        name: name,
+        url: url,
+      );
+      favorites.insert(0, favoriteItem); // Insert at top like other pages
     }
 
     await prefs.setStringList(
       favoriteKey,
       favorites.map((item) => jsonEncode(item.toJson())).toList(),
-    );
-    setState(() {});
-  }
-
-  Future<bool> _isCelebrityFavorite(String name, String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    const favoriteKey = 'favorites';
-    final favoritesJson = prefs.getStringList(favoriteKey) ?? [];
-    final favorites =
-        favoritesJson.map((json) {
-          final decoded = jsonDecode(json) as Map<String, dynamic>;
-          return FavoriteItem.fromJson(
-            decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
-          );
-        }).toList();
-
-    return favorites.any(
-      (item) =>
-          item.type == 'celebrity' && item.name == name && item.url == url,
     );
   }
 
@@ -761,39 +779,31 @@ class _CelebrityListPageState extends State<CelebrityListPage>
             }
 
             final celebrity = list[index];
+            final isFavorite = _favoriteUrls.contains(celebrity['url']);
+
             return AnimatedContainer(
-              duration: Duration(milliseconds: 100 + (index * 20)),
-              child: FutureBuilder<bool>(
-                future: _isCelebrityFavorite(
-                  celebrity['name']!,
-                  celebrity['url']!,
-                ),
-                builder: (context, snapshot) {
-                  final isFavorite = snapshot.data ?? false;
-                  return _CelebrityCard(
-                    celebrity: celebrity,
-                    isFavorite: isFavorite,
-                    theme: theme,
-                    onTap:
-                        () => Navigator.push(
-                          context,
-                          _createPageRoute(
-                            GalleryLinksPage(
-                              celebrityName: celebrity['name']!,
-                              profileUrl: celebrity['url']!,
-                              onDownloadSelected: widget.onDownloadSelected,
-                            ),
-                          ),
+              duration: Duration(milliseconds: 100 + ((index % 10) * 20)),
+              child: _CelebrityCard(
+                celebrity: celebrity,
+                isFavorite: isFavorite,
+                theme: theme,
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      _createPageRoute(
+                        GalleryLinksPage(
+                          celebrityName: celebrity['name']!,
+                          profileUrl: celebrity['url']!,
+                          onDownloadSelected: widget.onDownloadSelected,
                         ),
-                    onFavoriteToggle:
-                        () => _toggleCelebrityFavorite(
-                          celebrity['name']!,
-                          celebrity['url']!,
-                        ),
-                    onDownloadPress:
-                        () => _handleDownloadPress(celebrity['name']!),
-                  );
-                },
+                      ),
+                    ),
+                onFavoriteToggle:
+                    () => _toggleCelebrityFavorite(
+                      celebrity['name']!,
+                      celebrity['url']!,
+                    ),
+                onDownloadPress: () => _handleDownloadPress(celebrity['name']!),
               ),
             );
           },
