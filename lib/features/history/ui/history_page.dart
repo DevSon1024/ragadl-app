@@ -12,15 +12,21 @@ import 'package:extended_image/extended_image.dart';
 import 'history_full_image_viewer.dart';
 import 'recycle_page.dart';
 
+class HistoryItem {
+  final File file;
+  final int size;
+  final DateTime modified;
+
+  HistoryItem({required this.file, required this.size, required this.modified});
+}
+
 // Helper function to be executed in an isolate
-Future<List<FileSystemEntity>> _loadItemsIsolate(
-  Map<String, dynamic> args,
-) async {
+Future<List<HistoryItem>> _loadItemsIsolate(Map<String, dynamic> args) async {
   final Directory baseDir = args['baseDir'];
   final SortOption currentSort = args['currentSort'];
-  final List<FileSystemEntity> items = [];
+  final List<HistoryItem> items = [];
 
-  Future<void> collectItems(Directory dir, List<FileSystemEntity> items) async {
+  Future<void> collectItems(Directory dir, List<HistoryItem> items) async {
     try {
       final entities = await dir.list(recursive: true).toList();
       for (var entity in entities) {
@@ -29,7 +35,14 @@ Future<List<FileSystemEntity>> _loadItemsIsolate(
         if (entity is File) {
           final extension = entity.path.toLowerCase().split('.').last;
           if (['jpg', 'jpeg', 'png'].contains(extension)) {
-            items.add(entity);
+            final stat = entity.statSync();
+            items.add(
+              HistoryItem(
+                file: entity,
+                size: stat.size,
+                modified: stat.modified,
+              ),
+            );
           }
         }
       }
@@ -40,17 +53,15 @@ Future<List<FileSystemEntity>> _loadItemsIsolate(
 
   await collectItems(baseDir, items);
   items.sort((a, b) {
-    final aStat = a.statSync();
-    final bStat = b.statSync();
     switch (currentSort) {
       case SortOption.newest:
-        return bStat.modified.compareTo(aStat.modified);
+        return b.modified.compareTo(a.modified);
       case SortOption.oldest:
-        return aStat.modified.compareTo(bStat.modified);
+        return a.modified.compareTo(b.modified);
       case SortOption.largest:
-        return bStat.size.compareTo(aStat.size);
+        return b.size.compareTo(a.size);
       case SortOption.smallest:
-        return aStat.size.compareTo(bStat.size);
+        return a.size.compareTo(b.size);
     }
   });
   return items;
@@ -68,8 +79,9 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  List<FileSystemEntity> _downloadedItems = [];
-  List<FileSystemEntity> _filteredItems = [];
+  static List<HistoryItem>? _globalCache;
+  List<HistoryItem> _downloadedItems = [];
+  List<HistoryItem> _filteredItems = [];
   SortOption _currentSort = SortOption.newest;
   ViewType _viewType = ViewType.grid;
   String? _errorMessage;
@@ -176,6 +188,7 @@ class _HistoryPageState extends State<HistoryPage> {
               TextButton(
                 onPressed: () async {
                   await openAppSettings();
+                  if (!mounted) return;
                   Navigator.pop(context);
                 },
                 child: const Text('Open Settings'),
@@ -185,14 +198,35 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  void _filterItemsSync() {
+    final query = _searchController.text.toLowerCase();
+    _filteredItems =
+        _downloadedItems.where((item) {
+          final name = item.file.path.split('/').last.toLowerCase();
+          return name.contains(query);
+        }).toList();
+  }
+
   Future<void> _loadDownloadedItems() async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _isSelectionMode = false;
-      _selectedItems.clear();
-    });
+
+    if (_globalCache != null && _globalCache!.isNotEmpty) {
+      setState(() {
+        _downloadedItems = _globalCache!;
+        _filterItemsSync();
+        _isLoading = false;
+        _errorMessage = null;
+        _isSelectionMode = false;
+        _selectedItems.clear();
+      });
+    } else {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _isSelectionMode = false;
+        _selectedItems.clear();
+      });
+    }
 
     try {
       Directory? baseDir;
@@ -207,10 +241,10 @@ class _HistoryPageState extends State<HistoryPage> {
         if (!mounted) return;
         setState(() {
           _downloadedItems = [];
-          final query = _searchController.text.toLowerCase();
           _filteredItems = [];
+          _globalCache = [];
           _errorMessage = 'No downloads found.';
-          _isLoading = false;
+          if (_isLoading) _isLoading = false;
         });
         return;
       }
@@ -221,19 +255,13 @@ class _HistoryPageState extends State<HistoryPage> {
       });
 
       if (mounted) {
+        _globalCache = items;
         setState(() {
           _downloadedItems = items;
-          final query = _searchController.text.toLowerCase();
-          _filteredItems =
-              items.where((item) {
-                final name = item.path.split('/').last.toLowerCase();
-                return name.contains(query);
-              }).toList();
+          _filterItemsSync();
           _errorMessage = items.isEmpty ? 'No items found.' : null;
-          _isLoading = false;
+          if (_isLoading) _isLoading = false;
         });
-
-        setState(() {}); // Refresh to show calculated stats
       }
     } catch (e) {
       if (mounted) {
@@ -241,23 +269,16 @@ class _HistoryPageState extends State<HistoryPage> {
           _downloadedItems = [];
           _filteredItems = [];
           _errorMessage = 'Error loading items: $e';
-          _isLoading = false;
+          if (_isLoading) _isLoading = false;
         });
       }
     }
   }
 
-  void _filterItems() async {
-    final query = _searchController.text.toLowerCase();
+  void _filterItems() {
     setState(() {
-      _filteredItems =
-          _downloadedItems.where((item) {
-            final name = item.path.split('/').last.toLowerCase();
-            return name.contains(query);
-          }).toList();
+      _filterItemsSync();
     });
-
-    setState(() {});
   }
 
   void _toggleSelection(int index) {
@@ -318,11 +339,14 @@ class _HistoryPageState extends State<HistoryPage> {
       final toDelete =
           _selectedItems.map((index) => _filteredItems[index]).toList();
       for (var item in toDelete) {
-        final name = item.path.split('/').last;
-        final dirPath = item.path.substring(0, item.path.length - name.length);
+        final name = item.file.path.split('/').last;
+        final dirPath = item.file.path.substring(
+          0,
+          item.file.path.length - name.length,
+        );
         final trashedPath =
             '$dirPath.trashed-${DateTime.now().millisecondsSinceEpoch}-$name';
-        await (item is File ? item : Directory(item.path)).rename(trashedPath);
+        await item.file.rename(trashedPath);
       }
       await _loadDownloadedItems();
     } catch (e) {
@@ -346,28 +370,25 @@ class _HistoryPageState extends State<HistoryPage> {
     }
 
     final paths =
-        _selectedItems.map((index) => _filteredItems[index].path).toList();
-    await Share.shareFiles(paths, text: 'Sharing items from RagaDL');
+        _selectedItems
+            .map((index) => XFile(_filteredItems[index].file.path))
+            .toList();
+    await Share.shareXFiles(paths, text: 'Sharing items from RagaDL');
   }
 
   void _openItem(int index) {
     if (_isSelectionMode) {
       _toggleSelection(index);
     } else {
-      final item = _filteredItems[index];
-      if (item is File) {
-        Navigator.push(
-          context,
-          _ModernPageRoute(
-            FullImageViewer(
-              images: _filteredItems.whereType<File>().toList(),
-              initialIndex: _filteredItems.whereType<File>().toList().indexOf(
-                item,
-              ),
-            ),
+      Navigator.push(
+        context,
+        _ModernPageRoute(
+          FullImageViewer(
+            images: _filteredItems.map((i) => i.file).toList(),
+            initialIndex: index,
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -842,7 +863,7 @@ class _HistoryPageState extends State<HistoryPage> {
 }
 
 class _ImageCard extends StatelessWidget {
-  final FileSystemEntity item;
+  final HistoryItem item;
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -885,39 +906,28 @@ class _ImageCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child:
-                      item is File
-                          ? Hero(
-                            tag: item.path,
-                            child: ExtendedImage.file(
-                              item as File,
-                              fit: BoxFit.cover,
-                              cacheWidth: 300,
-                              gaplessPlayback: true,
-                              enableLoadState: false,
-                              loadStateChanged: (ExtendedImageState state) {
-                                if (state.extendedImageLoadState ==
-                                    LoadState.failed) {
-                                  return Container(
-                                    color: color.surfaceContainerHighest,
-                                    child: Icon(
-                                      Icons.broken_image_rounded,
-                                      color: color.onSurfaceVariant,
-                                    ),
-                                  );
-                                }
-                                return null;
-                              },
-                            ),
-                          )
-                          : Container(
+                  child: Hero(
+                    tag: item.file.path,
+                    child: ExtendedImage.file(
+                      item.file,
+                      fit: BoxFit.cover,
+                      cacheWidth: 300,
+                      gaplessPlayback: true,
+                      enableLoadState: false,
+                      loadStateChanged: (ExtendedImageState state) {
+                        if (state.extendedImageLoadState == LoadState.failed) {
+                          return Container(
                             color: color.surfaceContainerHighest,
                             child: Icon(
-                              Icons.folder_rounded,
-                              size: 48,
+                              Icons.broken_image_rounded,
                               color: color.onSurfaceVariant,
                             ),
-                          ),
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
                 ),
 
                 // Selection overlay
@@ -977,7 +987,7 @@ class _ImageCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      item.path.split('/').last,
+                      item.file.path.split('/').last,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -999,7 +1009,7 @@ class _ImageCard extends StatelessWidget {
 }
 
 class _ImageListTile extends StatelessWidget {
-  final FileSystemEntity item;
+  final HistoryItem item;
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -1047,38 +1057,29 @@ class _ImageListTile extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child:
-                        item is File
-                            ? Hero(
-                              tag: item.path,
-                              child: ExtendedImage.file(
-                                item as File,
-                                fit: BoxFit.cover,
-                                cacheWidth: 100,
-                                gaplessPlayback: true,
-                                enableLoadState: false,
-                                loadStateChanged: (ExtendedImageState state) {
-                                  if (state.extendedImageLoadState ==
-                                      LoadState.failed) {
-                                    return Container(
-                                      color: color.surfaceContainerHighest,
-                                      child: Icon(
-                                        Icons.broken_image_rounded,
-                                        color: color.onSurfaceVariant,
-                                      ),
-                                    );
-                                  }
-                                  return null;
-                                },
-                              ),
-                            )
-                            : Container(
+                    child: Hero(
+                      tag: item.file.path,
+                      child: ExtendedImage.file(
+                        item.file,
+                        fit: BoxFit.cover,
+                        cacheWidth: 100,
+                        gaplessPlayback: true,
+                        enableLoadState: false,
+                        loadStateChanged: (ExtendedImageState state) {
+                          if (state.extendedImageLoadState ==
+                              LoadState.failed) {
+                            return Container(
                               color: color.surfaceContainerHighest,
                               child: Icon(
-                                Icons.folder_rounded,
+                                Icons.broken_image_rounded,
                                 color: color.onSurfaceVariant,
                               ),
-                            ),
+                            );
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
                   ),
                 ),
 
@@ -1090,33 +1091,19 @@ class _ImageListTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.path.split('/').last,
+                        item.file.path.split('/').last,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      if (item is File)
-                        FutureBuilder<int>(
-                          future: (item as File).length(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData) {
-                              final sizeKB = (snapshot.data! / 1024)
-                                  .toStringAsFixed(1);
-                              return Text(
-                                '$sizeKB KB',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: color.onSurfaceVariant),
-                              );
-                            }
-                            return Text(
-                              '...',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: color.onSurfaceVariant),
-                            );
-                          },
+                      Text(
+                        '${(item.size / 1024).toStringAsFixed(1)} KB',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: color.onSurfaceVariant,
                         ),
+                      ),
                     ],
                   ),
                 ),

@@ -110,8 +110,10 @@ class _RagadlState extends State<RagaDL>
 
   void _initializeFields() {
     if (!_isInitialized ||
-        (widget.initialUrl != null && widget.initialUrl != _urlController.text) ||
-        (widget.initialFolder != null && widget.initialFolder != _folderController.text)) {
+        (widget.initialUrl != null &&
+            widget.initialUrl != _urlController.text) ||
+        (widget.initialFolder != null &&
+            widget.initialFolder != _folderController.text)) {
       if (widget.initialUrl != null) {
         _urlController.text = widget.initialUrl!;
       }
@@ -166,10 +168,17 @@ class _RagadlState extends State<RagaDL>
     });
 
     HapticFeedback.mediumImpact();
-    _showModernSnackBar('All fields and images cleared', Icons.clear_all_rounded);
+    _showModernSnackBar(
+      'All fields and images cleared',
+      Icons.clear_all_rounded,
+    );
   }
 
-  void _showModernSnackBar(String message, IconData icon, [bool isError = false]) {
+  void _showModernSnackBar(
+    String message,
+    IconData icon, [
+    bool isError = false,
+  ]) {
     if (!mounted) return;
     final color = Theme.of(context).colorScheme;
 
@@ -177,9 +186,18 @@ class _RagadlState extends State<RagaDL>
       SnackBar(
         content: Row(
           children: [
-            Icon(icon, color: isError ? color.onError : color.onInverseSurface, size: 20),
+            Icon(
+              icon,
+              color: isError ? color.onError : color.onInverseSurface,
+              size: 20,
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600))),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
         backgroundColor: isError ? color.error : color.inverseSurface,
@@ -206,10 +224,15 @@ class _RagadlState extends State<RagaDL>
   Future<void> _checkPermissions() async {
     bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
     if (!permissionsGranted) {
-      permissionsGranted = await PermissionHandler.requestAllPermissions(context);
+      permissionsGranted = await PermissionHandler.requestAllPermissions(
+        context,
+      );
     }
     if (permissionsGranted) {
-      _showModernSnackBar('Storage permission granted', Icons.check_circle_rounded);
+      _showModernSnackBar(
+        'Storage permission granted',
+        Icons.check_circle_rounded,
+      );
     }
   }
 
@@ -242,7 +265,8 @@ class _RagadlState extends State<RagaDL>
       _folderController.text = mainFolderName;
     }
 
-    subFolderName = "$mainFolderName-${_downloaderService.extractGalleryId(baseUrl)}";
+    subFolderName =
+        "$mainFolderName-${_downloaderService.extractGalleryId(baseUrl)}";
 
     await _downloaderService.setBaseDownloadPath(
       '/storage/emulated/0/Download/RagaDL Downloads',
@@ -266,15 +290,22 @@ class _RagadlState extends State<RagaDL>
             isLoading = false;
           });
           _showModernSnackBar(
-            imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images',
-            imageUrls.isEmpty ? Icons.search_off_rounded : Icons.photo_library_rounded,
+            imageUrls.isEmpty
+                ? 'No images found!'
+                : 'Found ${imageUrls.length} images',
+            imageUrls.isEmpty
+                ? Icons.search_off_rounded
+                : Icons.photo_library_rounded,
           );
-        } else if (data['type'] == 'error' || data['type'] == 'dio_error' || data['type'] == 'page_error') {
-          final errorMsg = data['type'] == 'dio_error'
-              ? 'Network error on page ${data['page']}: ${data['error']}'
-              : data['type'] == 'page_error'
-              ? 'Page ${data['page']} failed with status ${data['status']}'
-              : data['error'];
+        } else if (data['type'] == 'error' ||
+            data['type'] == 'dio_error' ||
+            data['type'] == 'page_error') {
+          final errorMsg =
+              data['type'] == 'dio_error'
+                  ? 'Network error on page ${data['page']}: ${data['error']}'
+                  : data['type'] == 'page_error'
+                  ? 'Page ${data['page']} failed with status ${data['status']}'
+                  : data['error'];
           setState(() {
             isLoading = false;
             _error = errorMsg;
@@ -389,9 +420,15 @@ class _RagadlState extends State<RagaDL>
         const curve = Curves.easeOutCubic;
 
         final tween = Tween(begin: begin, end: end);
-        final curvedAnimation = CurvedAnimation(parent: animation, curve: curve);
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: curve,
+        );
         final offsetAnimation = tween.animate(curvedAnimation);
-        final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation);
+        final fadeAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(curvedAnimation);
 
         return SlideTransition(
           position: offsetAnimation,
@@ -429,7 +466,10 @@ class _RagadlState extends State<RagaDL>
             child: IconButton(
               icon: Icon(Icons.history_rounded, color: color.primary),
               onPressed: () {
-                Navigator.push(context, _createModernPageRoute(const LinkHistoryPage()));
+                Navigator.push(
+                  context,
+                  _createModernPageRoute(const LinkHistoryPage()),
+                );
               },
               tooltip: 'Link History',
             ),
@@ -446,9 +486,12 @@ class _RagadlState extends State<RagaDL>
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: _buildControlsSection(theme, color)),
-              if (isLoading) SliverToBoxAdapter(child: _buildLoadingSection(theme, color)),
-              if (_error != null) SliverToBoxAdapter(child: _buildErrorSection(theme, color)),
-              if (!isLoading && imageUrls.isNotEmpty) _buildImageGrid(theme, color),
+              if (isLoading)
+                SliverToBoxAdapter(child: _buildLoadingSection(theme, color)),
+              if (_error != null)
+                SliverToBoxAdapter(child: _buildErrorSection(theme, color)),
+              if (!isLoading && imageUrls.isNotEmpty)
+                _buildImageGrid(theme, color),
               if (!isLoading && imageUrls.isEmpty && !isLoading)
                 SliverToBoxAdapter(child: _buildEmptyState(theme, color)),
             ],
@@ -470,7 +513,10 @@ class _RagadlState extends State<RagaDL>
       );
     }
 
-    if (imageUrls.isNotEmpty && isSelectionMode && !isLoading && !isDownloading) {
+    if (imageUrls.isNotEmpty &&
+        isSelectionMode &&
+        !isLoading &&
+        !isDownloading) {
       return FloatingActionButton.extended(
         onPressed: _downloadSelectedImages,
         icon: const Icon(Icons.download_for_offline_rounded),
@@ -521,18 +567,25 @@ class _RagadlState extends State<RagaDL>
                     icon: Icon(Icons.check_rounded, color: color.primary),
                     onPressed: () {
                       setState(() {
-                        mainFolderName = _folderController.text.trim().isEmpty
-                            ? 'RagaDownloads'
-                            : _folderController.text.trim();
+                        mainFolderName =
+                            _folderController.text.trim().isEmpty
+                                ? 'RagaDownloads'
+                                : _folderController.text.trim();
                       });
                       HapticFeedback.mediumImpact();
-                      _showModernSnackBar('Folder set to: $mainFolderName', Icons.folder_rounded);
+                      _showModernSnackBar(
+                        'Folder set to: $mainFolderName',
+                        Icons.folder_rounded,
+                      );
                     },
                     tooltip: 'Set Main Folder',
                   ),
                 ),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
               ),
             ),
           ),
@@ -545,14 +598,20 @@ class _RagadlState extends State<RagaDL>
               color: color.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: _urlController.text.isNotEmpty &&
-                    !_downloaderService.isValidRagaUrl(_urlController.text)
-                    ? color.error
-                    : color.outline.withOpacity(0.2),
-                width: _urlController.text.isNotEmpty &&
-                    !_downloaderService.isValidRagaUrl(_urlController.text)
-                    ? 2
-                    : 1,
+                color:
+                    _urlController.text.isNotEmpty &&
+                            !_downloaderService.isValidRagaUrl(
+                              _urlController.text,
+                            )
+                        ? color.error
+                        : color.outline.withOpacity(0.2),
+                width:
+                    _urlController.text.isNotEmpty &&
+                            !_downloaderService.isValidRagaUrl(
+                              _urlController.text,
+                            )
+                        ? 2
+                        : 1,
               ),
               boxShadow: [
                 BoxShadow(
@@ -570,10 +629,13 @@ class _RagadlState extends State<RagaDL>
                 hintText: 'https://www.ragalahari.com/...',
                 prefixIcon: Icon(
                   Icons.link_rounded,
-                  color: _urlController.text.isNotEmpty &&
-                      !_downloaderService.isValidRagaUrl(_urlController.text)
-                      ? color.error
-                      : color.primary,
+                  color:
+                      _urlController.text.isNotEmpty &&
+                              !_downloaderService.isValidRagaUrl(
+                                _urlController.text,
+                              )
+                          ? color.error
+                          : color.primary,
                 ),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -586,13 +648,25 @@ class _RagadlState extends State<RagaDL>
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
-                          icon: Icon(Icons.content_copy_rounded, color: color.onSurfaceVariant, size: 18),
+                          icon: Icon(
+                            Icons.content_copy_rounded,
+                            color: color.onSurfaceVariant,
+                            size: 18,
+                          ),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: _urlController.text));
-                            _showModernSnackBar('URL copied to clipboard', Icons.content_copy_rounded);
+                            Clipboard.setData(
+                              ClipboardData(text: _urlController.text),
+                            );
+                            _showModernSnackBar(
+                              'URL copied to clipboard',
+                              Icons.content_copy_rounded,
+                            );
                           },
                           padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
                         ),
                       ),
                     Container(
@@ -602,20 +676,33 @@ class _RagadlState extends State<RagaDL>
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
-                        icon: Icon(Icons.clear_rounded, color: color.onSurfaceVariant, size: 18),
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          color: color.onSurfaceVariant,
+                          size: 18,
+                        ),
                         onPressed: () => _urlController.clear(),
                         padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                errorText: _urlController.text.isNotEmpty &&
-                    !_downloaderService.isValidRagaUrl(_urlController.text)
-                    ? 'URL must start with https://www.ragalahari.com'
-                    : null,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                errorText:
+                    _urlController.text.isNotEmpty &&
+                            !_downloaderService.isValidRagaUrl(
+                              _urlController.text,
+                            )
+                        ? 'URL must start with https://www.ragalahari.com'
+                        : null,
               ),
               keyboardType: TextInputType.url,
               onChanged: (value) => setState(() {}),
@@ -673,41 +760,62 @@ class _RagadlState extends State<RagaDL>
           children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed: (isLoading || isDownloading || mainFolderName.isEmpty) ? null : () {
-                  final url = _urlController.text.trim();
-                  if (url.isEmpty) {
-                    _showModernSnackBar('Please enter a URL', Icons.warning_rounded, true);
-                    return;
-                  }
-                  if (!_downloaderService.isValidRagaUrl(url)) {
-                    _showModernSnackBar('Invalid URL: Must start with https://www.ragalahari.com', Icons.error_rounded, true);
-                    return;
-                  }
-                  HapticFeedback.mediumImpact();
-                  _processGallery(url);
-                },
+                onPressed:
+                    (isLoading || isDownloading || mainFolderName.isEmpty)
+                        ? null
+                        : () {
+                          final url = _urlController.text.trim();
+                          if (url.isEmpty) {
+                            _showModernSnackBar(
+                              'Please enter a URL',
+                              Icons.warning_rounded,
+                              true,
+                            );
+                            return;
+                          }
+                          if (!_downloaderService.isValidRagaUrl(url)) {
+                            _showModernSnackBar(
+                              'Invalid URL: Must start with https://www.ragalahari.com',
+                              Icons.error_rounded,
+                              true,
+                            );
+                            return;
+                          }
+                          HapticFeedback.mediumImpact();
+                          _processGallery(url);
+                        },
                 icon: const Icon(Icons.search_rounded),
                 label: const Text('Fetch Images'),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.icon(
-                onPressed: (isLoading || isDownloading || imageUrls.isEmpty || mainFolderName.isEmpty) ? null : () {
-                  HapticFeedback.mediumImpact();
-                  _downloadAllImages();
-                },
+                onPressed:
+                    (isLoading ||
+                            isDownloading ||
+                            imageUrls.isEmpty ||
+                            mainFolderName.isEmpty)
+                        ? null
+                        : () {
+                          HapticFeedback.mediumImpact();
+                          _downloadAllImages();
+                        },
                 icon: const Icon(Icons.download_rounded),
                 label: const Text('Download All'),
                 style: FilledButton.styleFrom(
                   backgroundColor: color.secondary,
                   foregroundColor: color.onSecondary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -722,7 +830,9 @@ class _RagadlState extends State<RagaDL>
             label: const Text('Clear All'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),
@@ -762,7 +872,9 @@ class _RagadlState extends State<RagaDL>
           const SizedBox(height: 16),
           Text(
             'Fetching page $currentPage of $totalPages...',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
@@ -805,7 +917,9 @@ class _RagadlState extends State<RagaDL>
           const SizedBox(height: 8),
           Text(
             _error!,
-            style: theme.textTheme.bodyMedium?.copyWith(color: color.onErrorContainer),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: color.onErrorContainer,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -839,17 +953,25 @@ class _RagadlState extends State<RagaDL>
               color: color.surfaceContainerHighest.withOpacity(0.5),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.photo_library_outlined, size: 64, color: color.onSurfaceVariant),
+            child: Icon(
+              Icons.photo_library_outlined,
+              size: 64,
+              color: color.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           Text(
             'No images to display',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Enter a gallery URL and tap "Fetch Images" to begin downloading.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: color.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: color.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -867,37 +989,34 @@ class _RagadlState extends State<RagaDL>
           mainAxisSpacing: 12,
           childAspectRatio: 0.8,
         ),
-        delegate: SliverChildBuilderDelegate(
-              (context, index) {
-            final imageData = imageUrls[index];
-            final isSelected = selectedImages.contains(index);
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final imageData = imageUrls[index];
+          final isSelected = selectedImages.contains(index);
 
-            return ImageGridItem(
-              imageData: imageData,
-              index: index,
-              isSelected: isSelected,
-              onTap: () {
-                if (isSelectionMode) {
-                  _toggleSelection(index);
-                } else {
-                  Navigator.push(
-                    context,
-                    _createModernPageRoute(
-                      FullImagePage(
-                        imageUrls: imageUrls,
-                        initialIndex: index,
-                        downloaderService: _downloaderService,
-                      ),
+          return ImageGridItem(
+            imageData: imageData,
+            index: index,
+            isSelected: isSelected,
+            onTap: () {
+              if (isSelectionMode) {
+                _toggleSelection(index);
+              } else {
+                Navigator.push(
+                  context,
+                  _createModernPageRoute(
+                    FullImagePage(
+                      imageUrls: imageUrls,
+                      initialIndex: index,
+                      downloaderService: _downloaderService,
                     ),
-                  );
-                }
-              },
-              onLongPress: () => _toggleSelection(index),
-              theme: theme,
-            );
-          },
-          childCount: imageUrls.length,
-        ),
+                  ),
+                );
+              }
+            },
+            onLongPress: () => _toggleSelection(index),
+            theme: theme,
+          );
+        }, childCount: imageUrls.length),
       ),
     );
   }
@@ -931,7 +1050,10 @@ class ImageGridItem extends StatelessWidget {
       child: Material(
         color: color.surface,
         elevation: isSelected ? 8 : 2,
-        shadowColor: isSelected ? color.primary.withOpacity(0.4) : color.shadow.withOpacity(0.1),
+        shadowColor:
+            isSelected
+                ? color.primary.withOpacity(0.4)
+                : color.shadow.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -940,7 +1062,10 @@ class ImageGridItem extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: isSelected ? Border.all(color: color.primary, width: 2) : null,
+              border:
+                  isSelected
+                      ? Border.all(color: color.primary, width: 2)
+                      : null,
             ),
             child: Stack(
               fit: StackFit.expand,
@@ -953,15 +1078,23 @@ class ImageGridItem extends StatelessWidget {
                     child: CachedNetworkImage(
                       imageUrl: imageData.thumbnailUrl,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Shimmer.fromColors(
-                        baseColor: color.surfaceContainerHighest.withOpacity(0.3),
-                        highlightColor: color.surface,
-                        child: Container(color: color.surfaceContainerHighest),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: color.errorContainer.withOpacity(0.1),
-                        child: Icon(Icons.broken_image_rounded, color: color.error),
-                      ),
+                      placeholder:
+                          (context, url) => Shimmer.fromColors(
+                            baseColor: color.surfaceContainerHighest
+                                .withOpacity(0.3),
+                            highlightColor: color.surface,
+                            child: Container(
+                              color: color.surfaceContainerHighest,
+                            ),
+                          ),
+                      errorWidget:
+                          (context, url, error) => Container(
+                            color: color.errorContainer.withOpacity(0.1),
+                            child: Icon(
+                              Icons.broken_image_rounded,
+                              color: color.error,
+                            ),
+                          ),
                     ),
                   ),
                 ),
@@ -993,7 +1126,11 @@ class ImageGridItem extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Icon(Icons.check_rounded, color: color.onPrimary, size: 16),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: color.onPrimary,
+                        size: 16,
+                      ),
                     ),
                   ),
 
@@ -1006,7 +1143,10 @@ class ImageGridItem extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
@@ -1116,7 +1256,10 @@ class _FullImagePageState extends State<FullImagePage> {
         elevation: 0,
         title: Text(
           'Image ${currentIndex + 1} of ${widget.imageUrls.length}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         leading: Container(
           margin: const EdgeInsets.all(8),
@@ -1141,9 +1284,13 @@ class _FullImagePageState extends State<FullImagePage> {
               icon: const Icon(Icons.copy),
               color: Colors.white,
               onPressed: () {
-                Clipboard.setData(ClipboardData(text: currentImageData.originalUrl));
+                Clipboard.setData(
+                  ClipboardData(text: currentImageData.originalUrl),
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Image URL copied to clipboard')),
+                  const SnackBar(
+                    content: Text('Image URL copied to clipboard'),
+                  ),
                 );
               },
             ),
@@ -1155,15 +1302,22 @@ class _FullImagePageState extends State<FullImagePage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              icon: isDownloading
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              )
-                  : const Icon(Icons.download),
+              icon:
+                  isDownloading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : const Icon(Icons.download),
               color: Colors.white,
-              onPressed: isDownloading ? null : () => _downloadImage(currentImageData.originalUrl),
+              onPressed:
+                  isDownloading
+                      ? null
+                      : () => _downloadImage(currentImageData.originalUrl),
             ),
           ),
         ],
@@ -1181,13 +1335,15 @@ class _FullImagePageState extends State<FullImagePage> {
           return InteractiveViewer(
             transformationController: transformationControllers[index],
             minScale: 0.1,
-            maxScale: 4.0,
+            maxScale: 15.0,
             child: Hero(
               tag: imageData.originalUrl,
               child: CachedNetworkImage(
                 imageUrl: imageData.originalUrl,
                 fit: BoxFit.contain,
-                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                placeholder:
+                    (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
                 errorWidget: (context, url, error) => const Icon(Icons.error),
               ),
             ),

@@ -607,17 +607,99 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     }
   }
 
-  void _navigateToDownloader(String galleryUrl, String galleryTitle) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => RagaDL(
-              initialUrl: galleryUrl,
-              initialFolder: widget.celebrityName,
-            ),
-      ),
-    );
+  bool _isNavigating = false;
+
+  Future<void> _navigateToDownloader(
+    String galleryUrl,
+    String galleryTitle,
+  ) async {
+    if (_isNavigating) return;
+
+    setState(() {
+      _isNavigating = true;
+    });
+
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Checking gallery availability...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final response = await http
+          .get(Uri.parse(galleryUrl), headers: headers)
+          .timeout(const Duration(seconds: 5));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      bool hasImages = false;
+      if (response.statusCode == 200) {
+        final document = html_parser.parse(response.body);
+        final images = document.getElementsByTagName('img');
+        for (final img in images) {
+          final src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
+          if (thumbnailDomains.any((domain) => src.contains(domain))) {
+            hasImages = true;
+            break;
+          }
+        }
+      }
+
+      if (response.statusCode != 200 || !hasImages) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This gallery or image is not on the server'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => RagaDL(
+                initialUrl: galleryUrl,
+                initialFolder: widget.celebrityName,
+              ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This gallery or image is not on the server'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isNavigating = false;
+        });
+      }
+    }
   }
 
   void _filterGalleries() {

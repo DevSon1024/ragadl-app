@@ -298,7 +298,7 @@ class _FullImageViewerState extends State<FullImageViewer>
   void _handleDoubleTap(int index) {
     final controller = _controllers[index];
     final currentScale = controller.value.getMaxScaleOnAxis();
-    final targetScale = currentScale > 1.5 ? 1.0 : 2.5;
+    final targetScale = currentScale > 1.5 ? 1.0 : 3.5;
 
     // Get screen center for zoom
     final size = MediaQuery.of(context).size;
@@ -497,7 +497,7 @@ class _FullImageViewerState extends State<FullImageViewer>
       child: InteractiveViewer(
         transformationController: controller,
         minScale: 1.0,
-        maxScale: 5.0,
+        maxScale: 15.0,
         panEnabled: _isZoomed,
         scaleEnabled: true,
         constrained: true,
