@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ragadl/core/permissions.dart';
+import 'package:ragadl/core/services/notification_controller.dart';
 import '../ui/download_manager_page.dart';
 import '../ui/link_history_page.dart';
 
@@ -153,9 +154,16 @@ class DownloaderService {
       final downloadManager = DownloadManager();
       final batchId = DateTime.now().millisecondsSinceEpoch.toString();
       final galleryName = galleryTitle ?? mainFolderName;
+      final total = imageUrls.length;
 
       int successCount = 0;
       int failureCount = 0;
+
+      await NotificationController.showBatchProgress(
+        completed: 0,
+        total: total,
+        galleryName: galleryName,
+      );
 
       for (int i = 0; i < imageUrls.length; i++) {
         final imageUrl = imageUrls[i].originalUrl;
@@ -178,7 +186,7 @@ class DownloaderService {
 
       return {
         'success': true,
-        'totalAdded': imageUrls.length,
+        'totalAdded': total,
         'successCount': successCount,
         'failureCount': failureCount,
       };
@@ -209,9 +217,16 @@ class DownloaderService {
       final downloadManager = DownloadManager();
       final batchId = DateTime.now().millisecondsSinceEpoch.toString();
       final galleryName = galleryTitle ?? mainFolderName;
+      final total = selectedIndices.length;
 
       int successCount = 0;
       int failureCount = 0;
+
+      await NotificationController.showBatchProgress(
+        completed: 0,
+        total: total,
+        galleryName: galleryName,
+      );
 
       for (int index in selectedIndices) {
         final imageUrl = imageUrls[index].originalUrl;
@@ -234,7 +249,7 @@ class DownloaderService {
 
       return {
         'success': true,
-        'totalAdded': selectedIndices.length,
+        'totalAdded': total,
         'successCount': successCount,
         'failureCount': failureCount,
       };

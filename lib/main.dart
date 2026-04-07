@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'core/permissions.dart';
+import 'core/services/notification_controller.dart';
 import 'features/home/ui/home_page.dart';
 import 'shared/widgets/theme_notifier.dart';
 
@@ -36,6 +37,10 @@ void main() async {
       channelShowBadge: true,
     ),
   ], debug: true);
+
+  AwesomeNotifications().setListeners(
+    onActionReceivedMethod: NotificationController.onActionReceivedMethod,
+  );
 
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();

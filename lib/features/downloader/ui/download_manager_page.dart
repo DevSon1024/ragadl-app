@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:open_file/open_file.dart';
+import 'package:ragadl/core/services/notification_controller.dart';
 
 enum DownloadStatus { downloading, paused, completed, failed, queued }
 
@@ -16,6 +16,9 @@ class DownloadTask {
   final String folder;
   final String subFolder;
   final String galleryName;
+  // batchId is stored here so it is never lost when the task moves
+  // from the queue back into active downloads via _processQueue.
+  final String? batchId;
   CancelToken cancelToken;
   double progress;
   DownloadStatus status;
@@ -34,6 +37,7 @@ class DownloadTask {
     required this.subFolder,
     required this.galleryName,
     required this.cancelToken,
+    this.batchId,
     this.progress = 0.0,
     this.status = DownloadStatus.queued,
     this.retryCount = 0,
@@ -51,6 +55,7 @@ class DownloadTask {
     String? folder,
     String? subFolder,
     String? galleryName,
+    String? batchId,
     CancelToken? cancelToken,
     double? progress,
     DownloadStatus? status,
@@ -68,6 +73,7 @@ class DownloadTask {
       folder: folder ?? this.folder,
       subFolder: subFolder ?? this.subFolder,
       galleryName: galleryName ?? this.galleryName,
+      batchId: batchId ?? this.batchId,
       cancelToken: cancelToken ?? this.cancelToken,
       progress: progress ?? this.progress,
       status: status ?? this.status,
@@ -93,13 +99,14 @@ class DownloadManager {
   final Dio _dio = Dio();
   final Set<String> _downloadingUrls = {};
 
-  // Gallery-based download tracking
   final Map<String, int> _galleryTotalCount = {};
   final Map<String, int> _galleryCompletedCount = {};
   final Map<String, int> _galleryFailedCount = {};
-  final Map<String, bool> _galleryNotificationShown = {};
+  final Map<String, String> _galleryNameMap = {};
 
-  int _maxConcurrentDownloads = 3; // Default value
+  bool _isPaused = false;
+
+  int _maxConcurrentDownloads = 3;
   static const int maxRetries = 3;
 
   Map<String, DownloadTask> get activeDownloads => Map.unmodifiable(_activeDownloads);
@@ -186,6 +193,7 @@ class DownloadManager {
         folder: folder,
         subFolder: subFolder,
         galleryName: galleryName,
+        batchId: batchId,
         cancelToken: cancelToken,
         progress: 0,
         status: DownloadStatus.queued,
@@ -196,17 +204,14 @@ class DownloadManager {
 
       _activeDownloads[url] = task;
 
-      // Initialize gallery tracking
       if (batchId != null) {
         _galleryTotalCount[batchId] = (_galleryTotalCount[batchId] ?? 0) + 1;
-
-        // Show initial gallery notification only once
-        if (_galleryTotalCount[batchId] == 1) {
-          await showGalleryProgressNotification(batchId, galleryName, 0, 1);
-        }
+        _galleryNameMap[batchId] = galleryName;
+        // NOTE: initial notification is shown ONCE by DownloaderService
+        // before the loop runs — do NOT show it here per-task.
       }
 
-      _enqueueDownload(task, batchId);
+      _enqueueDownload(task);
     } catch (e) {
       if (task != null) {
         _activeDownloads.remove(url);
@@ -218,21 +223,21 @@ class DownloadManager {
     }
   }
 
-  void _enqueueDownload(DownloadTask task, String? batchId) {
+  void _enqueueDownload(DownloadTask task) {
     if (_downloadingUrls.length < _maxConcurrentDownloads) {
-      _startDownload(task, batchId);
+      _startDownload(task);
     } else {
       _downloadQueue.add(task.url);
-      // Update status to queued
       _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.queued);
     }
   }
 
-  void _startDownload(DownloadTask task, String? batchId) {
+  void _startDownload(DownloadTask task) {
     _downloadingUrls.add(task.url);
     _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.downloading);
+    // batchId is read from the task itself — never gets lost
     _download(task, (success) {
-      _handleDownloadComplete(task.url, success, batchId);
+      _handleDownloadComplete(task.url, success, task.batchId);
     });
   }
 
@@ -266,7 +271,7 @@ class DownloadManager {
           cancelToken: CancelToken(),
         );
         _activeDownloads[url] = newTask;
-        _startDownload(newTask, batchId);
+        _startDownload(newTask);
         return;
       }
 
@@ -291,12 +296,104 @@ class DownloadManager {
   }
 
   void _processQueue() {
+    if (_isPaused) return;
     while (_downloadQueue.isNotEmpty && _downloadingUrls.length < _maxConcurrentDownloads) {
       final url = _downloadQueue.removeFirst();
       final task = _activeDownloads[url];
       if (task != null && task.status != DownloadStatus.paused) {
-        _startDownload(task, null);
+        // batchId lives on the task — no null loss possible here
+        _startDownload(task);
       }
+    }
+  }
+
+  void pauseAll() {
+    _isPaused = true;
+    // Cancel all active Dio requests immediately
+    for (final url in List<String>.from(_downloadingUrls)) {
+      final task = _activeDownloads[url];
+      if (task != null) {
+        task.cancelToken.cancel('Paused');
+        final paused = task.copyWith(
+          status: DownloadStatus.paused,
+          cancelToken: CancelToken(), // fresh token for resume
+        );
+        _activeDownloads[url] = paused;
+        // Re-queue at front so they resume in order
+        _downloadQueue.addFirst(url);
+      }
+    }
+    _downloadingUrls.clear();
+    // Also mark everything currently queued as paused
+    for (final url in List<String>.from(_downloadQueue)) {
+      final task = _activeDownloads[url];
+      if (task != null && task.status == DownloadStatus.queued) {
+        _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
+      }
+    }
+    _refreshBatchNotification(isPaused: true);
+  }
+
+  void resumeAll() {
+    _isPaused = false;
+    final pausedUrls = _activeDownloads.entries
+        .where((e) => e.value.status == DownloadStatus.paused)
+        .map((e) => e.key)
+        .toList();
+    for (final url in pausedUrls) {
+      final task = _activeDownloads[url];
+      if (task != null) {
+        final queued = task.copyWith(
+          status: DownloadStatus.queued,
+          cancelToken: CancelToken(),
+        );
+        _activeDownloads[url] = queued;
+        if (!_downloadQueue.contains(url)) {
+          _downloadQueue.add(url);
+        }
+      }
+    }
+    _processQueue();
+    _refreshBatchNotification(isPaused: false);
+  }
+
+  void cancelAll() {
+    _isPaused = false;
+    // Cancel every active Dio request immediately
+    for (final url in List<String>.from(_downloadingUrls)) {
+      _activeDownloads[url]?.cancelToken.cancel('Cancelled');
+    }
+    _downloadingUrls.clear();
+    _downloadQueue.clear();
+    _activeDownloads.removeWhere((_, t) =>
+        t.status == DownloadStatus.downloading ||
+        t.status == DownloadStatus.queued ||
+        t.status == DownloadStatus.paused);
+    _galleryTotalCount.clear();
+    _galleryCompletedCount.clear();
+    _galleryFailedCount.clear();
+    _galleryNameMap.clear();
+    // Dismiss the progress notification right away
+    NotificationController.cancelBatchNotification();
+  }
+
+  void _refreshBatchNotification({required bool isPaused}) {
+    int completed = 0;
+    int total = 0;
+    String galleryName = 'Download';
+    for (final batchId in _galleryTotalCount.keys) {
+      total += _galleryTotalCount[batchId] ?? 0;
+      completed += (_galleryCompletedCount[batchId] ?? 0) +
+          (_galleryFailedCount[batchId] ?? 0);
+      galleryName = _galleryNameMap[batchId] ?? galleryName;
+    }
+    if (total > 0) {
+      NotificationController.showBatchProgress(
+        completed: completed,
+        total: total,
+        galleryName: galleryName,
+        isPaused: isPaused,
+      );
     }
   }
 
@@ -304,87 +401,33 @@ class DownloadManager {
     final total = _galleryTotalCount[batchId] ?? 0;
     final completed = _galleryCompletedCount[batchId] ?? 0;
     final failed = _galleryFailedCount[batchId] ?? 0;
+    final processed = completed + failed;
 
-    // Update progress notification
-    await showGalleryProgressNotification(batchId, galleryName, completed + failed, total);
+    await NotificationController.showBatchProgress(
+      completed: processed,
+      total: total,
+      galleryName: galleryName,
+      isPaused: _isPaused,
+    );
 
-    // Check if all downloads are complete
-    if (completed + failed >= total) {
-      await showGalleryCompleteNotification(batchId, galleryName, completed, failed);
+    if (processed >= total) {
+      final prefs = await SharedPreferences.getInstance();
+      final basePath = prefs.getString('base_download_path') ??
+          '/storage/emulated/0/Download';
+      final folderPath = '$basePath/$galleryName';
 
-      // Cleanup
+      await NotificationController.showBatchComplete(
+        galleryName: galleryName,
+        completed: completed,
+        failed: failed,
+        folderPath: folderPath,
+      );
+
       _galleryTotalCount.remove(batchId);
       _galleryCompletedCount.remove(batchId);
       _galleryFailedCount.remove(batchId);
-      _galleryNotificationShown.remove(batchId);
+      _galleryNameMap.remove(batchId);
     }
-  }
-
-  /// Show gallery progress notification with proper updates
-  Future<void> showGalleryProgressNotification(
-      String batchId,
-      String galleryName,
-      int current,
-      int total,
-      ) async {
-    await AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: batchId.hashCode,
-        channelKey: 'download_channel',
-        title: 'Downloading $galleryName',
-        body: 'Progress: $current of $total images',
-        notificationLayout: NotificationLayout.ProgressBar,
-        progress: total > 0 ? ((current / total) * 100).toDouble() : 0,
-        locked: false,  // ✅ Changed from true - allows dismissal
-        category: NotificationCategory.Progress,
-        autoDismissible: false,
-      ),
-    );
-  }
-
-  /// Show completion notification and cancel progress
-  Future<void> showGalleryCompleteNotification(
-      String batchId,
-      String galleryName,
-      int completed,
-      int failed,
-      ) async {
-    // ✅ Cancel the progress notification first
-    await AwesomeNotifications().cancel(batchId.hashCode);
-
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    final prefs = await SharedPreferences.getInstance();
-    String basePath = prefs.getString('base_download_path') ??
-        '/storage/emulated/0/Download/';
-    String folderPath = '$basePath/$galleryName';
-
-    await AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: batchId.hashCode + 1,  // Different ID for completion
-        channelKey: 'download_channel',
-        title: '$galleryName Downloaded',
-        body: '$completed images saved to $folderPath'
-            '${failed > 0 ? " ($failed failed)" : ""}',
-        notificationLayout: NotificationLayout.Default,
-        color: failed > 0 ? Colors.orange : Colors.green,
-        locked: false,
-        autoDismissible: true,
-        payload: {'action': 'open_folder', 'path': folderPath},
-      ),
-      actionButtons: [
-        NotificationActionButton(
-          key: 'open_folder',
-          label: 'Open Folder',
-          actionType: ActionType.Default,
-        ),
-        NotificationActionButton(
-          key: 'dismiss',
-          label: 'Dismiss',
-          actionType: ActionType.DismissAction,
-        ),
-      ],
-    );
   }
 
   Future<void> _download(
@@ -471,11 +514,18 @@ class DownloadManager {
       onCompleteInner(true);
     } catch (e) {
       if (e is DioException && CancelToken.isCancel(e)) {
-        // Don't mark as failed if paused
-        if (task.status == DownloadStatus.paused) {
-          onCompleteInner(false);
+        // Check the LIVE status from the map — the closure-captured `task`
+        // is a stale snapshot and its status is still `downloading` even
+        // after pauseAll() has already updated _activeDownloads.
+        final liveTask = _activeDownloads[task.url];
+        if (liveTask != null && liveTask.status == DownloadStatus.paused) {
+          // pauseAll() already re-queued this URL — do NOT call onCompleteInner.
+          // Calling it would trigger the retry path and immediately restart the download.
           return;
         }
+        // Cancelled for a real reason (cancelAll / cancelDownload)
+        // — do not retry, just report failure so the task is cleaned up.
+        return;
       }
       onCompleteInner(false);
     }
@@ -519,7 +569,7 @@ class DownloadManager {
         status: DownloadStatus.queued,
       );
       _activeDownloads[url] = newTask;
-      _enqueueDownload(newTask, null);
+      _enqueueDownload(newTask);
     }
   }
 
@@ -548,7 +598,7 @@ class DownloadManager {
         errorMessage: null,
       );
       _activeDownloads[url] = newTask;
-      _enqueueDownload(newTask, null);
+      _enqueueDownload(newTask);
     }
   }
 
