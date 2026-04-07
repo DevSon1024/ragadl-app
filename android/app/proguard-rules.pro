@@ -14,7 +14,8 @@
 # Coil
 -keep class coil.** { *; }
 -dontwarn coil.**
-
+# Ignore missing Play Core classes referenced by Flutter engine
+-dontwarn com.google.android.play.core.**
 # Kotlin Coroutines
 -keepclassmembernames class kotlinx.** { *; }
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
