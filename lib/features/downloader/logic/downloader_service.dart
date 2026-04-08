@@ -6,7 +6,7 @@ import 'package:html/parser.dart' show parse;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ragadl/core/permissions.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
-import '../ui/pages/download_manager_page.dart';
+import '../../downloadManager/logic/download_manager.dart';
 import '../ui/pages/link_history_page.dart';
 
 // User agents for rotation
@@ -34,7 +34,7 @@ class ImageData {
   );
 }
 
-/// Main service class for downloader logic
+// Main service class for downloader logic
 class DownloaderService {
   Isolate? _isolate;
   ReceivePort? _receivePort;

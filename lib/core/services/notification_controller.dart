@@ -1,5 +1,5 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:ragadl/features/downloader/ui/pages/download_manager_page.dart';
+import 'package:ragadl/features/downloadManager/logic/download_manager.dart';
 
 class NotificationController {
   static const int batchNotificationId = 1001;
@@ -52,7 +52,8 @@ class NotificationController {
         id: completeNotificationId,
         channelKey: channelKey,
         title: '$galleryName Downloaded',
-        body: '$completed saved to $folderPath'
+        body:
+            '$completed saved to $folderPath'
             '${failed > 0 ? " ($failed failed)" : ""}',
         notificationLayout: NotificationLayout.Default,
         autoDismissible: true,
@@ -75,7 +76,8 @@ class NotificationController {
 
   @pragma("vm:entry-point")
   static Future<void> onActionReceivedMethod(
-      ReceivedAction receivedAction) async {
+    ReceivedAction receivedAction,
+  ) async {
     final key = receivedAction.buttonKeyPressed;
     final manager = DownloadManager();
     if (key == 'pause_all') {
