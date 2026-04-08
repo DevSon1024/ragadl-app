@@ -1,7 +1,9 @@
 import 'package:flutter/services.dart';
 
 class ImageViewerService {
-  static const MethodChannel _channel = MethodChannel('com.devson.ragadl/image_viewer');
+  static const MethodChannel _channel = MethodChannel(
+    'com.devson.ragadl/image_viewer',
+  );
 
   /// Open native image viewer with zoom and pan capabilities
   ///
@@ -29,9 +31,7 @@ class ImageViewerService {
   /// Open native video player
   ///
   /// [videoPath] - Path to the video file
-  static Future<bool> openVideoPlayer({
-    required String videoPath,
-  }) async {
+  static Future<bool> openVideoPlayer({required String videoPath}) async {
     try {
       final bool result = await _channel.invokeMethod('openVideoPlayer', {
         'videoPath': videoPath,
