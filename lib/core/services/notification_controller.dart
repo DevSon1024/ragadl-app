@@ -1,5 +1,5 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:ragadl/features/downloader/ui/download_manager_page.dart';
+import 'package:ragadl/features/downloader/ui/pages/download_manager_page.dart';
 
 class NotificationController {
   static const int batchNotificationId = 1001;

@@ -9,7 +9,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../celebrity/ui/latest_actor_and_actress.dart';
 import '../../celebrity/ui/latest_celebrity.dart';
 import '../../celebrity/ui/latest_events.dart';
-import '../../downloader/ui/link_history_page.dart';
+import '../../downloader/ui/pages/link_history_page.dart';
 import '../../settings/ui/favourite_page.dart';
 import '../../history/ui/history_page.dart';
 

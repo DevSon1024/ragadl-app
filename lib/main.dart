@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'features/downloader/ui/ragadl_page.dart';
+import 'features/downloader/ui/pages/ragadl_page.dart';
 import 'features/history/ui/history_page.dart';
-import 'features/downloader/ui/download_manager_page.dart';
+import 'features/downloader/ui/pages/download_manager_page.dart';
 import 'features/celebrity/ui/celebrity_list_page.dart';
 import 'features/settings/ui/settings_page.dart';
 import 'package:window_manager/window_manager.dart';

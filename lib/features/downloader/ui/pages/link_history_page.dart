@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'ragadl_page.dart';
+import '../pages/ragadl_page.dart';
 
 class LinkHistoryItem {
   final String url;

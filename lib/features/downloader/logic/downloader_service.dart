@@ -6,8 +6,8 @@ import 'package:html/parser.dart' show parse;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ragadl/core/permissions.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
-import '../ui/download_manager_page.dart';
-import '../ui/link_history_page.dart';
+import '../ui/pages/download_manager_page.dart';
+import '../ui/pages/link_history_page.dart';
 
 // User agents for rotation
 const List<String> userAgents = [
@@ -21,10 +21,7 @@ class ImageData {
   final String thumbnailUrl;
   final String originalUrl;
 
-  ImageData({
-    required this.thumbnailUrl,
-    required this.originalUrl,
-  });
+  ImageData({required this.thumbnailUrl, required this.originalUrl});
 
   Map<String, dynamic> toJson() => {
     'thumbnailUrl': thumbnailUrl,
@@ -80,9 +77,10 @@ class DownloaderService {
     final prefs = await SharedPreferences.getInstance();
     const historyKey = 'link_history';
     List<String> historyJson = prefs.getStringList(historyKey) ?? [];
-    List<LinkHistoryItem> history = historyJson
-        .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
-        .toList();
+    List<LinkHistoryItem> history =
+        historyJson
+            .map((json) => LinkHistoryItem.fromJson(jsonDecode(json)))
+            .toList();
 
     final historyItem = LinkHistoryItem(
       url: url,
@@ -91,11 +89,14 @@ class DownloaderService {
       timestamp: DateTime.now(),
     );
 
-    if (!history.any((item) =>
-    item.url == url && item.celebrityName == celebrityName)) {
+    if (!history.any(
+      (item) => item.url == url && item.celebrityName == celebrityName,
+    )) {
       history.add(historyItem);
       await prefs.setStringList(
-          historyKey, history.map((h) => jsonEncode(h.toJson())).toList());
+        historyKey,
+        history.map((h) => jsonEncode(h.toJson())).toList(),
+      );
     }
   }
 
@@ -191,10 +192,7 @@ class DownloaderService {
         'failureCount': failureCount,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -207,10 +205,7 @@ class DownloaderService {
     String? galleryTitle,
   }) async {
     if (selectedIndices.isEmpty) {
-      return {
-        'success': false,
-        'error': 'No images selected',
-      };
+      return {'success': false, 'error': 'No images selected'};
     }
 
     try {
@@ -254,10 +249,7 @@ class DownloaderService {
         'failureCount': failureCount,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -285,15 +277,9 @@ class DownloaderService {
         },
       );
 
-      return {
-        'success': true,
-        'message': 'Added to download manager',
-      };
+      return {'success': true, 'message': 'Added to download manager'};
     } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -303,9 +289,7 @@ class DownloaderService {
   }
 }
 
-// ============================================================================
 // ISOLATE FUNCTIONS (Background Processing)
-// ============================================================================
 
 /// Isolate entry point for gallery processing
 void _processGalleryIsolate(SendPort sendPort) {
@@ -330,9 +314,7 @@ void _processGalleryIsolate(SendPort sendPort) {
         final batchFutures = <Future>[];
 
         for (int j = i; j < end; j++) {
-          batchFutures.add(
-            _processPage(dio, baseUrl, galleryId, j, replyPort),
-          );
+          batchFutures.add(_processPage(dio, baseUrl, galleryId, j, replyPort));
         }
 
         await Future.wait(batchFutures);
@@ -343,15 +325,9 @@ void _processGalleryIsolate(SendPort sendPort) {
         });
       }
 
-      replyPort.send({
-        'type': 'result',
-        'images': allImageUrls.toList(),
-      });
+      replyPort.send({'type': 'result', 'images': allImageUrls.toList()});
     } catch (e) {
-      replyPort.send({
-        'type': 'error',
-        'error': e.toString(),
-      });
+      replyPort.send({'type': 'error', 'error': e.toString()});
     }
   });
 }
@@ -360,18 +336,19 @@ void _processGalleryIsolate(SendPort sendPort) {
 Future<int> _getTotalPages(Dio dio, String url) async {
   try {
     final headers = {
-      'User-Agent': userAgents[Random().nextInt(userAgents.length)]
+      'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
     final response = await dio.get(url, options: Options(headers: headers));
 
     if (response.statusCode == 200) {
       final document = parse(response.data);
       final pageLinks = document.querySelectorAll("a.otherPage");
-      final pages = pageLinks
-          .map((e) => int.tryParse(e.text))
-          .where((page) => page != null)
-          .cast<int>()
-          .toList();
+      final pages =
+          pageLinks
+              .map((e) => int.tryParse(e.text))
+              .where((page) => page != null)
+              .cast<int>()
+              .toList();
       return pages.isEmpty ? 1 : pages.reduce(max);
     }
     return 1;
@@ -382,16 +359,16 @@ Future<int> _getTotalPages(Dio dio, String url) async {
 
 /// Process a single page
 Future<void> _processPage(
-    Dio dio,
-    String baseUrl,
-    String galleryId,
-    int index,
-    SendPort replyPort,
-    ) async {
+  Dio dio,
+  String baseUrl,
+  String galleryId,
+  int index,
+  SendPort replyPort,
+) async {
   try {
     final pageUrl = _constructPageUrlIsolate(baseUrl, galleryId, index);
     final headers = {
-      'User-Agent': userAgents[Random().nextInt(userAgents.length)]
+      'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
     final response = await dio.get(pageUrl, options: Options(headers: headers));
 
@@ -399,10 +376,7 @@ Future<void> _processPage(
       final document = parse(response.data);
       _removeUnwantedDivs(document);
       final pageImages = _extractImageUrls(document);
-      replyPort.send({
-        'type': 'images',
-        'images': pageImages,
-      });
+      replyPort.send({'type': 'images', 'images': pageImages});
     } else {
       replyPort.send({
         'type': 'page_error',
@@ -419,18 +393,12 @@ Future<void> _processPage(
         'statusCode': e.response?.statusCode,
       });
     } else {
-      replyPort.send({
-        'type': 'error',
-        'page': index,
-        'error': e.toString(),
-      });
+      replyPort.send({'type': 'error', 'page': index, 'error': e.toString()});
     }
   }
 }
 
-// ============================================================================
 // HELPER FUNCTIONS (HTML Parsing & URL Processing)
-// ============================================================================
 
 /// Extract gallery ID from URL (isolate version)
 String _extractGalleryIdIsolate(String url) {
@@ -450,7 +418,7 @@ void _removeUnwantedDivs(var document) {
   final unwantedHeadings = {
     "Latest Local Events",
     "Latest Movie Events",
-    "Latest Starzone"
+    "Latest Starzone",
   };
 
   for (var div in document.querySelectorAll("div#btmlatest")) {
@@ -478,9 +446,10 @@ List<ImageData> _extractImageUrls(var document) {
       continue;
     }
 
-    String thumbnailUrl = src.startsWith("http")
-        ? src
-        : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
+    String thumbnailUrl =
+        src.startsWith("http")
+            ? src
+            : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
 
     String originalUrl = thumbnailUrl.replaceAll(
       RegExp(r't(?=\.jpg)', caseSensitive: false),
@@ -491,16 +460,14 @@ List<ImageData> _extractImageUrls(var document) {
     if (parentA != null && parentA.attributes['href'] != null) {
       final href = parentA.attributes['href']!;
       if (href.toLowerCase().endsWith('.jpg')) {
-        originalUrl = href.startsWith('http')
-            ? href
-            : "https://www.ragalahari.com/$href";
+        originalUrl =
+            href.startsWith('http') ? href : "https://www.ragalahari.com/$href";
       }
     }
 
-    imageDataSet.add(ImageData(
-      thumbnailUrl: thumbnailUrl,
-      originalUrl: originalUrl,
-    ));
+    imageDataSet.add(
+      ImageData(thumbnailUrl: thumbnailUrl, originalUrl: originalUrl),
+    );
   }
 
   return imageDataSet.toList();

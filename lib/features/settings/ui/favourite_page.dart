@@ -8,7 +8,7 @@ import '../../celebrity/utils/celebrity_utils.dart';
 import '../../celebrity/data/profile_cache_service.dart';
 import '../../celebrity/ui/gallery_links_page.dart';
 import '../../celebrity/widgets/celebrity_card.dart';
-import '../../downloader/ui/ragadl_page.dart';
+import '../../downloader/ui/pages/ragadl_page.dart';
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});

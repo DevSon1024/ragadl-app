@@ -4,7 +4,7 @@ import 'package:html/parser.dart' as html show parse;
 import 'package:shimmer/shimmer.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../downloader/ui/ragadl_page.dart';
+import '../../downloader/ui/pages/ragadl_page.dart';
 import '../data/profile_cache_service.dart';
 import 'gallery_links_page.dart';
 import '../widgets/celebrity_card.dart';
