@@ -8,8 +8,8 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/celebrity_utils.dart';
-import '../../downloader/ui/pages/ragadl_page.dart';
+import '../celebrity/utils/celebrity_utils.dart';
+import '../downloader/ui/pages/ragadl_page.dart';
 import 'package:ragadl/shared/widgets/grid_utils.dart';
 
 // Data class for passing data to isolate
