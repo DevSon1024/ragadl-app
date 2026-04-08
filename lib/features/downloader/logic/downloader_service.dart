@@ -6,7 +6,7 @@ import 'package:html/parser.dart' show parse;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ragadl/core/permissions.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
-import '../../downloadManager/logic/download_manager.dart';
+import '../../download_manager/logic/download_manager.dart';
 import '../ui/pages/link_history_page.dart';
 
 // User agents for rotation

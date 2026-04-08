@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ragadl/features/celebrity/data/celebrity_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/celebrity_utils.dart';
-import '../../gallery_links/ui/pages/gallery_links_page.dart';
-import '../../downloader/ui/pages/ragadl_page.dart';
+import '../celebrity/utils/celebrity_utils.dart';
+import '../gallery_links/ui/pages/gallery_links_page.dart';
+import '../downloader/ui/pages/ragadl_page.dart';
 
 class CelebrityListPage extends StatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
