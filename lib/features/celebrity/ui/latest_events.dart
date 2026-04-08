@@ -6,7 +6,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../downloader/ui/pages/ragadl_page.dart';
 import '../data/profile_cache_service.dart';
-import '../../gallery_links_page/gallery_links_page.dart';
+import '../../gallery_links/gallery_links_page.dart';
 import '../widgets/celebrity_card.dart';
 
 class LatestEventsPage extends StatefulWidget {
