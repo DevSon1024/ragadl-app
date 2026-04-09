@@ -1,5 +1,4 @@
-// lib/features/gallery_links/models/scraping_models.dart
-import '../../celebrity/utils/celebrity_utils.dart';
+import '../../../shared/utils/celebrity_utils.dart';
 
 // Data class for passing data to isolate
 class GalleryScrapingData {
@@ -33,9 +32,5 @@ class GalleryScrapingResult {
   final List<GalleryItem>? items;
   final String? error;
 
-  GalleryScrapingResult({
-    this.urls,
-    this.items,
-    this.error
-  });
+  GalleryScrapingResult({this.urls, this.items, this.error});
 }

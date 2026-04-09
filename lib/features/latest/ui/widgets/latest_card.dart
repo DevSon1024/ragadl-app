@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../celebrity/widgets/celebrity_card.dart';
+import '../../../../shared/widgets/common_celebrity_card.dart';
 
 class LatestCard extends StatelessWidget {
   final String imageUrl;
@@ -29,7 +29,7 @@ class LatestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CelebrityCard(
+    return CommonCelebrityCard.grid(
       imageUrl: imageUrl,
       title: title,
       date: date,
@@ -38,7 +38,7 @@ class LatestCard extends StatelessWidget {
       isLoadingAction: isLoadingAction,
       actionLabel: actionLabel,
       isFavorite: isFavorite,
-      onFavoriteTap: onFavoriteTap,
+      onFavoriteToggle: onFavoriteTap,
       showActionButton: showActionButton,
     );
   }

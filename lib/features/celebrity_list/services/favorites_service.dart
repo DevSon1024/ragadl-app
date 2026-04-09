@@ -1,17 +1,18 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../celebrity/utils/celebrity_utils.dart';
+import '../../../shared/utils/celebrity_utils.dart';
 
 final favoritesServiceProvider = Provider<FavoritesService>((ref) {
   return FavoritesService();
 });
 
-final favoritesProvider = StateNotifierProvider<FavoritesNotifier, Set<String>>((ref) {
-  final service = ref.watch(favoritesServiceProvider);
-  return FavoritesNotifier(service);
-});
+final favoritesProvider = StateNotifierProvider<FavoritesNotifier, Set<String>>(
+  (ref) {
+    final service = ref.watch(favoritesServiceProvider);
+    return FavoritesNotifier(service);
+  },
+);
 
 class FavoritesNotifier extends StateNotifier<Set<String>> {
   final FavoritesService _service;
@@ -26,7 +27,7 @@ class FavoritesNotifier extends StateNotifier<Set<String>> {
 
   Future<bool> toggleFavorite(String name, String url) async {
     final isFavorite = state.contains(url);
-    
+
     // Optimistic update
     final newSet = Set<String>.from(state);
     if (isFavorite) {
@@ -38,7 +39,7 @@ class FavoritesNotifier extends StateNotifier<Set<String>> {
 
     // Background process
     await _service.toggleFavorite(name, url, isFavorite);
-    
+
     return !isFavorite;
   }
 }
@@ -59,24 +60,31 @@ class FavoritesService {
         }
       } catch (_) {}
     }
-    
+
     return urls;
   }
 
-  Future<void> toggleFavorite(String name, String url, bool isCurrentlyFavorite) async {
+  Future<void> toggleFavorite(
+    String name,
+    String url,
+    bool isCurrentlyFavorite,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final favoritesJson = prefs.getStringList(_favoriteKey) ?? [];
 
-    List<FavoriteItem> favorites = favoritesJson.map((json) {
-      final decoded = jsonDecode(json) as Map<String, dynamic>;
-      return FavoriteItem.fromJson(
-        decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
-      );
-    }).toList();
+    List<FavoriteItem> favorites =
+        favoritesJson.map((json) {
+          final decoded = jsonDecode(json) as Map<String, dynamic>;
+          return FavoriteItem.fromJson(
+            decoded.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+          );
+        }).toList();
 
     if (isCurrentlyFavorite) {
-      favorites.removeWhere((item) =>
-          item.type == 'celebrity' && item.name == name && item.url == url);
+      favorites.removeWhere(
+        (item) =>
+            item.type == 'celebrity' && item.name == name && item.url == url,
+      );
     } else {
       final favoriteItem = FavoriteItem(
         type: 'celebrity',

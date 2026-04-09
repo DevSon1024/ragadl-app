@@ -1,5 +1,5 @@
 import '../data/models/celebrity_model.dart';
-import '../../celebrity/utils/celebrity_utils.dart';
+import '../../../shared/utils/celebrity_utils.dart';
 
 class CelebrityState {
   final List<CelebrityModel> items;

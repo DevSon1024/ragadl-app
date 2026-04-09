@@ -1,8 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../celebrity/utils/celebrity_utils.dart';
+import '../../../../shared/utils/celebrity_utils.dart';
 import '../../logic/celebrity_controller.dart';
 
 class SortMenu extends ConsumerWidget {

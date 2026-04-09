@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/celebrity_model.dart';
-import 'celebrity_card.dart';
+import '../../../../shared/widgets/common_celebrity_card.dart';
 
 class CelebrityListView extends StatelessWidget {
   final List<CelebrityModel> items;
@@ -54,8 +54,8 @@ class CelebrityListView extends StatelessWidget {
 
           return AnimatedContainer(
             duration: Duration(milliseconds: 100 + ((index % 10) * 20)),
-            child: CelebrityCard(
-              celebrity: celebrity,
+            child: CommonCelebrityCard.list(
+              title: celebrity.name,
               isFavorite: isFavorite(celebrity.url),
               onTap: () => onTap(celebrity),
               onFavoriteToggle: () => onFavoriteToggle(celebrity.name, celebrity.url),

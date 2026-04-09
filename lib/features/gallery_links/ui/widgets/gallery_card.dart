@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
-import '../../../celebrity/utils/celebrity_utils.dart';
+import '../../../../shared/utils/celebrity_utils.dart';
 
 class GalleryCard extends StatelessWidget {
   final String url;

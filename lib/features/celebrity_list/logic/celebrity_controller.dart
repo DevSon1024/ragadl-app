@@ -1,32 +1,39 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../data/celebrity_repository.dart';
 import '../data/models/celebrity_model.dart';
-import '../../celebrity/utils/celebrity_utils.dart';
+import '../../../shared/utils/celebrity_utils.dart';
 import 'celebrity_state.dart';
 
-final celebrityProvider = StateNotifierProvider<CelebrityController, CelebrityState>((ref) {
-  return CelebrityController(CelebrityRepository.instance);
-});
+final celebrityProvider =
+    StateNotifierProvider<CelebrityController, CelebrityState>((ref) {
+      return CelebrityController(CelebrityRepository.instance);
+    });
 
 class CelebrityController extends StateNotifier<CelebrityState> {
   final CelebrityRepository _repository;
   static const int _pageSize = 50;
   static const String _sortKey = 'sortOption';
 
-  CelebrityController(this._repository) : super(const CelebrityState(items: [])) {
+  CelebrityController(this._repository)
+    : super(const CelebrityState(items: [])) {
     initialize();
   }
 
   Future<void> initialize() async {
-    state = state.copyWith(isLoading: true, errorMessage: null, items: [], offset: 0, hasMore: true);
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      items: [],
+      offset: 0,
+      hasMore: true,
+    );
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedSort = prefs.getString(_sortKey);
       SortOption initialSort = SortOption.az;
-      
+
       if (savedSort != null) {
         initialSort = SortOption.values.firstWhere(
           (opt) => opt.toString() == savedSort,
@@ -35,10 +42,10 @@ class CelebrityController extends StateNotifier<CelebrityState> {
       }
 
       state = state.copyWith(sortOption: initialSort);
-      
+
       await _repository.loadSources();
       await fetchNextPage(reset: true);
-      
+
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
@@ -63,10 +70,15 @@ class CelebrityController extends StateNotifier<CelebrityState> {
         sort: state.sortOption,
       );
 
-      final page = pageMaps.map((map) => CelebrityModel(
-        name: map['name'] ?? 'Unknown',
-        url: map['url'] ?? '',
-      )).toList();
+      final page =
+          pageMaps
+              .map(
+                (map) => CelebrityModel(
+                  name: map['name'] ?? 'Unknown',
+                  url: map['url'] ?? '',
+                ),
+              )
+              .toList();
 
       state = state.copyWith(
         items: [...currentItems, ...page],
@@ -85,7 +97,7 @@ class CelebrityController extends StateNotifier<CelebrityState> {
     state = state.copyWith(sortOption: option);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sortKey, option.toString());
-    
+
     await initialize();
   }
 

@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html show parse;
-import '../../celebrity/utils/celebrity_utils.dart';
+import '../../../shared/utils/celebrity_utils.dart';
 import '../../celebrity/data/profile_cache_service.dart';
 import '../../gallery_links/ui/pages/gallery_links_page.dart';
-import '../../celebrity/widgets/celebrity_card.dart';
+import '../../../shared/widgets/common_celebrity_card.dart';
 import '../../downloader/ui/pages/ragadl_page.dart';
 
 class FavouritePage extends StatefulWidget {
@@ -245,13 +244,17 @@ class _FavouritePageState extends State<FavouritePage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
               size: 72,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -330,8 +333,8 @@ class _FavouritePageState extends State<FavouritePage> {
                     color: theme.colorScheme.primary,
                   ),
                   labelColor: theme.colorScheme.onPrimary,
-                  unselectedLabelColor: theme.colorScheme.primary.withValues(alpha: 
-                    0.7,
+                  unselectedLabelColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.7,
                   ),
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
@@ -370,7 +373,7 @@ class _FavouritePageState extends State<FavouritePage> {
                     return _buildAnimatedItem(
                       keyId: 'celeb_${item.url}',
                       index: index,
-                      child: CelebrityCard(
+                      child: CommonCelebrityCard.grid(
                         imageUrl: item.thumbnailUrl ?? '',
                         title: item.name,
                         date: item.date,
@@ -380,7 +383,7 @@ class _FavouritePageState extends State<FavouritePage> {
                         actionLabel: 'Show Galleries',
                         isFavorite:
                             !_pendingRemovals.contains(_getFavoriteId(item)),
-                        onFavoriteTap: () => _toggleFavorite(item),
+                        onFavoriteToggle: () => _toggleFavorite(item),
                       ),
                     );
                   },
@@ -407,7 +410,7 @@ class _FavouritePageState extends State<FavouritePage> {
                     return _buildAnimatedItem(
                       keyId: 'gallery_${item.url}',
                       index: index,
-                      child: CelebrityCard(
+                      child: CommonCelebrityCard.grid(
                         imageUrl: item.thumbnailUrl ?? '',
                         title: item.name,
                         date: item.date,
@@ -420,7 +423,7 @@ class _FavouritePageState extends State<FavouritePage> {
                         actionLabel: 'Show Galleries',
                         isFavorite:
                             !_pendingRemovals.contains(_getFavoriteId(item)),
-                        onFavoriteTap: () => _toggleFavorite(item),
+                        onFavoriteToggle: () => _toggleFavorite(item),
                       ),
                     );
                   },

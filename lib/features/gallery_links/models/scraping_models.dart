@@ -1,10 +1,4 @@
-// lib/features/gallery_links/models/scraping_models.dart
-
-// 1. IMPORT the original GalleryItem from your celebrity utils
-import '../../celebrity/utils/celebrity_utils.dart';
-
-// DO NOT define "class GalleryItem" in this file!
-// We are only using the one imported above.
+import '../../../shared/utils/celebrity_utils.dart';
 
 // Data class for passing data to isolate
 class GalleryScrapingData {
@@ -35,12 +29,9 @@ class BatchScrapingData {
 // Data class for isolate results
 class GalleryScrapingResult {
   final List<String>? urls;
-  final List<GalleryItem>? items; // This now safely uses the imported GalleryItem
+  final List<GalleryItem>?
+  items; // This now safely uses the imported GalleryItem
   final String? error;
 
-  GalleryScrapingResult({
-    this.urls,
-    this.items,
-    this.error
-  });
+  GalleryScrapingResult({this.urls, this.items, this.error});
 }

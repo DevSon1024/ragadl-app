@@ -8,7 +8,7 @@ import '../widgets/loading_view.dart';
 import '../../../../shared/widgets/common_error_view.dart';
 import '../widgets/empty_view.dart';
 import '../../../downloader/ui/pages/ragadl_page.dart';
-import '../../../celebrity/utils/celebrity_utils.dart';
+import '../../../../shared/utils/celebrity_utils.dart';
 
 class GalleryLinksPage extends StatefulWidget {
   final String celebrityName;

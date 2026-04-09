@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/celebrity_repository.dart';
 import '../data/models/celebrity_model.dart';
-import '../../celebrity/utils/celebrity_utils.dart';
+import '../../../shared/utils/celebrity_utils.dart';
 import 'celebrity_controller.dart';
 
 final searchQueryProvider = StateProvider<String>((ref) => '');

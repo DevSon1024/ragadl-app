@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../logic/gallery_scraper.dart';
 import '../../logic/gallery_cache_service.dart';
-import '../../../celebrity/utils/celebrity_utils.dart';
+import '../../../../shared/utils/celebrity_utils.dart';
 import 'dart:math';
 
 class GalleryLinksController extends ChangeNotifier {
