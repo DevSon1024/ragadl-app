@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/latest_item.dart';
 import '../services/latest_scraper_service.dart';
-import '../services/favorites_service.dart';
+import '../../../../shared/services/common_favorites_service.dart';
 import '../services/profile_fetch_service.dart';
 
 class LatestController extends ChangeNotifier {
@@ -18,7 +18,7 @@ class LatestController extends ChangeNotifier {
   }
 
   Future<void> loadFavorites() async {
-    favoriteUrls = await FavoritesService.loadFavorites();
+    favoriteUrls = await CommonFavoritesService.loadLatestFavorites();
     notifyListeners();
   }
 
@@ -28,7 +28,7 @@ class LatestController extends ChangeNotifier {
         ? item.name!
         : item.title;
         
-    bool added = await FavoritesService.toggleFavorite(item, favoriteUrls);
+    bool added = await CommonFavoritesService.toggleLatestFavorite(item, favoriteUrls);
     notifyListeners();
     
     if (context.mounted) {

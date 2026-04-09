@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../gallery_links/ui/pages/gallery_links_page.dart';
 import '../../logic/celebrity_controller.dart';
 import '../../logic/search_controller.dart';
-import '../../services/favorites_service.dart';
+import '../../../../shared/services/common_favorites_service.dart';
 import '../animations/list_animations.dart';
 import '../widgets/celebrity_list_view.dart';
 import '../widgets/sort_menu.dart';
