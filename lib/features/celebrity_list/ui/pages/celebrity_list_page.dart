@@ -9,9 +9,9 @@ import '../../services/favorites_service.dart';
 import '../animations/list_animations.dart';
 import '../widgets/celebrity_list_view.dart';
 import '../widgets/sort_menu.dart';
-import '../widgets/search_bar.dart';
+import '../../../../shared/widgets/common_search_bar.dart';
 import '../widgets/loading_view.dart';
-import '../../../gallery_links/ui/widgets/error_view.dart';
+import '../../../../shared/widgets/common_error_view.dart';
 import '../widgets/empty_view.dart';
 
 // Note: We avoid importing from downloader to keep dependencies clean, but if DownloadSelectedCallback is needed,
@@ -88,7 +88,8 @@ class CelebrityListPage extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          MinimalSearchBar(
+          CommonSearchBar(
+            hintText: 'Search celebrities...',
             onChanged: (val) {
               ref.read(searchQueryProvider.notifier).state = val;
             },
@@ -108,17 +109,9 @@ class CelebrityListPage extends ConsumerWidget {
       return const LoadingView(message: 'Loading celebrities...');
     }
     if (state.errorMessage != null) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ErrorView(error: state.errorMessage!),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => ref.read(celebrityProvider.notifier).retry(),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Try Again'),
-          ),
-        ],
+      return CommonErrorView(
+        error: state.errorMessage!,
+        onRetry: () => ref.read(celebrityProvider.notifier).retry(),
       );
     }
     if (query.isNotEmpty) {

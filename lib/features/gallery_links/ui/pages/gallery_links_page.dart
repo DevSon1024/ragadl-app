@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../controllers/gallery_links_controller.dart';
 import '../widgets/gallery_grid.dart';
-import '../widgets/search_bar.dart';
+import '../../../../shared/widgets/common_search_bar.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/loading_view.dart';
-import '../widgets/error_view.dart';
+import '../../../../shared/widgets/common_error_view.dart';
 import '../widgets/empty_view.dart';
 import '../../../downloader/ui/pages/ragadl_page.dart';
 import '../../../celebrity/utils/celebrity_utils.dart';
@@ -31,6 +32,7 @@ class GalleryLinksPage extends StatefulWidget {
 class _GalleryLinksPageState extends State<GalleryLinksPage> {
   late final GalleryLinksController _controller;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -42,12 +44,16 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     );
 
     _searchController.addListener(() {
-      _controller.filterGalleries(_searchController.text.trim());
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      _debounce = Timer(const Duration(milliseconds: 500), () {
+        _controller.filterGalleries(_searchController.text.trim());
+      });
     });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _controller.dispose();
     super.dispose();
@@ -100,7 +106,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(60),
-              child: GallerySearchBar(searchController: _searchController),
+              child: CommonSearchBar(
+                controller: _searchController,
+                isAppBarStyle: true,
+                hintText: 'Search by gallery code...',
+                keyboardType: TextInputType.number,
+              ),
             ),
           ),
           body: _buildBody(),
@@ -111,7 +122,7 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
   Widget _buildBody() {
     if (_controller.error != null) {
-      return ErrorView(error: _controller.error!);
+      return CommonErrorView(error: _controller.error!);
     }
     if (_controller.isLoadingUrls) {
       return const LoadingView();

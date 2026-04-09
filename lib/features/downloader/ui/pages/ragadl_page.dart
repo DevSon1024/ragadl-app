@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'link_history_page.dart';
 import '../controllers/downloader_controller.dart';
@@ -6,7 +6,7 @@ import '../utils/navigation_helper.dart';
 import '../utils/snackbar_helper.dart';
 import '../widgets/controls_section.dart';
 import '../widgets/loading_section.dart';
-import '../widgets/error_section.dart';
+import '../../../../shared/widgets/common_error_view.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/floating_button.dart';
 import '../widgets/image_grid.dart';
@@ -187,9 +187,28 @@ class _RagadlState extends ConsumerState<RagaDL>
                 ),
               if (controller.error != null)
                 SliverToBoxAdapter(
-                  child: ErrorSection(
-                    controller: controller,
-                    galleryTitle: widget.galleryTitle,
+                  child: CommonErrorView(
+                    error: controller.error!,
+                    isSection: true,
+                    onRetry: () {
+                      controller.clearError();
+                      final url = controller.urlController.text.trim();
+                      if (url.isNotEmpty && controller.downloaderService.isValidRagaUrl(url)) {
+                        controller.processGallery(
+                          baseUrl: url,
+                          galleryTitle: widget.galleryTitle,
+                          context: context,
+                          showSnackBar: (msg, icon, {isError = false}) {
+                            SnackbarHelper.showModernSnackBar(
+                              context: context,
+                              message: msg,
+                              icon: icon,
+                              isError: isError,
+                            );
+                          },
+                        );
+                      }
+                    },
                   ),
                 ),
               if (!controller.isLoading && controller.imageUrls.isNotEmpty)
