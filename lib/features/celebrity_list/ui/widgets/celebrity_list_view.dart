@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/celebrity_model.dart';
-import '../../../../shared/widgets/common_celebrity_card.dart';
+import '../../../../shared/widgets/celebrity_card.dart';
 
 class CelebrityListView extends StatelessWidget {
   final List<CelebrityModel> items;

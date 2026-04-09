@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/latest_item.dart';
 import '../services/latest_scraper_service.dart';
-import '../../../../shared/services/common_favorites_service.dart';
+import '../../../../shared/services/favorites_service.dart';
 import '../services/profile_fetch_service.dart';
 
 class LatestController extends ChangeNotifier {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../shared/widgets/common_celebrity_card.dart';
+import '../../../../shared/widgets/celebrity_card.dart';
 
 class LatestCard extends StatelessWidget {
   final String imageUrl;

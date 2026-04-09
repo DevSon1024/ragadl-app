@@ -6,7 +6,7 @@ import '../utils/navigation_helper.dart';
 import '../utils/snackbar_helper.dart';
 import '../widgets/controls_section.dart';
 import '../widgets/loading_section.dart';
-import '../../../../shared/widgets/common_error_view.dart';
+import '../../../../shared/widgets/error_view.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/floating_button.dart';
 import '../widgets/image_grid.dart';

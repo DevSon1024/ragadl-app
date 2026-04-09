@@ -6,7 +6,7 @@ import 'package:html/parser.dart' as html show parse;
 import '../../../shared/utils/celebrity_utils.dart';
 import '../../celebrity/data/profile_cache_service.dart';
 import '../../gallery_links/ui/pages/gallery_links_page.dart';
-import '../../../shared/widgets/common_celebrity_card.dart';
+import '../../../shared/widgets/celebrity_card.dart';
 import '../../downloader/ui/pages/ragadl_page.dart';
 
 class FavouritePage extends StatefulWidget {
