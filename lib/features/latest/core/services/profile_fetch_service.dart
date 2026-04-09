@@ -137,8 +137,7 @@ class ProfileFetchService {
           final links = breadcrumb.querySelectorAll('li a');
           for (var link in links) {
             final href = link.attributes['href'] ?? '';
-            if (href != '/' && !href.toLowerCase().endsWith('functions.aspx') &&
-                !href.toLowerCase().endsWith('starzone.aspx')) {
+            if (href.startsWith('https://www.ragalahari.com/stars/profile/')) {
               
               final linkText = link.text.trim();
               final name = (linkText.isEmpty || linkText.toLowerCase() == 'home') ? item.title : linkText;
