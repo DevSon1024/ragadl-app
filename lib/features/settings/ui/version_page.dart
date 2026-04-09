@@ -1,4 +1,4 @@
-// version_page.dart
+﻿// version_page.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -102,7 +102,7 @@ class VersionPage extends StatelessWidget {
                           'Released: $publishedAt',
                           style: TextStyle(
                             fontSize: 14,
-                            color: color.onPrimaryContainer.withOpacity(0.8),
+                            color: color.onPrimaryContainer.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -149,7 +149,7 @@ class VersionPage extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: color.surfaceContainerHighest.withOpacity(0.3),
+      color: color.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -175,7 +175,7 @@ class VersionPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.6,
-                color: color.onSurface.withOpacity(0.8),
+                color: color.onSurface.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -235,7 +235,7 @@ class VersionPage extends StatelessWidget {
         style: TextStyle(
           fontSize: 14,
           height: 1.6,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
         ),
       ),
     );

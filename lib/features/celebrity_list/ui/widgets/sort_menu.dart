@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,7 +29,7 @@ class SortMenu extends ConsumerWidget {
               decoration: BoxDecoration(
                 color:
                     isSelected
-                        ? color.primary.withOpacity(0.1)
+                        ? color.primary.withValues(alpha: 0.1)
                         : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -67,7 +67,7 @@ class SortMenu extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
-        color: color.primaryContainer.withOpacity(0.3),
+        color: color.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: PopupMenuButton<SortOption>(

@@ -41,7 +41,7 @@ class CelebrityListPage extends ConsumerWidget {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor:
-            isPositive ? Colors.amber.withOpacity(0.9) : color.inverseSurface,
+            isPositive ? Colors.amber.withValues(alpha: 0.9) : color.inverseSurface,
         duration: const Duration(milliseconds: 2000),
       ),
     );
@@ -104,8 +104,9 @@ class CelebrityListPage extends ConsumerWidget {
     final searchResults = ref.watch(searchProvider);
     final query = ref.watch(searchQueryProvider);
 
-    if (state.isLoading)
+    if (state.isLoading) {
       return const LoadingView(message: 'Loading celebrities...');
+    }
     if (state.errorMessage != null) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -136,7 +137,7 @@ class CelebrityListPage extends ConsumerWidget {
               (context, index) => Divider(
                 color: Theme.of(
                   context,
-                ).colorScheme.outlineVariant.withOpacity(0.5),
+                ).colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
           itemBuilder: (context, index) {
             final celeb = searchResults[index];
@@ -148,7 +149,7 @@ class CelebrityListPage extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.primaryContainer.withOpacity(0.3),
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -35,7 +34,6 @@ class _FullImageViewerState extends State<FullImageViewer>
   bool _firstBuild = true;
   bool _showControls = true;
   bool _isZoomed = false;
-  bool _isPageTransitioning = false;
 
   @override
   void initState() {
@@ -372,7 +370,7 @@ class _FullImageViewerState extends State<FullImageViewer>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.7 * _appBarAnimation.value),
+                    Colors.black.withValues(alpha: 0.7 * _appBarAnimation.value),
                     Colors.transparent,
                   ],
                   begin: Alignment.topCenter,
@@ -425,9 +423,9 @@ class _FullImageViewerState extends State<FullImageViewer>
       padding: const EdgeInsets.all(4),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: IconButton(
           icon: Icon(icon, color: Colors.white, size: 20),
@@ -448,7 +446,6 @@ class _FullImageViewerState extends State<FullImageViewer>
               ? const NeverScrollableScrollPhysics()
               : const PageScrollPhysics(),
       onPageChanged: (int i) {
-        _isPageTransitioning = true;
         _currentIndexNotifier.value = i;
 
         // Reset zoom for all other pages
@@ -470,7 +467,6 @@ class _FullImageViewerState extends State<FullImageViewer>
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _precacheAdjacentImages(i);
-          _isPageTransitioning = false;
         });
       },
       itemBuilder: (context, index) {
@@ -624,9 +620,9 @@ class _FullImageViewerState extends State<FullImageViewer>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withValues(alpha: 0.6),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: IconButton(
         icon: Icon(icon, color: Colors.white, size: 32),
@@ -658,16 +654,16 @@ class _FullImageViewerState extends State<FullImageViewer>
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -703,7 +699,7 @@ class _FullImageViewerState extends State<FullImageViewer>
                                         return Text(
                                           '$sizeKB KB',
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(
+                                            color: Colors.white.withValues(alpha: 
                                               0.7,
                                             ),
                                             fontSize: 12,
@@ -714,7 +710,7 @@ class _FullImageViewerState extends State<FullImageViewer>
                                     },
                                   ),
                                   Text(
-                                    ' • Tap: controls • Double tap: zoom',
+                                    ' â€¢ Tap: controls â€¢ Double tap: zoom',
                                     style: TextStyle(
                                       color: Colors.blue[300],
                                       fontSize: 11,

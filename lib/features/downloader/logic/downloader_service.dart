@@ -264,17 +264,13 @@ class DownloaderService {
       final folderName = folder ?? 'SingleImages';
       final subFolder = DateTime.now().toString().split(' ')[0];
 
-      bool downloadSuccess = false;
-
       downloadManager.addDownload(
         url: imageUrl,
         folder: folderName,
         subFolder: subFolder,
         galleryName: galleryTitle ?? 'Single Image',
         onProgress: (progress) {},
-        onComplete: (success) {
-          downloadSuccess = success;
-        },
+        onComplete: (success) {},
       );
 
       return {'success': true, 'message': 'Added to download manager'};

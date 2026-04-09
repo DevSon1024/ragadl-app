@@ -1,13 +1,14 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../celebrity/ui/latest_actor_and_actress.dart';
-import '../../celebrity/ui/latest_celebrity.dart';
-import '../../celebrity/ui/latest_events.dart';
+import '../../latest/ui/pages/actor_page.dart';
+import '../../latest/ui/pages/actress_page.dart';
+import '../../latest/ui/pages/celebrity_page.dart';
+import '../../latest/ui/pages/events_page.dart';
 import '../../downloader/ui/pages/link_history_page.dart';
 import '../../settings/ui/favourite_page.dart';
 import '../../history/ui/history_page.dart';
@@ -200,7 +201,7 @@ class _HomePageState extends State<HomePage> {
         body: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [color.primaryContainer.withOpacity(0.25), color.surface],
+              colors: [color.primaryContainer.withValues(alpha: 0.25), color.surface],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -260,8 +261,8 @@ class _HomePageState extends State<HomePage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              color.primary.withOpacity(0.90),
-              color.primary.withOpacity(0.75),
+              color.primary.withValues(alpha: 0.90),
+              color.primary.withValues(alpha: 0.75),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -269,7 +270,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: color.primary.withOpacity(0.25),
+              color: color.primary.withValues(alpha: 0.25),
               blurRadius: 18,
               spreadRadius: 2,
               offset: const Offset(0, 10),
@@ -287,7 +288,7 @@ class _HomePageState extends State<HomePage> {
                 height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: color.onPrimary.withOpacity(0.06),
+                  color: color.onPrimary.withValues(alpha: 0.06),
                 ),
               ),
             ),
@@ -299,7 +300,7 @@ class _HomePageState extends State<HomePage> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: color.onPrimary.withOpacity(0.06),
+                  color: color.onPrimary.withValues(alpha: 0.06),
                 ),
               ),
             ),
@@ -318,7 +319,7 @@ class _HomePageState extends State<HomePage> {
                         child: Text(
                           'Drag here to move window',
                           style: TextStyle(
-                            color: color.onPrimary.withOpacity(0.7),
+                            color: color.onPrimary.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
@@ -333,9 +334,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Browse celebrities, actors, and more—then jump into downloads anytime.',
+                    'Browse celebrities, actors, and moreâ€”then jump into downloads anytime.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: color.onPrimary.withOpacity(0.9),
+                      color: color.onPrimary.withValues(alpha: 0.9),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -355,14 +356,14 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         foreground: color.onPrimary,
-                        background: color.onPrimary.withOpacity(0.10),
+                        background: color.onPrimary.withValues(alpha: 0.10),
                       ),
                       _HeroChip(
                         icon: Icons.settings_rounded,
                         label: 'Settings',
                         onTap: widget.openSettings,
                         foreground: color.onPrimary,
-                        background: color.onPrimary.withOpacity(0.10),
+                        background: color.onPrimary.withValues(alpha: 0.10),
                       ),
                     ],
                   ),
@@ -480,7 +481,7 @@ class _SectionCard extends StatelessWidget {
       child: Material(
         color: color.surface,
         elevation: 2,
-        shadowColor: color.shadow.withOpacity(0.08),
+        shadowColor: color.shadow.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -494,8 +495,8 @@ class _SectionCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.primary.withOpacity(0.12),
-                        color.primary.withOpacity(0.22),
+                        color.primary.withValues(alpha: 0.12),
+                        color.primary.withValues(alpha: 0.22),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -594,9 +595,9 @@ class _SocialButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withOpacity(0.5),
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.outline.withOpacity(0.2)),
+          border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
@@ -634,12 +635,12 @@ class _Glass extends StatelessWidget {
     final color = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: color.surface.withOpacity(0.6),
+        color: color.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.outline.withOpacity(0.08)),
+        border: Border.all(color: color.outline.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: color.shadow.withOpacity(0.06),
+            color: color.shadow.withValues(alpha: 0.06),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),

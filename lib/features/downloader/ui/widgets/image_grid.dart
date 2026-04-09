@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -89,8 +89,8 @@ class ImageGridItem extends StatelessWidget {
         elevation: isSelected ? 8 : 2,
         shadowColor:
             isSelected
-                ? color.primary.withOpacity(0.4)
-                : color.shadow.withOpacity(0.1),
+                ? color.primary.withValues(alpha: 0.4)
+                : color.shadow.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -117,7 +117,7 @@ class ImageGridItem extends StatelessWidget {
                       placeholder:
                           (context, url) => Shimmer.fromColors(
                             baseColor: color.surfaceContainerHighest
-                                .withOpacity(0.3),
+                                .withValues(alpha: 0.3),
                             highlightColor: color.surface,
                             child: Container(
                               color: color.surfaceContainerHighest,
@@ -125,7 +125,7 @@ class ImageGridItem extends StatelessWidget {
                           ),
                       errorWidget:
                           (context, url, error) => Container(
-                            color: color.errorContainer.withOpacity(0.1),
+                            color: color.errorContainer.withValues(alpha: 0.1),
                             child: Icon(
                               Icons.broken_image_rounded,
                               color: color.error,
@@ -137,7 +137,7 @@ class ImageGridItem extends StatelessWidget {
                 if (isSelected)
                   Container(
                     decoration: BoxDecoration(
-                      color: color.primary.withOpacity(0.3),
+                      color: color.primary.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
@@ -152,7 +152,7 @@ class ImageGridItem extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -175,7 +175,7 @@ class ImageGridItem extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -278,7 +278,7 @@ class _FullImagePageState extends State<FullImagePage> {
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.5),
+        backgroundColor: Colors.black.withValues(alpha: 0.5),
         elevation: 0,
         title: Text(
           'Image ${currentIndex + 1} of ${widget.imageUrls.length}',
@@ -290,7 +290,7 @@ class _FullImagePageState extends State<FullImagePage> {
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
@@ -303,7 +303,7 @@ class _FullImagePageState extends State<FullImagePage> {
           Container(
             margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -324,7 +324,7 @@ class _FullImagePageState extends State<FullImagePage> {
           Container(
             margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(

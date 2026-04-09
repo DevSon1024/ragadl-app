@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class LoadingView extends StatelessWidget {
   final String message;
@@ -15,7 +15,7 @@ class LoadingView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: color.primaryContainer.withOpacity(0.3),
+              color: color.primaryContainer.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: CircularProgressIndicator(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../data/models/celebrity_model.dart';
 class CelebrityCard extends StatelessWidget {
   final CelebrityModel celebrity;
@@ -22,9 +22,9 @@ class CelebrityCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
-        color: isFavorite ? color.primaryContainer.withOpacity(0.3) : color.surface,
+        color: isFavorite ? color.primaryContainer.withValues(alpha: 0.3) : color.surface,
         elevation: isFavorite ? 4 : 1,
-        shadowColor: isFavorite ? color.primary.withOpacity(0.2) : color.shadow.withOpacity(0.1),
+        shadowColor: isFavorite ? color.primary.withValues(alpha: 0.2) : color.shadow.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -33,7 +33,7 @@ class CelebrityCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: isFavorite ? Border.all(color: color.primary.withOpacity(0.2)) : null,
+              border: isFavorite ? Border.all(color: color.primary.withValues(alpha: 0.2)) : null,
             ),
             child: Row(
               children: [
@@ -43,8 +43,8 @@ class CelebrityCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.primary.withOpacity(0.1),
-                        color.primary.withOpacity(0.2),
+                        color.primary.withValues(alpha: 0.1),
+                        color.primary.withValues(alpha: 0.2),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -88,8 +88,8 @@ class CelebrityCard extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     color: isFavorite
-                        ? Colors.amber.withOpacity(0.1)
-                        : color.surfaceContainerHighest.withOpacity(0.5),
+                        ? Colors.amber.withValues(alpha: 0.1)
+                        : color.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: IconButton(
@@ -107,7 +107,7 @@ class CelebrityCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: color.primaryContainer.withOpacity(0.7),
+                    color: color.primaryContainer.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),

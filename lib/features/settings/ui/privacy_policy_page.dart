@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
@@ -57,7 +55,7 @@ class PrivacyPolicyPage extends StatelessWidget {
                     'Last Updated: October 9, 2025',
                     style: TextStyle(
                       fontSize: 14,
-                      color: color.onPrimaryContainer.withOpacity(0.8),
+                      color: color.onPrimaryContainer.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -135,7 +133,7 @@ class PrivacyPolicyPage extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: color.surfaceContainerHighest.withOpacity(0.3),
+      color: color.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -161,16 +159,16 @@ class PrivacyPolicyPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.6,
-                color: color.onSurface.withOpacity(0.8),
+                color: color.onSurface.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -299,17 +297,15 @@ class PrivacyPolicyPage extends StatelessWidget {
   }
 
   Widget _buildDataSharingContent(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
+            color: Colors.blue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
@@ -376,7 +372,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
+            color: Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -464,7 +460,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             height: 1.6,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 12),
@@ -473,7 +469,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             height: 1.6,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
           ),
         ),
       ],
@@ -533,7 +529,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, size: 20, color: Colors.blue),
@@ -564,65 +560,6 @@ class PrivacyPolicyPage extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildContactItem(
-      BuildContext context,
-      IconData icon,
-      String label,
-      String value,
-      String? url,
-      ) {
-    final color = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: color.primary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: color.onPrimaryContainer.withOpacity(0.7),
-                ),
-              ),
-              const SizedBox(height: 2),
-              url != null
-                  ? RichText(
-                text: TextSpan(
-                  text: value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: color.primary,
-                    decoration: TextDecoration.underline,
-                  ),
-                  recognizer: TapGestureRecognizer()
-                    ..onTap = () async {
-                      final uri = Uri.parse(url);
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri);
-                      }
-                    },
-                ),
-              )
-                  : Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: color.onPrimaryContainer,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
-import '../../models/scraping_models.dart';
 import '../../../celebrity/utils/celebrity_utils.dart';
 
 class GalleryCard extends StatelessWidget {
@@ -117,7 +116,7 @@ class GalleryCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.transparent, Colors.black.withOpacity(0.1), Colors.black.withOpacity(0.85)],
+          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.1), Colors.black.withValues(alpha: 0.85)],
           stops: const [0.4, 0.65, 1.0],
         ),
       ),
@@ -169,7 +168,7 @@ class GalleryCard extends StatelessWidget {
       top: 8,
       right: 8,
       child: Material(
-        color: Colors.black.withOpacity(0.4),
+        color: Colors.black.withValues(alpha: 0.4),
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: IconButton(

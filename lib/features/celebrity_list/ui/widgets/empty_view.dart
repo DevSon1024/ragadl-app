@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class EmptyView extends StatelessWidget {
   final String title;
@@ -19,7 +19,7 @@ class EmptyView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.surfaceContainerHighest.withOpacity(0.5),
+                color: color.surfaceContainerHighest.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.search_off_rounded, size: 64, color: color.onSurfaceVariant),

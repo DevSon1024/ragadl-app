@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../controllers/downloader_controller.dart';
 
 class LoadingSection extends StatelessWidget {
@@ -22,10 +22,10 @@ class LoadingSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.outline.withOpacity(0.1)),
+        border: Border.all(color: color.outline.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: color.shadow.withOpacity(0.05),
+            color: color.shadow.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -36,7 +36,7 @@ class LoadingSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.primaryContainer.withOpacity(0.3),
+              color: color.primaryContainer.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: CircularProgressIndicator(

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../download_manager/logic/download_manager.dart';
-import '../../../download_manager/models/download_task.dart';
 
 /// Riverpod provider for the DownloadManagerController.
 final downloadManagerControllerProvider =

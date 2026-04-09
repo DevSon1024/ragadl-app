@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'link_history_page.dart';
 import '../controllers/downloader_controller.dart';
@@ -147,7 +147,7 @@ class _RagadlState extends ConsumerState<RagaDL>
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: color.primaryContainer.withOpacity(0.3),
+              color: color.primaryContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(

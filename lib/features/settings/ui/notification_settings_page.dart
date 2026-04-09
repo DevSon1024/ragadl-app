@@ -6,7 +6,7 @@ class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});
 
   @override
-  _NotificationSettingsPageState createState() => _NotificationSettingsPageState();
+  State<NotificationSettingsPage> createState() => _NotificationSettingsPageState();
 }
 
 class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
@@ -91,6 +91,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
             ElevatedButton(
               onPressed: () async {
                 await AwesomeNotifications().cancelAll();
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: const Text('All notifications cleared'),

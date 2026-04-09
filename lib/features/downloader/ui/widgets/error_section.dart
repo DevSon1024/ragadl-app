@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../controllers/downloader_controller.dart';
 import '../utils/snackbar_helper.dart';
 
@@ -22,16 +22,16 @@ class ErrorSection extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.errorContainer.withOpacity(0.1),
+        color: color.errorContainer.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.error.withOpacity(0.2)),
+        border: Border.all(color: color.error.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.error.withOpacity(0.1),
+              color: color.error.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.error_rounded, color: color.error, size: 32),

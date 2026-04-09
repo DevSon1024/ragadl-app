@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -206,7 +206,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
                       decoration: BoxDecoration(
                         color: Theme.of(
                           context,
-                        ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -462,7 +462,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
         Container(
           margin: const EdgeInsets.only(right: 4),
           decoration: BoxDecoration(
-            color: color.primaryContainer.withOpacity(0.3),
+            color: color.primaryContainer.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: PopupMenuButton<HistorySortOption>(
@@ -500,7 +500,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: color.errorContainer.withOpacity(0.3),
+              color: color.errorContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -533,7 +533,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
               decoration: BoxDecoration(
                 color:
                     isSelected
-                        ? color.primary.withOpacity(0.1)
+                        ? color.primary.withValues(alpha: 0.1)
                         : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -568,7 +568,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
         color: color.surface,
         boxShadow: [
           BoxShadow(
-            color: color.shadow.withOpacity(0.05),
+            color: color.shadow.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -576,9 +576,9 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: color.surfaceContainer.withOpacity(0.5),
+          color: color.surfaceContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.outline.withOpacity(0.1)),
+          border: Border.all(color: color.outline.withValues(alpha: 0.1)),
         ),
         child: TextField(
           controller: _searchController,
@@ -638,7 +638,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: color.primaryContainer.withOpacity(0.3),
+              color: color.primaryContainer.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: CircularProgressIndicator(
@@ -670,7 +670,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.surfaceContainerHighest.withOpacity(0.5),
+                color: color.surfaceContainerHighest.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -781,7 +781,7 @@ class _HistoryCard extends StatelessWidget {
       child: Material(
         color: color.surface,
         elevation: 1,
-        shadowColor: color.shadow.withOpacity(0.1),
+        shadowColor: color.shadow.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -797,8 +797,8 @@ class _HistoryCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.primary.withOpacity(0.1),
-                        color.primary.withOpacity(0.2),
+                        color.primary.withValues(alpha: 0.1),
+                        color.primary.withValues(alpha: 0.2),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -837,7 +837,7 @@ class _HistoryCard extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: color.primaryContainer.withOpacity(0.7),
+                              color: color.primaryContainer.withValues(alpha: 0.7),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -864,7 +864,7 @@ class _HistoryCard extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: color.surfaceContainerHighest
-                                    .withOpacity(0.7),
+                                    .withValues(alpha: 0.7),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -892,7 +892,7 @@ class _HistoryCard extends StatelessWidget {
                 // Actions
                 Container(
                   decoration: BoxDecoration(
-                    color: color.errorContainer.withOpacity(0.3),
+                    color: color.errorContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: IconButton(

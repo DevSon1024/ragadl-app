@@ -142,6 +142,7 @@ class DownloaderController extends ChangeNotifier {
   Future<bool> checkPermissions(BuildContext context) async {
     bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
     if (!permissionsGranted) {
+      if (!context.mounted) return false;
       permissionsGranted = await PermissionHandler.requestAllPermissions(context);
     }
     return permissionsGranted;
@@ -171,6 +172,7 @@ class DownloaderController extends ChangeNotifier {
     notifyListeners();
 
     final permissionsGranted = await checkPermissions(context);
+    if (!context.mounted) return;
     if (permissionsGranted) {
       showSnackBar('Storage permission granted', Icons.check_circle_rounded, isError: false);
     }

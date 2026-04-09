@@ -77,6 +77,7 @@ class PermissionHandler {
     final isFirstRun = prefs.getBool('isFirstRun') ?? true;
 
     if (isFirstRun) {
+      if (!context.mounted) return;
       await requestAllPermissions(context);
       await prefs.setBool('isFirstRun', false);
     }

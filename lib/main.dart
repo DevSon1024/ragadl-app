@@ -72,7 +72,7 @@ class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  _MainScreenState createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
@@ -214,17 +214,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface.withOpacity(1),
+                color: theme.colorScheme.surface.withValues(alpha: 1),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.shadowColor.withOpacity(0.1),
+                    color: theme.shadowColor.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
                 ],
                 border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.1),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -270,8 +270,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: InkWell(
             onTap: () => _onNavItemTapped(index),
             borderRadius: BorderRadius.circular(16),
-            splashColor: theme.colorScheme.primary.withOpacity(0.1),
-            highlightColor: theme.colorScheme.primary.withOpacity(0.05),
+            splashColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+            highlightColor: theme.colorScheme.primary.withValues(alpha: 0.05),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
@@ -284,7 +284,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     decoration: BoxDecoration(
                       color:
                           isSelected
-                              ? theme.colorScheme.primary.withOpacity(0.15)
+                              ? theme.colorScheme.primary.withValues(alpha: 0.15)
                               : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -294,7 +294,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       color:
                           isSelected
                               ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                              : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -307,7 +307,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       color:
                           isSelected
                               ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                              : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     child: Text(item.label),
                   ),
@@ -336,12 +336,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 end: Alignment.bottomRight,
                 colors: [
                   theme.colorScheme.primary,
-                  theme.colorScheme.primary.withOpacity(0.8),
+                  theme.colorScheme.primary.withValues(alpha: 0.8),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),

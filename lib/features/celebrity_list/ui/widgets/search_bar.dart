@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class MinimalSearchBar extends StatefulWidget {
@@ -31,7 +31,7 @@ class _MinimalSearchBarState extends State<MinimalSearchBar> {
         color: color.surface,
         boxShadow: [
           BoxShadow(
-            color: color.shadow.withOpacity(0.05),
+            color: color.shadow.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -39,9 +39,9 @@ class _MinimalSearchBarState extends State<MinimalSearchBar> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: color.surfaceContainer.withOpacity(0.5),
+          color: color.surfaceContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.outline.withOpacity(0.1)),
+          border: Border.all(color: color.outline.withValues(alpha: 0.1)),
         ),
         child: TextField(
           controller: _controller,

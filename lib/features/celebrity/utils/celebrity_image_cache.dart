@@ -1,3 +1,4 @@
+﻿import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +22,7 @@ class CelebrityImageCache {
         final Map<String, dynamic> decoded = jsonDecode(cachedJson);
         _memoryCache.addAll(Map<String, String>.from(decoded));
       } catch (e) {
-        print('Error loading image cache: $e');
+        debugPrint('Error loading image cache: $e');
       }
     }
   }
@@ -73,7 +74,7 @@ class CelebrityImageCache {
         }
       }
     } catch (e) {
-      print('Error fetching image for $profileUrl: $e');
+      debugPrint('Error fetching image for $profileUrl: $e');
     }
 
     return null;
@@ -87,7 +88,7 @@ class CelebrityImageCache {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_cacheKey, jsonEncode(_memoryCache));
     } catch (e) {
-      print('Error saving image cache: $e');
+      debugPrint('Error saving image cache: $e');
     }
   }
 

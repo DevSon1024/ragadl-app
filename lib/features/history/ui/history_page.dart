@@ -188,7 +188,7 @@ class _HistoryPageState extends State<HistoryPage> {
               TextButton(
                 onPressed: () async {
                   await openAppSettings();
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   Navigator.pop(context);
                 },
                 child: const Text('Open Settings'),
@@ -479,10 +479,10 @@ class _HistoryPageState extends State<HistoryPage> {
                   decoration: BoxDecoration(
                     color: color.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: color.outline.withOpacity(0.12)),
+                    border: Border.all(color: color.outline.withValues(alpha: 0.12)),
                     boxShadow: [
                       BoxShadow(
-                        color: color.shadow.withOpacity(0.05),
+                        color: color.shadow.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -639,7 +639,7 @@ class _HistoryPageState extends State<HistoryPage> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Shimmer.fromColors(
-              baseColor: color.surfaceContainerHighest.withOpacity(0.3),
+              baseColor: color.surfaceContainerHighest.withValues(alpha: 0.3),
               highlightColor: color.surface,
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -647,7 +647,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   color: color.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: color.outline.withOpacity(0.1),
+                    color: color.outline.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -713,7 +713,7 @@ class _HistoryPageState extends State<HistoryPage> {
       itemCount: 12,
       itemBuilder: (context, index) {
         return Shimmer.fromColors(
-          baseColor: color.surfaceContainerHighest.withOpacity(0.3),
+          baseColor: color.surfaceContainerHighest.withValues(alpha: 0.3),
           highlightColor: color.surface,
           child: Container(
             decoration: BoxDecoration(
@@ -737,7 +737,7 @@ class _HistoryPageState extends State<HistoryPage> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.errorContainer.withOpacity(0.1),
+                color: color.errorContainer.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -785,7 +785,7 @@ class _HistoryPageState extends State<HistoryPage> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.primaryContainer.withOpacity(0.3),
+                color: color.primaryContainer.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -886,8 +886,8 @@ class _ImageCard extends StatelessWidget {
         elevation: isSelected ? 8 : 2,
         shadowColor:
             isSelected
-                ? color.primary.withOpacity(0.4)
-                : color.shadow.withOpacity(0.1),
+                ? color.primary.withValues(alpha: 0.4)
+                : color.shadow.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -934,7 +934,7 @@ class _ImageCard extends StatelessWidget {
                 if (isSelected)
                   Container(
                     decoration: BoxDecoration(
-                      color: color.primary.withOpacity(0.3),
+                      color: color.primary.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
@@ -951,7 +951,7 @@ class _ImageCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -976,7 +976,7 @@ class _ImageCard extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -1044,7 +1044,7 @@ class _ImageListTile extends StatelessWidget {
                       ? Border.all(color: color.primary, width: 2)
                       : null,
               color:
-                  isSelected ? color.primaryContainer.withOpacity(0.1) : null,
+                  isSelected ? color.primaryContainer.withValues(alpha: 0.1) : null,
             ),
             child: Row(
               children: [

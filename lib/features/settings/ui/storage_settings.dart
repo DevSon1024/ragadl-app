@@ -11,7 +11,7 @@ class StoragePage extends StatefulWidget {
   const StoragePage({super.key});
 
   @override
-  _StoragePageState createState() => _StoragePageState();
+  State<StoragePage> createState() => _StoragePageState();
 }
 
 class _StoragePageState extends State<StoragePage> {
@@ -338,7 +338,7 @@ class _StoragePageState extends State<StoragePage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              color.primaryContainer.withOpacity(0.25),
+              color.primaryContainer.withValues(alpha: 0.25),
               color.surface,
             ],
             begin: Alignment.topCenter,
@@ -370,8 +370,8 @@ class _StoragePageState extends State<StoragePage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.primary.withOpacity(0.90),
-            color.primary.withOpacity(0.75),
+            color.primary.withValues(alpha: 0.90),
+            color.primary.withValues(alpha: 0.75),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -379,7 +379,7 @@ class _StoragePageState extends State<StoragePage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.primary.withOpacity(0.25),
+            color: color.primary.withValues(alpha: 0.25),
             blurRadius: 18,
             spreadRadius: 2,
             offset: const Offset(0, 10),
@@ -397,7 +397,7 @@ class _StoragePageState extends State<StoragePage> {
               height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.onPrimary.withOpacity(0.06),
+                color: color.onPrimary.withValues(alpha: 0.06),
               ),
             ),
           ),
@@ -409,7 +409,7 @@ class _StoragePageState extends State<StoragePage> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.onPrimary.withOpacity(0.06),
+                color: color.onPrimary.withValues(alpha: 0.06),
               ),
             ),
           ),
@@ -423,7 +423,7 @@ class _StoragePageState extends State<StoragePage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: color.onPrimary.withOpacity(0.15),
+                        color: color.onPrimary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -449,7 +449,7 @@ class _StoragePageState extends State<StoragePage> {
                 Text(
                   'Configure download paths, manage app data, and backup your settings.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: color.onPrimary.withOpacity(0.9),
+                    color: color.onPrimary.withValues(alpha: 0.9),
                   ),
                 ),
               ],
@@ -484,9 +484,9 @@ class _StoragePageState extends State<StoragePage> {
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
-                color: color.surfaceContainerHighest.withOpacity(0.5),
+                color: color.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: color.outline.withOpacity(0.2)),
+                border: Border.all(color: color.outline.withValues(alpha: 0.2)),
               ),
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -615,12 +615,12 @@ class _Glass extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: color.surface.withOpacity(0.6),
+        color: color.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.outline.withOpacity(0.08)),
+        border: Border.all(color: color.outline.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: color.shadow.withOpacity(0.06),
+            color: color.shadow.withValues(alpha: 0.06),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -650,8 +650,8 @@ class _ActionButton extends StatelessWidget {
 
     return Material(
       color: onTap == null
-          ? scheme.surfaceContainerHighest.withOpacity(0.3)
-          : color.withOpacity(0.12),
+          ? scheme.surfaceContainerHighest.withValues(alpha: 0.3)
+          : color.withValues(alpha: 0.12),
       elevation: 0,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -665,7 +665,7 @@ class _ActionButton extends StatelessWidget {
               Icon(
                   icon,
                   color: onTap == null
-                      ? scheme.onSurfaceVariant.withOpacity(0.5)
+                      ? scheme.onSurfaceVariant.withValues(alpha: 0.5)
                       : color,
                   size: 20
               ),
@@ -675,7 +675,7 @@ class _ActionButton extends StatelessWidget {
                   label,
                   style: TextStyle(
                     color: onTap == null
-                        ? scheme.onSurfaceVariant.withOpacity(0.5)
+                        ? scheme.onSurfaceVariant.withValues(alpha: 0.5)
                         : color,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -711,7 +711,7 @@ class _SettingsTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: scheme.surfaceContainerHighest.withOpacity(0.3),
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -725,8 +725,8 @@ class _SettingsTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      color.withOpacity(0.12),
-                      color.withOpacity(0.22),
+                      color.withValues(alpha: 0.12),
+                      color.withValues(alpha: 0.22),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,

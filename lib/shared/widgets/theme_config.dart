@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class ThemeConfig {
   static final Color _primaryColor = const Color(0xFF6A5AE0);
@@ -99,7 +99,7 @@ class ThemeConfig {
       shape: RoundedRectangleBorder(
         borderRadius: const BorderRadius.all(Radius.circular(16)),
         side: BorderSide(
-          color: Colors.grey.withOpacity(0.2),
+          color: Colors.grey.withValues(alpha: 0.2),
           width: 1,
         ),
       ),

@@ -1,3 +1,4 @@
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class ImageViewerService {
@@ -23,7 +24,7 @@ class ImageViewerService {
       });
       return result;
     } on PlatformException catch (e) {
-      print('Error opening image viewer: ${e.message}');
+      debugPrint('Error opening image viewer: ${e.message}');
       return false;
     }
   }
@@ -38,7 +39,7 @@ class ImageViewerService {
       });
       return result;
     } on PlatformException catch (e) {
-      print('Error opening video player: ${e.message}');
+      debugPrint('Error opening video player: ${e.message}');
       return false;
     }
   }

@@ -8,7 +8,7 @@ class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
 
   @override
-  _RecyclePageState createState() => _RecyclePageState();
+  State<RecyclePage> createState() => _RecyclePageState();
 }
 
 class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStateMixin {
@@ -151,7 +151,7 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
         }
       }
     } catch (e) {
-      print('Error scanning directory ${dir.path}: $e');
+      debugPrint('Error scanning directory ${dir.path}: $e');
     }
   }
 
@@ -258,7 +258,7 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
                       await Directory(originalPath).rename(trashedPath);
                     }
                   } catch (e) {
-                    print('Failed to move back $originalPath: $e');
+                    debugPrint('Failed to move back $originalPath: $e');
                   }
                 }
                 await _loadTrashedItems();
@@ -512,7 +512,7 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
                               ),
                               if (isSelected)
                                 Container(
-                                  color: Colors.blue.withOpacity(0.3),
+                                  color: Colors.blue.withValues(alpha: 0.3),
                                   child: const Icon(
                                     Icons.check_circle,
                                     color: Colors.white,
@@ -586,7 +586,7 @@ class _RecyclePageState extends State<RecyclePage> with SingleTickerProviderStat
                               ),
                               if (isSelected)
                                 Container(
-                                  color: Colors.blue.withOpacity(0.3),
+                                  color: Colors.blue.withValues(alpha: 0.3),
                                   child: const Icon(
                                     Icons.check_circle,
                                     color: Colors.white,

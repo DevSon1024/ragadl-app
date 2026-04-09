@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controllers/downloader_controller.dart';
 import '../utils/snackbar_helper.dart';
@@ -29,10 +29,10 @@ class ControlsSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.outline.withOpacity(0.2)),
+              border: Border.all(color: color.outline.withValues(alpha: 0.2)),
               boxShadow: [
                 BoxShadow(
-                  color: color.shadow.withOpacity(0.05),
+                  color: color.shadow.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -48,7 +48,7 @@ class ControlsSection extends StatelessWidget {
                 suffixIcon: Container(
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: color.primaryContainer.withOpacity(0.7),
+                    color: color.primaryContainer.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: IconButton(
@@ -92,7 +92,7 @@ class ControlsSection extends StatelessWidget {
                               controller.urlController.text,
                             )
                         ? color.error
-                        : color.outline.withOpacity(0.2),
+                        : color.outline.withValues(alpha: 0.2),
                 width:
                     controller.urlController.text.isNotEmpty &&
                             !controller.downloaderService.isValidRagaUrl(
@@ -103,7 +103,7 @@ class ControlsSection extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.shadow.withOpacity(0.05),
+                  color: color.shadow.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -132,7 +132,7 @@ class ControlsSection extends StatelessWidget {
                       Container(
                         margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: color.surfaceContainerHighest.withOpacity(0.5),
+                          color: color.surfaceContainerHighest.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
@@ -161,7 +161,7 @@ class ControlsSection extends StatelessWidget {
                     Container(
                       margin: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: color.surfaceContainerHighest.withOpacity(0.5),
+                        color: color.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: IconButton(
@@ -215,9 +215,9 @@ class ControlsSection extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.primaryContainer.withOpacity(0.3),
+                color: color.primaryContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.primary.withOpacity(0.2)),
+                border: Border.all(color: color.primary.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [

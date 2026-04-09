@@ -14,7 +14,7 @@ class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});
 
   @override
-  _FavouritePageState createState() => _FavouritePageState();
+  State<FavouritePage> createState() => _FavouritePageState();
 }
 
 class _FavouritePageState extends State<FavouritePage> {
@@ -162,6 +162,7 @@ class _FavouritePageState extends State<FavouritePage> {
       String? cachedProfileLink = await ProfileCacheService.getProfileLink(
         item.url,
       );
+      if (!mounted) return;
       if (cachedProfileLink != null) {
         setState(() {
           _loadingGalleryProfiles.remove(item.url);
@@ -181,6 +182,7 @@ class _FavouritePageState extends State<FavouritePage> {
       }
 
       final response = await http.get(Uri.parse(item.url));
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final document = html.parse(response.body);
         final breadcrumb = document.querySelector('ul.breadcrumbs');
@@ -192,6 +194,7 @@ class _FavouritePageState extends State<FavouritePage> {
             if (href.startsWith('https://www.ragalahari.com/stars/profile/')) {
               final name = link.text.trim();
               await ProfileCacheService.saveProfileLink(item.url, href);
+              if (!mounted) return;
               setState(() {
                 _loadingGalleryProfiles.remove(item.url);
               });
@@ -242,13 +245,13 @@ class _FavouritePageState extends State<FavouritePage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
               size: 72,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -316,7 +319,7 @@ class _FavouritePageState extends State<FavouritePage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
@@ -327,7 +330,7 @@ class _FavouritePageState extends State<FavouritePage> {
                     color: theme.colorScheme.primary,
                   ),
                   labelColor: theme.colorScheme.onPrimary,
-                  unselectedLabelColor: theme.colorScheme.primary.withOpacity(
+                  unselectedLabelColor: theme.colorScheme.primary.withValues(alpha: 
                     0.7,
                   ),
                   labelStyle: const TextStyle(

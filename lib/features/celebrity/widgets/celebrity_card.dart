@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class CelebrityCard extends StatelessWidget {
@@ -59,8 +59,8 @@ class CelebrityCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.1),
-                    Colors.black.withOpacity(0.85),
+                    Colors.black.withValues(alpha: 0.1),
+                    Colors.black.withValues(alpha: 0.85),
                   ],
                   stops: const [0.4, 0.65, 1.0],
                 ),
@@ -88,7 +88,7 @@ class CelebrityCard extends StatelessWidget {
                     Text(
                       date!,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 12,
                       ),
                     ),
@@ -102,7 +102,7 @@ class CelebrityCard extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: isLoadingAction ? null : onActionPressed,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.25),
+                          backgroundColor: Colors.white.withValues(alpha: 0.25),
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: EdgeInsets.zero,
@@ -141,7 +141,7 @@ class CelebrityCard extends StatelessWidget {
                 top: 8,
                 right: 8,
                 child: Material(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   shape: const CircleBorder(),
                   clipBehavior: Clip.antiAlias,
                   child: IconButton(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatelessWidget {
@@ -72,7 +72,7 @@ class ContactUsPage extends StatelessWidget {
                     'Last Updated: October 9, 2025',
                     style: TextStyle(
                       fontSize: 14,
-                      color: color.onPrimaryContainer.withOpacity(0.8),
+                      color: color.onPrimaryContainer.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -117,7 +117,7 @@ class ContactUsPage extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: color.surfaceContainerHighest.withOpacity(0.3),
+      color: color.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -143,7 +143,7 @@ class ContactUsPage extends StatelessWidget {
     style: TextStyle(
     fontSize: 14,
     height: 1.6,
-    color: color.onSurface.withOpacity(0.8),
+    color: color.onSurface.withValues(alpha: 0.8),
     ),
     ),
     ],
@@ -202,10 +202,10 @@ class ContactUsPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -298,7 +298,7 @@ class ContactUsPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.6,
-                color: color.onPrimaryContainer.withOpacity(0.8),
+                color: color.onPrimaryContainer.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 16),
@@ -315,7 +315,7 @@ class ContactUsPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
-                color: color.onPrimaryContainer.withOpacity(0.7),
+                color: color.onPrimaryContainer.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -391,7 +391,7 @@ class ContactUsPage extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: color.onPrimaryContainer.withOpacity(0.7),
+                  color: color.onPrimaryContainer.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 2),
