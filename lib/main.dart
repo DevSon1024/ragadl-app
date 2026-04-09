@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/downloader/ui/pages/ragadl_page.dart';
 import 'features/history/ui/history_page.dart';
 import 'features/download_manager/download_manager_page.dart';
-import 'features/celebrity_list/celebrity_list_page.dart';
+import 'features/celebrity_list/ui/pages/celebrity_list_page.dart';
 import 'features/settings/ui/settings_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';

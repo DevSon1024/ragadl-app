@@ -68,6 +68,16 @@ android {
     buildFeatures {
         compose = true
     }
+
+    applicationVariants.all {
+        val variant = this
+        val buildType = variant.buildType.name
+        variant.outputs.all {
+            val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val abi = outputImpl.filters.find { it.filterType == com.android.build.VariantOutput.ABI }?.identifier ?: "universal"
+            outputImpl.outputFileName = "Ragadl-v${variant.versionName}-${abi}-${buildType}.apk"
+        }
+    }
 }
 
 dependencies {
