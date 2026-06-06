@@ -32,7 +32,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-
+android/.kotlin/
 # Symbolication related
 app.*.symbols
 firebase.json
@@ -47,3 +47,4 @@ app.*.map.json
 /android/app/release
 /*.txt
 update_details.md
+test

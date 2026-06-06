@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../models/download_task.dart';
 
 // Running download item
@@ -57,7 +57,7 @@ class RunningDownloadItem extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             LinearProgressIndicator(
-              value: isQueued ? null : task.progress,
+              value: (isQueued || task.status == DownloadStatus.downloading) ? null : task.progress,
               backgroundColor: color.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation(
                 isPaused
@@ -74,7 +74,9 @@ class RunningDownloadItem extends StatelessWidget {
                 Text(
                   isQueued
                       ? 'Queued...'
-                      : '${(task.progress * 100).toStringAsFixed(1)}%',
+                      : task.status == DownloadStatus.downloading
+                          ? 'Downloading...'
+                          : '${(task.progress * 100).toStringAsFixed(1)}%',
                   style: TextStyle(fontSize: 12, color: color.onSurfaceVariant),
                 ),
                 Row(

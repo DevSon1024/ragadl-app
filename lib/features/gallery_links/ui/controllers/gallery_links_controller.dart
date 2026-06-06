@@ -18,6 +18,7 @@ class GalleryLinksController extends ChangeNotifier {
   List<String> filteredUrls = [];
   bool isLoadingUrls = true;
   String? error;
+  Set<String> favoriteUrls = {};
 
   int currentPage = 1;
   final int itemsPerPage = 30;
@@ -48,6 +49,7 @@ class GalleryLinksController extends ChangeNotifier {
 
   Future<void> _init() async {
     isCelebrityFavorite = await _cacheService.isCelebrityInFavorites(celebrityName, profileUrl);
+    favoriteUrls = await _cacheService.getFavoriteGalleryUrls(celebrityName);
     notifyListeners();
     await loadAllData();
   }
@@ -163,11 +165,16 @@ class GalleryLinksController extends ChangeNotifier {
 
   Future<void> toggleGalleryFavorite(GalleryItem item) async {
     await _cacheService.toggleGalleryFavorite(item, celebrityName);
+    if (favoriteUrls.contains(item.url)) {
+      favoriteUrls.remove(item.url);
+    } else {
+      favoriteUrls.add(item.url);
+    }
     notifyListeners(); // Refresh UI for the specific card
   }
 
-  Future<bool> isGalleryFavorite(String url) async {
-    return await _cacheService.isGalleryFavorite(url, celebrityName);
+  bool isGalleryFavorite(String url) {
+    return favoriteUrls.contains(url);
   }
 
   Future<bool> checkGalleryAvailability(String galleryUrl) async {

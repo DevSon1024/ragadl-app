@@ -91,10 +91,16 @@ class GalleryScraper {
     final BatchScrapingData data = args[1] as BatchScrapingData;
 
     try {
-      final futures = data.urls.map((String url) =>
-          _processSingleLinkIsolate(url, data.headers, data.thumbnailDomains)).toList();
-      final results = await Future.wait(futures);
-      final items = results.whereType<GalleryItem>().toList();
+      final List<GalleryItem> items = <GalleryItem>[];
+      const int chunkSize = 5;
+      for (int i = 0; i < data.urls.length; i += chunkSize) {
+        final int end = (i + chunkSize < data.urls.length) ? i + chunkSize : data.urls.length;
+        final List<String> chunk = data.urls.sublist(i, end);
+        final List<Future<GalleryItem?>> futures = chunk.map((String url) =>
+            _processSingleLinkIsolate(url, data.headers, data.thumbnailDomains)).toList();
+        final List<GalleryItem?> results = await Future.wait(futures);
+        items.addAll(results.whereType<GalleryItem>());
+      }
       sendPort.send(GalleryScrapingResult(items: items));
     } catch (e) {
       sendPort.send(GalleryScrapingResult(error: 'Failed to load batch: $e'));

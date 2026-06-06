@@ -33,19 +33,13 @@ class GalleryGrid extends StatelessWidget {
         return _buildAnimatedItem(
           keyId: url,
           index: index,
-          child: FutureBuilder<bool>(
-            future: controller.isGalleryFavorite(url),
-            initialData: false,
-            builder: (context, snapshot) {
-              return GalleryCard(
-                url: url,
-                item: item,
-                isFavorite: snapshot.data ?? false,
-                onTap: item != null ? () => onTapCard(item.url, item.title) : () {},
-                onLongPress: item != null ? () => controller.toggleGalleryFavorite(item) : () {},
-                onToggleFavorite: item != null ? () => controller.toggleGalleryFavorite(item) : () {},
-              );
-            },
+          child: GalleryCard(
+            url: url,
+            item: item,
+            isFavorite: controller.isGalleryFavorite(url),
+            onTap: item != null ? () => onTapCard(item.url, item.title) : () {},
+            onLongPress: item != null ? () => controller.toggleGalleryFavorite(item) : () {},
+            onToggleFavorite: item != null ? () => controller.toggleGalleryFavorite(item) : () {},
           ),
         );
       },

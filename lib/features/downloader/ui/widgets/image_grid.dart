@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -225,24 +225,17 @@ class _FullImagePageState extends State<FullImagePage> {
   late PageController pageController;
   late int currentIndex;
   bool isDownloading = false;
-  final List<TransformationController> transformationControllers = [];
 
   @override
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
     pageController = PageController(initialPage: widget.initialIndex);
-    for (int i = 0; i < widget.imageUrls.length; i++) {
-      transformationControllers.add(TransformationController());
-    }
   }
 
   @override
   void dispose() {
     pageController.dispose();
-    for (var controller in transformationControllers) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -358,23 +351,56 @@ class _FullImagePageState extends State<FullImagePage> {
         },
         itemBuilder: (context, index) {
           final imageData = widget.imageUrls[index];
-          return InteractiveViewer(
-            transformationController: transformationControllers[index],
-            minScale: 0.1,
-            maxScale: 15.0,
-            child: Hero(
-              tag: imageData.originalUrl,
-              child: CachedNetworkImage(
-                imageUrl: imageData.originalUrl,
-                fit: BoxFit.contain,
-                placeholder:
-                    (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => const Icon(Icons.error),
-              ),
-            ),
-          );
+          return ZoomableImageItem(imageData: imageData);
         },
+      ),
+    );
+  }
+}
+
+class ZoomableImageItem extends StatefulWidget {
+  final ImageData imageData;
+
+  const ZoomableImageItem({
+    super.key,
+    required this.imageData,
+  });
+
+  @override
+  State<ZoomableImageItem> createState() => _ZoomableImageItemState();
+}
+
+class _ZoomableImageItemState extends State<ZoomableImageItem> {
+  late final TransformationController _transformationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      transformationController: _transformationController,
+      minScale: 0.1,
+      maxScale: 15.0,
+      child: Hero(
+        tag: widget.imageData.originalUrl,
+        child: CachedNetworkImage(
+          imageUrl: widget.imageData.originalUrl,
+          fit: BoxFit.contain,
+          placeholder:
+              (context, url) =>
+                  const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) => const Icon(Icons.error),
+        ),
       ),
     );
   }

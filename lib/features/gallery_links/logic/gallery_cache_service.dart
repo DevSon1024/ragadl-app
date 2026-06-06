@@ -102,6 +102,14 @@ class GalleryCacheService {
     return !isFavorite;
   }
 
+  Future<Set<String>> getFavoriteGalleryUrls(String celebrityName) async {
+    final favorites = await _getFavorites();
+    return favorites
+        .where((item) => item.type == 'gallery' && item.celebrityName == celebrityName)
+        .map((item) => item.url)
+        .toSet();
+  }
+
   Future<bool> isGalleryFavorite(String url, String celebrityName) async {
     final favorites = await _getFavorites();
     return favorites.any((item) => item.type == 'gallery' && item.url == url && item.celebrityName == celebrityName);

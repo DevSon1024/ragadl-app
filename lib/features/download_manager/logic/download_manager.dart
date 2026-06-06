@@ -17,6 +17,10 @@ class DownloadManager extends ChangeNotifier {
   }
 
   final Map<String, DownloadTask> _activeDownloads = {};
+  final Map<String, DownloadTask> _runningDownloads = {};
+  final Map<String, DownloadTask> _failedDownloads = {};
+  final Map<String, DownloadTask> _completedDownloads = {};
+  final Map<String, DownloadTask> _pausedDownloads = {};
   final Queue<String> _downloadQueue = Queue();
   final Dio _dio = Dio();
   final Set<String> _downloadingUrls = {};
@@ -36,39 +40,48 @@ class DownloadManager extends ChangeNotifier {
 
   int get maxConcurrentDownloads => _maxConcurrentDownloads;
 
-  // Filtered views by status
-  Map<String, DownloadTask> get runningDownloads {
-    return Map.fromEntries(
-      _activeDownloads.entries.where(
-        (MapEntry<String, DownloadTask> e) =>
-            e.value.status == DownloadStatus.downloading ||
-            e.value.status == DownloadStatus.queued,
-      ),
-    );
-  }
+  // Filtered views by status (cached/persistent to avoid GC thrashing)
+  Map<String, DownloadTask> get runningDownloads =>
+      Map.unmodifiable(_runningDownloads);
 
-  Map<String, DownloadTask> get failedDownloads {
-    return Map.fromEntries(
-      _activeDownloads.entries.where(
-        (MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.failed,
-      ),
-    );
-  }
+  Map<String, DownloadTask> get failedDownloads =>
+      Map.unmodifiable(_failedDownloads);
 
-  Map<String, DownloadTask> get completedDownloads {
-    return Map.fromEntries(
-      _activeDownloads.entries.where(
-        (MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.completed,
-      ),
-    );
-  }
+  Map<String, DownloadTask> get completedDownloads =>
+      Map.unmodifiable(_completedDownloads);
 
-  Map<String, DownloadTask> get pausedDownloads {
-    return Map.fromEntries(
-      _activeDownloads.entries.where(
-        (MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.paused,
-      ),
-    );
+  Map<String, DownloadTask> get pausedDownloads =>
+      Map.unmodifiable(_pausedDownloads);
+
+  void _updateTask(String url, DownloadTask? task) {
+    if (task == null) {
+      _activeDownloads.remove(url);
+      _runningDownloads.remove(url);
+      _failedDownloads.remove(url);
+      _completedDownloads.remove(url);
+      _pausedDownloads.remove(url);
+    } else {
+      _activeDownloads[url] = task;
+      _runningDownloads.remove(url);
+      _failedDownloads.remove(url);
+      _completedDownloads.remove(url);
+      _pausedDownloads.remove(url);
+      switch (task.status) {
+        case DownloadStatus.queued:
+        case DownloadStatus.downloading:
+          _runningDownloads[url] = task;
+          break;
+        case DownloadStatus.completed:
+          _completedDownloads[url] = task;
+          break;
+        case DownloadStatus.failed:
+          _failedDownloads[url] = task;
+          break;
+        case DownloadStatus.paused:
+          _pausedDownloads[url] = task;
+          break;
+      }
+    }
   }
 
   // Settings
@@ -127,7 +140,7 @@ class DownloadManager extends ChangeNotifier {
         onComplete: onComplete,
       );
 
-      _activeDownloads[url] = task;
+      _updateTask(url, task);
 
       if (batchId != null) {
         _galleryTotalCount[batchId] = (_galleryTotalCount[batchId] ?? 0) + 1;
@@ -138,7 +151,7 @@ class DownloadManager extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       if (task != null) {
-        _activeDownloads.remove(url);
+        _updateTask(url, null);
       }
       if (batchId != null) {
         _galleryFailedCount[batchId] = (_galleryFailedCount[batchId] ?? 0) + 1;
@@ -152,7 +165,7 @@ class DownloadManager extends ChangeNotifier {
     final task = _activeDownloads[url];
     if (task != null && task.status == DownloadStatus.downloading) {
       task.cancelToken.cancel('Download paused');
-      _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
+      _updateTask(url, task.copyWith(status: DownloadStatus.paused));
       _downloadingUrls.remove(url);
       _processQueue();
       notifyListeners();
@@ -166,7 +179,7 @@ class DownloadManager extends ChangeNotifier {
         cancelToken: CancelToken(),
         status: DownloadStatus.queued,
       );
-      _activeDownloads[url] = newTask;
+      _updateTask(url, newTask);
       _enqueueDownload(newTask);
       notifyListeners();
     }
@@ -180,7 +193,7 @@ class DownloadManager extends ChangeNotifier {
         _downloadingUrls.remove(url);
         _processQueue();
       }
-      _activeDownloads.remove(url);
+      _updateTask(url, null);
       _downloadQueue.remove(url);
       notifyListeners();
     }
@@ -196,7 +209,7 @@ class DownloadManager extends ChangeNotifier {
         cancelToken: CancelToken(),
         errorMessage: null,
       );
-      _activeDownloads[url] = newTask;
+      _updateTask(url, newTask);
       _enqueueDownload(newTask);
       notifyListeners();
     }
@@ -207,21 +220,25 @@ class DownloadManager extends ChangeNotifier {
       final task = _activeDownloads[url]!;
       if (task.status == DownloadStatus.completed ||
           task.status == DownloadStatus.failed) {
-        _activeDownloads.remove(url);
+        _updateTask(url, null);
         notifyListeners();
       }
     }
   }
 
   void clearCompleted() {
-    _activeDownloads.removeWhere(
-      (String _, DownloadTask t) => t.status == DownloadStatus.completed,
-    );
+    final completedUrls = List<String>.from(_completedDownloads.keys);
+    for (final url in completedUrls) {
+      _updateTask(url, null);
+    }
     notifyListeners();
   }
 
   void clearFailed() {
-    _activeDownloads.removeWhere((String _, DownloadTask t) => t.status == DownloadStatus.failed);
+    final failedUrls = List<String>.from(_failedDownloads.keys);
+    for (final url in failedUrls) {
+      _updateTask(url, null);
+    }
     notifyListeners();
   }
 
@@ -235,7 +252,7 @@ class DownloadManager extends ChangeNotifier {
           status: DownloadStatus.paused,
           cancelToken: CancelToken(),
         );
-        _activeDownloads[url] = paused;
+        _updateTask(url, paused);
         _downloadQueue.addFirst(url);
       }
     }
@@ -243,7 +260,7 @@ class DownloadManager extends ChangeNotifier {
     for (final url in List<String>.from(_downloadQueue)) {
       final task = _activeDownloads[url];
       if (task != null && task.status == DownloadStatus.queued) {
-        _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
+        _updateTask(url, task.copyWith(status: DownloadStatus.paused));
       }
     }
     _refreshBatchNotification(isPaused: true);
@@ -252,11 +269,7 @@ class DownloadManager extends ChangeNotifier {
 
   void resumeAll() {
     _isPaused = false;
-    final pausedUrls =
-        _activeDownloads.entries
-            .where((MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.paused)
-            .map((MapEntry<String, DownloadTask> e) => e.key)
-            .toList();
+    final pausedUrls = List<String>.from(_pausedDownloads.keys);
     for (final url in pausedUrls) {
       final task = _activeDownloads[url];
       if (task != null) {
@@ -264,7 +277,7 @@ class DownloadManager extends ChangeNotifier {
           status: DownloadStatus.queued,
           cancelToken: CancelToken(),
         );
-        _activeDownloads[url] = queued;
+        _updateTask(url, queued);
         if (!_downloadQueue.contains(url)) {
           _downloadQueue.add(url);
         }
@@ -282,12 +295,18 @@ class DownloadManager extends ChangeNotifier {
     }
     _downloadingUrls.clear();
     _downloadQueue.clear();
-    _activeDownloads.removeWhere(
-      (String _, DownloadTask t) =>
-          t.status == DownloadStatus.downloading ||
-          t.status == DownloadStatus.queued ||
-          t.status == DownloadStatus.paused,
-    );
+    
+    final urlsToCancel = _activeDownloads.entries
+        .where((e) =>
+            e.value.status == DownloadStatus.downloading ||
+            e.value.status == DownloadStatus.queued ||
+            e.value.status == DownloadStatus.paused)
+        .map((e) => e.key)
+        .toList();
+    for (final url in urlsToCancel) {
+      _updateTask(url, null);
+    }
+
     _galleryTotalCount.clear();
     _galleryCompletedCount.clear();
     _galleryFailedCount.clear();
@@ -302,15 +321,15 @@ class DownloadManager extends ChangeNotifier {
       _startDownload(task);
     } else {
       _downloadQueue.add(task.url);
-      _activeDownloads[task.url] = task.copyWith(status: DownloadStatus.queued);
+      _updateTask(task.url, task.copyWith(status: DownloadStatus.queued));
     }
   }
 
   void _startDownload(DownloadTask task) {
     _downloadingUrls.add(task.url);
-    _activeDownloads[task.url] = task.copyWith(
+    _updateTask(task.url, task.copyWith(
       status: DownloadStatus.downloading,
-    );
+    ));
     notifyListeners();
     _download(task, (bool success) {
       _handleDownloadComplete(task.url, success, task.batchId);
@@ -323,11 +342,11 @@ class DownloadManager extends ChangeNotifier {
 
     if (success) {
       if (task != null) {
-        _activeDownloads[url] = task.copyWith(
+        _updateTask(url, task.copyWith(
           status: DownloadStatus.completed,
           progress: 1.0,
           completedTime: DateTime.now(),
-        );
+        ));
         if (batchId != null) {
           _galleryCompletedCount[batchId] =
               (_galleryCompletedCount[batchId] ?? 0) + 1;
@@ -346,16 +365,16 @@ class DownloadManager extends ChangeNotifier {
           progress: 0.0,
           cancelToken: CancelToken(),
         );
-        _activeDownloads[url] = newTask;
+        _updateTask(url, newTask);
         _startDownload(newTask);
         return;
       }
       // Final failure
       if (task != null) {
-        _activeDownloads[url] = task.copyWith(
+        _updateTask(url, task.copyWith(
           status: DownloadStatus.failed,
           errorMessage: 'Download failed after ${task.retryCount + 1} attempts',
-        );
+        ));
         if (batchId != null) {
           _galleryFailedCount[batchId] =
               (_galleryFailedCount[batchId] ?? 0) + 1;
@@ -470,10 +489,6 @@ class DownloadManager extends ChangeNotifier {
                 onCompleteInner(true);
                 return;
               }
-              final initialProgress = start / totalBytes;
-              _activeDownloads[task.url] = task.copyWith(
-                progress: initialProgress,
-              );
             }
           } else {
             await file.delete();
