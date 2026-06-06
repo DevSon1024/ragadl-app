@@ -42,9 +42,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
           'Notification Settings',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: theme.colorScheme.surface,
-        surfaceTintColor: theme.colorScheme.surfaceTint,
-        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

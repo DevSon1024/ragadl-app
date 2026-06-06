@@ -51,14 +51,8 @@ class GalleryScraper {
       final images = document.getElementsByTagName('img');
       for (final dom.Element img in images) {
         final src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
-        if (galleryUrl.toLowerCase().contains('idlebrain.com')) {
-          if (src.toLowerCase().contains('/images/th_') || src.toLowerCase().startsWith('images/th_')) {
-            return true;
-          }
-        } else {
-          if (_thumbnailDomains.any((String domain) => src.contains(domain))) {
-            return true;
-          }
+        if (_thumbnailDomains.any((String domain) => src.contains(domain))) {
+          return true;
         }
       }
       return false;

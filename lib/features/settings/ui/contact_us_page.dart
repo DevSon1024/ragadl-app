@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatelessWidget {
@@ -21,9 +21,6 @@ class ContactUsPage extends StatelessWidget {
           'Contact Us',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: color.surface,
-        surfaceTintColor: color.surfaceTint,
-        elevation: 2,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,

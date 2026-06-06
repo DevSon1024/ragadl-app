@@ -9,9 +9,14 @@ class ShimmerView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
     return CustomScrollView(
       slivers: [
         SliverAppBar(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: color.primaryContainer.withValues(alpha: 0.25),
+          surfaceTintColor: Colors.transparent,
           title: Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),

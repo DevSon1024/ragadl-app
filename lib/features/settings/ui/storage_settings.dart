@@ -323,12 +323,8 @@ class _StoragePageState extends State<StoragePage> {
     final color = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: color.surface,
       appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: color.surface,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: color.primaryContainer.withValues(alpha: 0.25),
         title: const Text(
           'Storage Settings',
           style: TextStyle(fontWeight: FontWeight.w700),

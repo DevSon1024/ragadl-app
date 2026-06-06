@@ -397,11 +397,10 @@ class _HistoryPageState extends State<HistoryPage> {
     final color = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: color.surface,
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: color.surface,
+        backgroundColor: color.primaryContainer.withValues(alpha: 0.25),
         surfaceTintColor: Colors.transparent,
         title: Text(
           _isSelectionMode
@@ -468,97 +467,106 @@ class _HistoryPageState extends State<HistoryPage> {
                   ),
                 ],
       ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Search Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: color.outline.withValues(alpha: 0.12)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.shadow.withValues(alpha: 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search images...',
-                      hintStyle: TextStyle(color: color.onSurfaceVariant),
-                      prefixIcon: Icon(
-                        Icons.search_rounded,
-                        color: color.onSurfaceVariant,
-                      ),
-                      suffixIcon:
-                          _searchController.text.isNotEmpty
-                              ? IconButton(
-                                icon: Icon(
-                                  Icons.clear_rounded,
-                                  color: color.onSurfaceVariant,
-                                ),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _filterItems();
-                                },
-                              )
-                              : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.primaryContainer.withValues(alpha: 0.25), color.surface],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: color.outline.withValues(alpha: 0.12)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.shadow.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search images...',
+                        hintStyle: TextStyle(color: color.onSurfaceVariant),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: color.onSurfaceVariant,
+                        ),
+                        suffixIcon:
+                            _searchController.text.isNotEmpty
+                                ? IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _filterItems();
+                                  },
+                                  icon: Icon(
+                                    Icons.clear_rounded,
+                                    color: color.onSurfaceVariant,
+                                  ),
+                                )
+                                : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // Selection Actions
-              if (_isSelectionMode)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Row(
-                    children: [
-                      TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _selectedItems.addAll(
-                              List.generate(_filteredItems.length, (i) => i),
-                            );
-                          });
-                        },
-                        icon: const Icon(Icons.select_all_rounded),
-                        label: const Text('Select All'),
-                      ),
-                      const Spacer(),
-                      TextButton.icon(
-                        onPressed: _clearSelection,
-                        icon: const Icon(Icons.clear_all_rounded),
-                        label: const Text('Clear'),
-                      ),
-                    ],
+                // Selection Actions
+                if (_isSelectionMode)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _selectedItems.addAll(
+                                List.generate(_filteredItems.length, (i) => i),
+                              );
+                            });
+                          },
+                          icon: const Icon(Icons.select_all_rounded),
+                          label: const Text('Select All'),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _clearSelection,
+                          icon: const Icon(Icons.clear_all_rounded),
+                          label: const Text('Clear'),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Content
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadDownloadedItems,
+                    child: _buildContent(),
                   ),
                 ),
+              ],
+            ),
 
-              // Content
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _loadDownloadedItems,
-                  child: _buildContent(),
-                ),
-              ),
-            ],
-          ),
-
-          // Floating Stats Card
-        ],
+            // Floating Stats Card
+          ],
+        ),
       ),
     );
   }

@@ -181,7 +181,7 @@ class _HomePageState extends State<HomePage> {
               SliverAppBar(
                 elevation: 0,
                 scrolledUnderElevation: 0,
-                backgroundColor: color.surface,
+                backgroundColor: color.primaryContainer.withValues(alpha: 0.25),
                 surfaceTintColor: Colors.transparent,
                 title: const Text(
                   'RagaDL',

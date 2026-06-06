@@ -56,12 +56,15 @@ class DownloaderService {
     return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
   }
 
-  /// Validate gallery URL (supporting Ragalahari or Idlebrain)
   bool isValidUrl(String url) {
-    final trimmed = url.trim().toLowerCase();
-    return trimmed.startsWith('https://www.ragalahari.com') ||
-           trimmed.startsWith('https://www.idlebrain.com') ||
-           trimmed.startsWith('https://idlebrain.com');
+    try {
+      final uri = Uri.tryParse(url.trim());
+      if (uri == null || !uri.hasScheme) return false;
+      final host = uri.host.toLowerCase();
+      return host.endsWith('ragalahari.com') || host.endsWith('idlebrain.com');
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Check and request storage permissions

@@ -19,6 +19,7 @@ class GalleryLinksController extends ChangeNotifier {
   bool isLoadingUrls = true;
   String? error;
   Set<String> favoriteUrls = {};
+  final Map<String, String> _urlToCodeMap = {};
 
   int currentPage = 1;
   final int itemsPerPage = 30;
@@ -57,12 +58,27 @@ class GalleryLinksController extends ChangeNotifier {
     await loadAllData();
   }
 
+  void _precomputeUrlCodes() {
+    _urlToCodeMap.clear();
+    for (final url in allGalleryUrls) {
+      try {
+        final galleryId = url.split('/')
+            .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
+            .firstOrNull;
+        if (galleryId != null) {
+          _urlToCodeMap[url] = galleryId;
+        }
+      } catch (_) {}
+    }
+  }
+
   Future<void> loadAllData() async {
     // 1. Load from cache
     allGalleryUrls = await _cacheService.loadCachedUrls(profileUrl);
     loadedItems = await _cacheService.loadCachedItems(profileUrl);
 
     if (allGalleryUrls.isNotEmpty) {
+      _precomputeUrlCodes();
       filteredUrls = List.from(allGalleryUrls);
       isLoadingUrls = false;
       notifyListeners();
@@ -80,6 +96,7 @@ class GalleryLinksController extends ChangeNotifier {
         error = result.error;
       } else if (result.urls != null) {
         allGalleryUrls = result.urls!;
+        _precomputeUrlCodes();
         filteredUrls = List.from(allGalleryUrls);
         await _cacheService.cacheUrls(profileUrl, allGalleryUrls);
 
@@ -134,25 +151,10 @@ class GalleryLinksController extends ChangeNotifier {
     if (query.isEmpty) {
       filteredUrls = List.from(allGalleryUrls);
     } else {
-      final queryLower = query.toLowerCase();
-      filteredUrls =
-          allGalleryUrls.where((url) {
-            if (url.toLowerCase().contains('ragalahari.com')) {
-              final uri = Uri.tryParse(url);
-              if (uri != null) {
-                return uri.pathSegments.any(
-                  (segment) => segment.toLowerCase().contains(queryLower),
-                );
-              }
-              return url.toLowerCase().contains(queryLower);
-            }
-            final galleryId =
-                url
-                    .split('/')
-                    .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
-                    .firstOrNull;
-            return galleryId != null && galleryId.startsWith(query);
-          }).toList();
+      filteredUrls = allGalleryUrls.where((url) {
+        final code = _urlToCodeMap[url];
+        return code != null && code.startsWith(query);
+      }).toList();
     }
     currentPage = 1;
     loadedPages.clear();

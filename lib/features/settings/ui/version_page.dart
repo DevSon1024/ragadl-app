@@ -1,8 +1,10 @@
-﻿// version_page.dart
+// version_page.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 
 class VersionPage extends StatelessWidget {
   const VersionPage({super.key});
@@ -36,9 +38,6 @@ class VersionPage extends StatelessWidget {
           'App Version',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: color.surface,
-        surfaceTintColor: color.surfaceTint,
-        elevation: 2,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
@@ -129,6 +128,20 @@ class VersionPage extends StatelessWidget {
                           icon: Icons.link,
                           title: 'Repository Links',
                           content: _buildLinksContent(context, htmlUrl),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSectionCard(
+                          context,
+                          icon: Icons.developer_board,
+                          title: 'Device Details',
+                          content: _buildDeviceDetailsContent(context),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSectionCard(
+                          context,
+                          icon: Icons.star_outline_rounded,
+                          title: 'Credits & Libraries',
+                          content: _buildCreditsContent(context),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -307,6 +320,152 @@ class VersionPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<Map<String, String>> _getDeviceDetails() async {
+    final deviceInfo = DeviceInfoPlugin();
+    final Map<String, String> details = {};
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        details['Device Model'] = androidInfo.model;
+        details['Manufacturer'] = androidInfo.manufacturer;
+        details['Android Version'] = androidInfo.version.release;
+        details['SDK Version'] = androidInfo.version.sdkInt.toString();
+        details['Hardware'] = androidInfo.hardware;
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        details['Device Name'] = iosInfo.name;
+        details['Model'] = iosInfo.model;
+        details['System Version'] = iosInfo.systemVersion;
+        details['System Name'] = iosInfo.systemName;
+      } else if (Platform.isWindows) {
+        final windowsInfo = await deviceInfo.windowsInfo;
+        details['Computer Name'] = windowsInfo.computerName;
+        details['OS Version'] = windowsInfo.releaseId;
+        details['Build Number'] = windowsInfo.buildNumber.toString();
+      } else if (Platform.isMacOS) {
+        final macosInfo = await deviceInfo.macOsInfo;
+        details['Computer Name'] = macosInfo.computerName;
+        details['Model'] = macosInfo.model;
+        details['OS Version'] = macosInfo.osRelease;
+      } else if (Platform.isLinux) {
+        final linuxInfo = await deviceInfo.linuxInfo;
+        details['Name'] = linuxInfo.name;
+        details['Version'] = linuxInfo.version ?? 'Unknown';
+      }
+    } catch (e) {
+      details['Error'] = 'Failed to load device details: $e';
+    }
+    return details;
+  }
+
+  Widget _buildDeviceDetailsContent(BuildContext context) {
+    return FutureBuilder<Map<String, String>>(
+      future: _getDeviceDetails(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Text('Failed to load device details');
+        }
+
+        final details = snapshot.data!;
+        return Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2),
+            1: FlexColumnWidth(3),
+          },
+          children: details.entries.map((entry) {
+            return TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    entry.key,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    entry.value,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildCreditsContent(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
+    final libraries = [
+      {'name': 'Flutter SDK', 'desc': 'Core framework for high-performance UI'},
+      {'name': 'Flutter Riverpod', 'desc': 'Reactive caching & state management'},
+      {'name': 'Dio', 'desc': 'HTTP client with persistent connection pooling'},
+      {'name': 'Awesome Notifications', 'desc': 'Rich background progress notifications'},
+      {'name': 'Device Info Plus', 'desc': 'Platform hardware & OS identification'},
+      {'name': 'Cached Network Image', 'desc': 'Optimized multi-level image caching'},
+      {'name': 'Photo View & Extended Image', 'desc': 'Interactive panning, zooming & caching'},
+      {'name': 'Shared Preferences', 'desc': 'Persistent local user preferences'},
+      {'name': 'Flutter Isolate', 'desc': 'Multi-threaded scraping & CPU offloading'},
+      {'name': 'Window Manager', 'desc': 'Desktop window layout customization'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: libraries.map((lib) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.check_circle_outline_rounded, size: 16, color: color.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: color.onSurface,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: '${lib['name']}: ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(
+                        text: lib['desc'],
+                        style: TextStyle(color: color.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

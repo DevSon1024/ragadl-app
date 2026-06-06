@@ -41,7 +41,9 @@ class CelebrityListPage extends ConsumerWidget {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor:
-            isPositive ? Colors.amber.withValues(alpha: 0.9) : color.inverseSurface,
+            isPositive
+                ? Colors.amber.withValues(alpha: 0.9)
+                : color.inverseSurface,
         duration: const Duration(milliseconds: 2000),
       ),
     );
@@ -74,28 +76,39 @@ class CelebrityListPage extends ConsumerWidget {
     final color = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: color.surface,
       appBar: AppBar(
         elevation: 0,
-        scrolledUnderElevation: 1,
-        backgroundColor: color.surface,
-        surfaceTintColor: color.surfaceTint,
+        scrolledUnderElevation: 0,
+        backgroundColor: color.primaryContainer.withValues(alpha: 0.25),
+        surfaceTintColor: Colors.transparent,
         title: const Text(
           'Celebrity Profiles',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
         ),
         actions: const [SortMenu()],
       ),
-      body: Column(
-        children: [
-          CommonSearchBar(
-            hintText: 'Search celebrities...',
-            onChanged: (val) {
-              ref.read(searchQueryProvider.notifier).state = val;
-            },
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.primaryContainer.withValues(alpha: 0.25),
+              color.surface,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-          Expanded(child: _buildContent(context, ref)),
-        ],
+        ),
+        child: Column(
+          children: [
+            CommonSearchBar(
+              hintText: 'Search Celebrities...',
+              onChanged: (val) {
+                ref.read(searchQueryProvider.notifier).state = val;
+              },
+            ),
+            Expanded(child: _buildContent(context, ref)),
+          ],
+        ),
       ),
     );
   }

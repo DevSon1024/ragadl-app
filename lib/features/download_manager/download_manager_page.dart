@@ -118,10 +118,15 @@ class _DownloadManagerPageState extends ConsumerState<DownloadManagerPage>
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
     final controller = ref.watch(downloadManagerControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: color.primaryContainer.withValues(alpha: 0.25),
+        surfaceTintColor: Colors.transparent,
         title: const Text(
           'Download Manager',
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -153,13 +158,22 @@ class _DownloadManagerPageState extends ConsumerState<DownloadManagerPage>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          RunningDownloadsTab(controller: controller),
-          FailedDownloadsTab(controller: controller),
-          CompletedDownloadsTab(controller: controller),
-        ],
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.primaryContainer.withValues(alpha: 0.25), color.surface],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            RunningDownloadsTab(controller: controller),
+            FailedDownloadsTab(controller: controller),
+            CompletedDownloadsTab(controller: controller),
+          ],
+        ),
       ),
     );
   }
