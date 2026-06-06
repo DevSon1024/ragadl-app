@@ -105,11 +105,23 @@ class GalleryLinksController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      error = 'Failed to fetch gallery URLs: $e';
+      final message = e.toString().replaceAll('Exception: ', '');
+      if (message.contains('Slow internet connection')) {
+        error = 'Slow internet connection. Please try again.';
+      } else {
+        error = 'Failed to fetch gallery URLs: $message';
+      }
     } finally {
       isLoadingUrls = false;
       notifyListeners();
     }
+  }
+
+  Future<void> retry() async {
+    error = null;
+    isLoadingUrls = true;
+    notifyListeners();
+    await loadAllData();
   }
 
   Future<void> _loadPageItems(int page) async {

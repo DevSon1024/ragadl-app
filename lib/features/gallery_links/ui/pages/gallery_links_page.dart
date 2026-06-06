@@ -131,7 +131,10 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
 
   Widget _buildBody() {
     if (_controller.error != null) {
-      return CommonErrorView(error: _controller.error!);
+      return CommonErrorView(
+        error: _controller.error!,
+        onRetry: () => _controller.retry(),
+      );
     }
     if (_controller.isLoadingUrls) {
       return const LoadingView();

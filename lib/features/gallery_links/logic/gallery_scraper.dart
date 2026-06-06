@@ -20,7 +20,11 @@ class GalleryScraper {
     );
 
     await Isolate.spawn(_fetchUrlsIsolate, <dynamic>[receivePort.sendPort, scrapingData]);
-    return await receivePort.first as GalleryScrapingResult;
+    final result = await receivePort.first as GalleryScrapingResult;
+    if (result.error != null) {
+      throw Exception(result.error);
+    }
+    return result;
   }
 
   Future<GalleryScrapingResult> loadBatchItems(List<String> urls) async {
@@ -70,8 +74,8 @@ class GalleryScraper {
         data.profileUrl,
         options: Options(
           headers: data.headers,
-          receiveTimeout: const Duration(seconds: 10),
-          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
         ),
       );
 
@@ -83,6 +87,15 @@ class GalleryScraper {
       final document = html_parser.parse(response.data!);
       final urls = _extractGalleryLinksIsolate(document, data.profileUrl);
       sendPort.send(GalleryScrapingResult(urls: urls));
+    } on DioException catch (de) {
+      if (de.type == DioExceptionType.connectionTimeout ||
+          de.type == DioExceptionType.receiveTimeout ||
+          de.type == DioExceptionType.sendTimeout ||
+          de.type == DioExceptionType.connectionError) {
+        sendPort.send(GalleryScrapingResult(error: 'Slow internet connection. Please try again.'));
+      } else {
+        sendPort.send(GalleryScrapingResult(error: 'Network error: ${de.message}'));
+      }
     } catch (e) {
       sendPort.send(GalleryScrapingResult(error: 'Failed to fetch URLs: $e'));
     }
@@ -124,8 +137,8 @@ class GalleryScraper {
         link,
         options: Options(
           headers: headers,
-          receiveTimeout: const Duration(seconds: 5),
-          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
         ),
       );
       if (response.statusCode != 200 || response.data == null) return null;
@@ -145,6 +158,8 @@ class GalleryScraper {
         pages: pages,
         date: date,
       );
+    } on DioException catch (_) {
+      return null;
     } catch (e) {
       return null;
     }
