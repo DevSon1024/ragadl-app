@@ -72,10 +72,25 @@ class _CommonSearchBarState extends State<CommonSearchBar> {
                   ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(
+                color: color.outline.withValues(alpha: 0.3),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(
+                color: color.outline.withValues(alpha: 0.3),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(
+                color: color.primary,
+                width: 1.5,
+              ),
             ),
             filled: true,
-            fillColor: color.surfaceContainer,
+            fillColor: Colors.transparent,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           keyboardType: widget.keyboardType,

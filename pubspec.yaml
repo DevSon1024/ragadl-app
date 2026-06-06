@@ -1,8 +1,8 @@
 name: ragadl
 description: "A simple image downloader app for Ragalahari"
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-versionCode: 321 # update this version to 2264 when update version to 2.6.4
-version: 3.2.1+1
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+versionCode: 330 # update this version to 2264 when update version to 2.6.4
+version: 3.3.0+1
 
 environment:
   sdk: ^3.7.2
@@ -32,7 +32,7 @@ dependencies:
   async: ^2.11.0
   image: ^4.1.3
   open_file: ^3.3.2
-  smooth_page_indicator: ^1.1.0  # Navigation dots
+  smooth_page_indicator: ^1.1.0 # Navigation dots
   extended_image: ^8.2.0
   carousel_slider: ^5.1.2
 

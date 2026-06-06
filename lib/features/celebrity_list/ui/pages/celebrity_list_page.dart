@@ -86,6 +86,16 @@ class CelebrityListPage extends ConsumerWidget {
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
         ),
         actions: const [SortMenu()],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: CommonSearchBar(
+            hintText: 'Search Celebrities...',
+            isAppBarStyle: true,
+            onChanged: (val) {
+              ref.read(searchQueryProvider.notifier).state = val;
+            },
+          ),
+        ),
       ),
       body: DecoratedBox(
         decoration: BoxDecoration(
@@ -98,17 +108,7 @@ class CelebrityListPage extends ConsumerWidget {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
-          children: [
-            CommonSearchBar(
-              hintText: 'Search Celebrities...',
-              onChanged: (val) {
-                ref.read(searchQueryProvider.notifier).state = val;
-              },
-            ),
-            Expanded(child: _buildContent(context, ref)),
-          ],
-        ),
+        child: _buildContent(context, ref),
       ),
     );
   }

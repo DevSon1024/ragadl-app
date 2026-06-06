@@ -11,6 +11,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:extended_image/extended_image.dart';
 import 'history_full_image_viewer.dart';
 import 'recycle_page.dart';
+import 'package:ragadl/shared/widgets/search_bar.dart';
 
 class HistoryItem {
   final File file;
@@ -466,6 +467,14 @@ class _HistoryPageState extends State<HistoryPage> {
                     tooltip: 'Sort Options',
                   ),
                 ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: CommonSearchBar(
+            controller: _searchController,
+            isAppBarStyle: true,
+            hintText: 'Search images...',
+          ),
+        ),
       ),
       body: DecoratedBox(
         decoration: BoxDecoration(
@@ -479,54 +488,6 @@ class _HistoryPageState extends State<HistoryPage> {
           children: [
             Column(
               children: [
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: color.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: color.outline.withValues(alpha: 0.12)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.shadow.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search images...',
-                        hintStyle: TextStyle(color: color.onSurfaceVariant),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          color: color.onSurfaceVariant,
-                        ),
-                        suffixIcon:
-                            _searchController.text.isNotEmpty
-                                ? IconButton(
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _filterItems();
-                                  },
-                                  icon: Icon(
-                                    Icons.clear_rounded,
-                                    color: color.onSurfaceVariant,
-                                  ),
-                                )
-                                : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
                 // Selection Actions
                 if (_isSelectionMode)
                   Padding(
