@@ -26,25 +26,27 @@ class GalleryCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (item == null) {
-      return _buildPlaceholder(theme);
+      return RepaintBoundary(child: _buildPlaceholder(theme));
     }
 
-    return Card(
-      elevation: 6,
-      shadowColor: Colors.black26,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildImage(theme),
-            _buildGradientOverlay(),
-            _buildContent(),
-            _buildFavoriteButton(),
-          ],
+    return RepaintBoundary(
+      child: Card(
+        elevation: 6,
+        shadowColor: Colors.black26,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildImage(theme),
+              _buildGradientOverlay(),
+              _buildContent(),
+              _buildFavoriteButton(),
+            ],
+          ),
         ),
       ),
     );

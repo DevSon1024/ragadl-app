@@ -1,6 +1,7 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
@@ -60,6 +61,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _loadSectionOrder();
     _checkFirstRun();
   }
@@ -158,94 +160,107 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: color.surface,
-      extendBodyBehindAppBar: false,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              backgroundColor: color.surface,
-              surfaceTintColor: Colors.transparent,
-              title: const Text(
-                'RagaDL',
-                style: TextStyle(fontWeight: FontWeight.w700),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final systemUiStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemUiStyle,
+      child: Scaffold(
+        backgroundColor: color.surface,
+        extendBodyBehindAppBar: false,
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverAppBar(
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                backgroundColor: color.surface,
+                surfaceTintColor: Colors.transparent,
+                title: const Text(
+                  'RagaDL',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                floating: true,
+                snap: true,
+                actions: [
+                  IconButton(
+                    tooltip: 'Link History',
+                    icon: Icon(Icons.history_rounded, color: color.onSurface),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LinkHistoryPage(),
+                        ),
+                      );
+                      FocusScope.of(context).unfocus();
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'Settings',
+                    icon: Icon(Icons.settings_rounded, color: color.onSurface),
+                    onPressed: widget.openSettings,
+                  ),
+                ],
               ),
-              floating: true,
-              snap: true,
-              actions: [
-                IconButton(
-                  tooltip: 'Link History',
-                  icon: Icon(Icons.history_rounded, color: color.onSurface),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const LinkHistoryPage(),
+            ];
+          },
+          body: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color.primaryContainer.withValues(alpha: 0.25), color.surface],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: SafeArea(
+              top: false, // Don't apply safe area to top
+              bottom: false,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 100),
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _buildHeroHeader(context),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildQuickActions(context),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Explore',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                    );
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-                IconButton(
-                  tooltip: 'Settings',
-                  icon: Icon(Icons.settings_rounded, color: color.onSurface),
-                  onPressed: widget.openSettings,
-                ),
-              ],
-            ),
-          ];
-        },
-        body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [color.primaryContainer.withValues(alpha: 0.25), color.surface],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: SafeArea(
-            top: false, // Don't apply safe area to top
-            bottom: false,
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 100),
-              physics: const BouncingScrollPhysics(),
-              children: [
-                _buildHeroHeader(context),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildQuickActions(context),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Explore',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                // Sections grid/list
-                ...sections.map(
-                  (section) => _SectionCard(
-                    title: section['title'] as String,
-                    icon: section['icon'] as IconData,
-                    onTap: () => _openPage(section['page'] as Widget),
+                  const SizedBox(height: 8),
+                  // Sections grid/list
+                  ...sections.map(
+                    (section) => _SectionCard(
+                      title: section['title'] as String,
+                      icon: section['icon'] as IconData,
+                      onTap: () => _openPage(section['page'] as Widget),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                // Social Links Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildSocialLinks(context),
-                ),
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 16),
+                  // Social Links Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildSocialLinks(context),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ),

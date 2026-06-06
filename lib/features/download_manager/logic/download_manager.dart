@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as p;
+import 'package:ragadl/core/services/dio_client.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
 import '../models/download_task.dart';
 
@@ -22,7 +24,7 @@ class DownloadManager extends ChangeNotifier {
   final Map<String, DownloadTask> _completedDownloads = {};
   final Map<String, DownloadTask> _pausedDownloads = {};
   final Queue<String> _downloadQueue = Queue();
-  final Dio _dio = Dio();
+  final Dio _dio = DioClient().dio;
   final Set<String> _downloadingUrls = {};
 
   final Map<String, int> _galleryTotalCount = {};
@@ -121,7 +123,7 @@ class DownloadManager extends ChangeNotifier {
     try {
       final directory = await _getDownloadDirectory(folder, subFolder);
       final fileName = url.split('/').last;
-      final savePath = '${directory.path}/$fileName';
+      final savePath = p.join(directory.path, fileName);
       final cancelToken = CancelToken();
 
       task = DownloadTask(
@@ -549,10 +551,10 @@ class DownloadManager extends ChangeNotifier {
 
     Directory directory;
     if (Platform.isAndroid) {
-      directory = Directory('$basePath/$folder/$subFolder');
+      directory = Directory(p.join(basePath, folder, subFolder));
     } else {
       directory = await getApplicationDocumentsDirectory();
-      directory = Directory('${directory.path}/$folder/$subFolder');
+      directory = Directory(p.join(directory.path, folder, subFolder));
     }
 
     if (!await directory.exists()) {

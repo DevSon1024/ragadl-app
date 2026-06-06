@@ -72,7 +72,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RagaDL(initialUrl: url, initialFolder: widget.celebrityName),
+          builder:
+              (_) =>
+                  RagaDL(initialUrl: url, initialFolder: widget.celebrityName),
         ),
       );
     } else {
@@ -94,11 +96,18 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(
-            title: Text('${widget.celebrityName} - Galleries', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            title: Text(
+              '${widget.celebrityName} - Galleries',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             actions: [
               IconButton(
                 icon: Icon(
-                  _controller.isCelebrityFavorite ? Icons.star : Icons.star_border,
+                  _controller.isCelebrityFavorite
+                      ? Icons.star
+                      : Icons.star_border,
                   color: _controller.isCelebrityFavorite ? Colors.amber : null,
                 ),
                 onPressed: _controller.toggleCelebrityFavorite,
@@ -109,12 +118,14 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
               child: CommonSearchBar(
                 controller: _searchController,
                 isAppBarStyle: true,
-                hintText: widget.profileUrl.toLowerCase().contains('idlebrain.com')
-                    ? 'Search gallery name...'
-                    : 'Search by gallery code...',
-                keyboardType: widget.profileUrl.toLowerCase().contains('idlebrain.com')
-                    ? TextInputType.text
-                    : TextInputType.number,
+                hintText:
+                    widget.profileUrl.toLowerCase().contains('ragalahari.com')
+                        ? 'Search gallery name...'
+                        : 'Search by gallery code...',
+                keyboardType:
+                    widget.profileUrl.toLowerCase().contains('ragalahari.com')
+                        ? TextInputType.text
+                        : TextInputType.number,
               ),
             ),
           ),
@@ -138,7 +149,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     return Column(
       children: [
         if (_controller.loadingPages.contains(_controller.currentPage))
-          LinearProgressIndicator(backgroundColor: Theme.of(context).colorScheme.surfaceContainer),
+          LinearProgressIndicator(
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+          ),
 
         Expanded(
           child: GalleryGrid(

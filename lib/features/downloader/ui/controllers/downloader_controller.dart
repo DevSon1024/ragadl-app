@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ragadl/core/permissions.dart';
 import '../../logic/downloader_service.dart';
 
-final downloaderControllerProvider = ChangeNotifierProvider<DownloaderController>((ref) {
+final downloaderControllerProvider = ChangeNotifierProvider.autoDispose<DownloaderController>((ref) {
   final service = DownloaderService();
   final controller = DownloaderController(service);
   ref.onDispose(() {

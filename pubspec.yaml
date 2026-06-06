@@ -37,6 +37,7 @@ dependencies:
   carousel_slider: ^5.1.2
 
   http: any
+  path: ^1.9.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

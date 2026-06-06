@@ -82,121 +82,123 @@ class ImageGridItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = theme.colorScheme;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      child: Material(
-        color: color.surface,
-        elevation: isSelected ? 8 : 2,
-        shadowColor:
-            isSelected
-                ? color.primary.withValues(alpha: 0.4)
-                : color.shadow.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
+    return RepaintBoundary(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        child: Material(
+          color: color.surface,
+          elevation: isSelected ? 8 : 2,
+          shadowColor:
+              isSelected
+                  ? color.primary.withValues(alpha: 0.4)
+                  : color.shadow.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border:
-                  isSelected
-                      ? Border.all(color: color.primary, width: 2)
-                      : null,
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Hero(
-                    tag: imageData.originalUrl,
-                    child: CachedNetworkImage(
-                      imageUrl: imageData.thumbnailUrl,
-                      fit: BoxFit.cover,
-                      placeholder:
-                          (context, url) => Shimmer.fromColors(
-                            baseColor: color.surfaceContainerHighest
-                                .withValues(alpha: 0.3),
-                            highlightColor: color.surface,
-                            child: Container(
-                              color: color.surfaceContainerHighest,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border:
+                    isSelected
+                        ? Border.all(color: color.primary, width: 2)
+                        : null,
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Hero(
+                      tag: imageData.originalUrl,
+                      child: CachedNetworkImage(
+                        imageUrl: imageData.thumbnailUrl,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => Shimmer.fromColors(
+                              baseColor: color.surfaceContainerHighest
+                                  .withValues(alpha: 0.3),
+                              highlightColor: color.surface,
+                              child: Container(
+                                color: color.surfaceContainerHighest,
+                              ),
                             ),
-                          ),
-                      errorWidget:
-                          (context, url, error) => Container(
-                            color: color.errorContainer.withValues(alpha: 0.1),
-                            child: Icon(
-                              Icons.broken_image_rounded,
-                              color: color.error,
+                        errorWidget:
+                            (context, url, error) => Container(
+                              color: color.errorContainer.withValues(alpha: 0.1),
+                              child: Icon(
+                                Icons.broken_image_rounded,
+                                color: color.error,
+                              ),
                             ),
-                          ),
+                      ),
                     ),
                   ),
-                ),
-                if (isSelected)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: color.primary.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                if (isSelected)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
+                  if (isSelected)
+                    Container(
                       decoration: BoxDecoration(
-                        color: color.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        color: color.primary.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(
-                        Icons.check_rounded,
-                        color: color.onPrimary,
-                        size: 16,
+                    ),
+                  if (isSelected)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: color.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.check_rounded,
+                          color: color.onPrimary,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.7),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        'Image ${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.7),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(16),
-                        bottomRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      'Image ${index + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

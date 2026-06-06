@@ -34,8 +34,8 @@ class GalleryLinksController extends ChangeNotifier {
     this.thumbnailUrl,
     GalleryScraper? scraper,
     GalleryCacheService? cacheService,
-  })  : _scraper = scraper ?? GalleryScraper(),
-        _cacheService = cacheService ?? GalleryCacheService() {
+  }) : _scraper = scraper ?? GalleryScraper(),
+       _cacheService = cacheService ?? GalleryCacheService() {
     _init();
   }
 
@@ -48,7 +48,10 @@ class GalleryLinksController extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    isCelebrityFavorite = await _cacheService.isCelebrityInFavorites(celebrityName, profileUrl);
+    isCelebrityFavorite = await _cacheService.isCelebrityInFavorites(
+      celebrityName,
+      profileUrl,
+    );
     favoriteUrls = await _cacheService.getFavoriteGalleryUrls(celebrityName);
     notifyListeners();
     await loadAllData();
@@ -102,7 +105,8 @@ class GalleryLinksController extends ChangeNotifier {
     final endIndex = min(startIndex + itemsPerPage, filteredUrls.length);
     final pageUrls = filteredUrls.sublist(startIndex, endIndex);
 
-    final urlsToLoad = pageUrls.where((url) => !loadedItems.containsKey(url)).toList();
+    final urlsToLoad =
+        pageUrls.where((url) => !loadedItems.containsKey(url)).toList();
 
     if (urlsToLoad.isEmpty) {
       loadingPages.remove(page);
@@ -131,19 +135,24 @@ class GalleryLinksController extends ChangeNotifier {
       filteredUrls = List.from(allGalleryUrls);
     } else {
       final queryLower = query.toLowerCase();
-      filteredUrls = allGalleryUrls.where((url) {
-        if (url.toLowerCase().contains('idlebrain.com')) {
-          final uri = Uri.tryParse(url);
-          if (uri != null) {
-            return uri.pathSegments.any((segment) => segment.toLowerCase().contains(queryLower));
-          }
-          return url.toLowerCase().contains(queryLower);
-        }
-        final galleryId = url.split('/')
-            .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
-            .firstOrNull;
-        return galleryId != null && galleryId.startsWith(query);
-      }).toList();
+      filteredUrls =
+          allGalleryUrls.where((url) {
+            if (url.toLowerCase().contains('ragalahari.com')) {
+              final uri = Uri.tryParse(url);
+              if (uri != null) {
+                return uri.pathSegments.any(
+                  (segment) => segment.toLowerCase().contains(queryLower),
+                );
+              }
+              return url.toLowerCase().contains(queryLower);
+            }
+            final galleryId =
+                url
+                    .split('/')
+                    .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
+                    .firstOrNull;
+            return galleryId != null && galleryId.startsWith(query);
+          }).toList();
     }
     currentPage = 1;
     loadedPages.clear();
@@ -158,7 +167,11 @@ class GalleryLinksController extends ChangeNotifier {
   }
 
   Future<void> toggleCelebrityFavorite() async {
-    final isFav = await _cacheService.toggleCelebrityFavorite(celebrityName, profileUrl, thumbnailUrl);
+    final isFav = await _cacheService.toggleCelebrityFavorite(
+      celebrityName,
+      profileUrl,
+      thumbnailUrl,
+    );
     isCelebrityFavorite = isFav;
     notifyListeners();
   }

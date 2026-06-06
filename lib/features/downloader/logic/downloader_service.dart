@@ -7,6 +7,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ragadl/core/permissions.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
+import 'package:ragadl/core/services/dio_client.dart';
 import '../../download_manager/logic/download_manager.dart';
 import '../ui/pages/link_history_page.dart';
 import '../../gallery_links/logic/site_parser.dart';
@@ -302,7 +303,7 @@ void _processGalleryIsolate(SendPort sendPort) {
     final SendPort replyPort = message['replyPort'];
 
     try {
-      final dio = Dio();
+      final dio = DioClient().dio;
       final galleryId = _extractGalleryIdIsolate(baseUrl);
 
       // Get total pages

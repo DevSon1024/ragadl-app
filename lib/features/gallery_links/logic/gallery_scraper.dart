@@ -1,8 +1,9 @@
 import 'dart:isolate';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
 import '../../../shared/utils/celebrity_utils.dart';
+import '../../../core/services/dio_client.dart';
 import '../models/scraping_models.dart';
 import 'site_parser.dart';
 
@@ -36,11 +37,17 @@ class GalleryScraper {
 
   Future<bool> checkGalleryAvailability(String galleryUrl) async {
     try {
-      final response = await http.get(Uri.parse(galleryUrl), headers: _headers)
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) return false;
+      final response = await DioClient().dio.get<String>(
+        galleryUrl,
+        options: Options(
+          headers: _headers,
+          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
+        ),
+      );
+      if (response.statusCode != 200 || response.data == null) return false;
 
-      final document = html_parser.parse(response.body);
+      final document = html_parser.parse(response.data!);
       final images = document.getElementsByTagName('img');
       for (final dom.Element img in images) {
         final src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
@@ -65,15 +72,21 @@ class GalleryScraper {
     final GalleryScrapingData data = args[1] as GalleryScrapingData;
 
     try {
-      final response = await http.get(Uri.parse(data.profileUrl), headers: data.headers)
-          .timeout(const Duration(seconds: 10));
+      final response = await DioClient().dio.get<String>(
+        data.profileUrl,
+        options: Options(
+          headers: data.headers,
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+        ),
+      );
 
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 || response.data == null) {
         sendPort.send(GalleryScrapingResult(error: 'Failed to load page: ${response.statusCode}'));
         return;
       }
 
-      final document = html_parser.parse(response.body);
+      final document = html_parser.parse(response.data!);
       final urls = _extractGalleryLinksIsolate(document, data.profileUrl);
       sendPort.send(GalleryScrapingResult(urls: urls));
     } catch (e) {
@@ -113,11 +126,17 @@ class GalleryScraper {
     List<String> thumbnailDomains,
   ) async {
     try {
-      final response = await http.get(Uri.parse(link), headers: headers)
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) return null;
+      final response = await DioClient().dio.get<String>(
+        link,
+        options: Options(
+          headers: headers,
+          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
+        ),
+      );
+      if (response.statusCode != 200 || response.data == null) return null;
 
-      final document = html_parser.parse(response.body);
+      final document = html_parser.parse(response.data!);
       final parser = ParserFactory.getParser(link);
       
       final title = parser.extractTitle(document, link);
