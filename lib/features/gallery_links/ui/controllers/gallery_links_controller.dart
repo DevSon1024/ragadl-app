@@ -128,7 +128,15 @@ class GalleryLinksController extends ChangeNotifier {
     if (query.isEmpty) {
       filteredUrls = List.from(allGalleryUrls);
     } else {
+      final queryLower = query.toLowerCase();
       filteredUrls = allGalleryUrls.where((url) {
+        if (url.toLowerCase().contains('idlebrain.com')) {
+          final uri = Uri.tryParse(url);
+          if (uri != null) {
+            return uri.pathSegments.any((segment) => segment.toLowerCase().contains(queryLower));
+          }
+          return url.toLowerCase().contains(queryLower);
+        }
         final galleryId = url.split('/')
             .where((segment) => RegExp(r'^\d+$').hasMatch(segment))
             .firstOrNull;

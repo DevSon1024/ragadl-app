@@ -38,10 +38,10 @@ class ActionButtons extends StatelessWidget {
                             );
                             return;
                           }
-                          if (!controller.downloaderService.isValidRagaUrl(url)) {
+                          if (!controller.downloaderService.isValidUrl(url)) {
                             SnackbarHelper.showModernSnackBar(
                               context: context,
-                              message: 'Invalid URL: Must start with https://www.ragalahari.com',
+                              message: 'Invalid URL: Must be a Ragalahari or Idlebrain gallery URL',
                               icon: Icons.error_rounded,
                               isError: true,
                             );

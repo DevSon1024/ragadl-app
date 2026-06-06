@@ -193,7 +193,7 @@ class _RagadlState extends ConsumerState<RagaDL>
                     onRetry: () {
                       controller.clearError();
                       final url = controller.urlController.text.trim();
-                      if (url.isNotEmpty && controller.downloaderService.isValidRagaUrl(url)) {
+                      if (url.isNotEmpty && controller.downloaderService.isValidUrl(url)) {
                         controller.processGallery(
                           baseUrl: url,
                           galleryTitle: widget.galleryTitle,

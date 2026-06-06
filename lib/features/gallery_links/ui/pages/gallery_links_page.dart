@@ -109,8 +109,12 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
               child: CommonSearchBar(
                 controller: _searchController,
                 isAppBarStyle: true,
-                hintText: 'Search by gallery code...',
-                keyboardType: TextInputType.number,
+                hintText: widget.profileUrl.toLowerCase().contains('idlebrain.com')
+                    ? 'Search gallery name...'
+                    : 'Search by gallery code...',
+                keyboardType: widget.profileUrl.toLowerCase().contains('idlebrain.com')
+                    ? TextInputType.text
+                    : TextInputType.number,
               ),
             ),
           ),

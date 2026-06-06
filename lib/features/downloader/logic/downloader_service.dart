@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' show parse;
+import 'package:html/dom.dart' as dom;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ragadl/core/permissions.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
 import '../../download_manager/logic/download_manager.dart';
 import '../ui/pages/link_history_page.dart';
+import '../../gallery_links/logic/site_parser.dart';
 
 // User agents for rotation
 const List<String> userAgents = [
@@ -42,20 +44,23 @@ class DownloaderService {
 
   /// Extract gallery ID from URL
   String extractGalleryId(String url) {
-    final RegExp regex = RegExp(r"/(\d+)/");
-    final match = regex.firstMatch(url);
-    return match?.group(1) ?? url.hashCode.abs().toString();
+    final parser = ParserFactory.getParser(url);
+    return parser.extractGalleryId(url);
   }
 
   /// Construct page URL for pagination
   String constructPageUrl(String baseUrl, String galleryId, int index) {
     if (index == 0) return baseUrl;
+    if (baseUrl.toLowerCase().contains('idlebrain.com')) return baseUrl;
     return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
   }
 
-  /// Validate Ragalahari URL
-  bool isValidRagaUrl(String url) {
-    return url.trim().startsWith('https://www.ragalahari.com');
+  /// Validate gallery URL (supporting Ragalahari or Idlebrain)
+  bool isValidUrl(String url) {
+    final trimmed = url.trim().toLowerCase();
+    return trimmed.startsWith('https://www.ragalahari.com') ||
+           trimmed.startsWith('https://www.idlebrain.com') ||
+           trimmed.startsWith('https://idlebrain.com');
   }
 
   /// Check and request storage permissions
@@ -331,18 +336,21 @@ void _processGalleryIsolate(SendPort sendPort) {
 /// Get total number of pages in gallery
 Future<int> _getTotalPages(Dio dio, String url) async {
   try {
-    final headers = {
+    if (url.toLowerCase().contains('idlebrain.com')) {
+      return 1;
+    }
+    final headers = <String, String>{
       'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
-    final response = await dio.get(url, options: Options(headers: headers));
+    final response = await dio.get<String>(url, options: Options(headers: headers));
 
-    if (response.statusCode == 200) {
-      final document = parse(response.data);
+    if (response.statusCode == 200 && response.data != null) {
+      final document = parse(response.data!);
       final pageLinks = document.querySelectorAll("a.otherPage");
       final pages =
           pageLinks
-              .map((e) => int.tryParse(e.text))
-              .where((page) => page != null)
+              .map((dom.Element e) => int.tryParse(e.text))
+              .where((int? page) => page != null)
               .cast<int>()
               .toList();
       return pages.isEmpty ? 1 : pages.reduce(max);
@@ -363,15 +371,17 @@ Future<void> _processPage(
 ) async {
   try {
     final pageUrl = _constructPageUrlIsolate(baseUrl, galleryId, index);
-    final headers = {
+    final headers = <String, String>{
       'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
-    final response = await dio.get(pageUrl, options: Options(headers: headers));
+    final response = await dio.get<String>(pageUrl, options: Options(headers: headers));
 
-    if (response.statusCode == 200) {
-      final document = parse(response.data);
-      _removeUnwantedDivs(document);
-      final pageImages = _extractImageUrls(document);
+    if (response.statusCode == 200 && response.data != null) {
+      final document = parse(response.data!);
+      if (!pageUrl.toLowerCase().contains('idlebrain.com')) {
+        _removeUnwantedDivs(document);
+      }
+      final pageImages = _extractImageUrls(document, pageUrl);
       replyPort.send({'type': 'images', 'images': pageImages});
     } else {
       replyPort.send({
@@ -398,73 +408,40 @@ Future<void> _processPage(
 
 /// Extract gallery ID from URL (isolate version)
 String _extractGalleryIdIsolate(String url) {
-  final RegExp regex = RegExp(r"/(\d+)/");
-  final match = regex.firstMatch(url);
-  return match?.group(1) ?? url.hashCode.abs().toString();
+  final parser = ParserFactory.getParser(url);
+  return parser.extractGalleryId(url);
 }
 
 /// Construct page URL for pagination (isolate version)
 String _constructPageUrlIsolate(String baseUrl, String galleryId, int index) {
   if (index == 0) return baseUrl;
+  if (baseUrl.toLowerCase().contains('idlebrain.com')) return baseUrl;
   return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
 }
 
 /// Remove unwanted divs from HTML document
-void _removeUnwantedDivs(var document) {
-  final unwantedHeadings = {
+void _removeUnwantedDivs(dom.Document document) {
+  final unwantedHeadings = <String>{
     "Latest Local Events",
     "Latest Movie Events",
     "Latest Starzone",
   };
 
-  for (var div in document.querySelectorAll("div#btmlatest")) {
-    var h4 = div.querySelector("h4");
+  for (final dom.Element div in document.querySelectorAll("div#btmlatest")) {
+    final h4 = div.querySelector("h4");
     if (h4 != null && unwantedHeadings.contains(h4.text.trim())) {
       div.remove();
     }
   }
 
-  for (var badId in ["taboolaandnews", "news_panel"]) {
-    var div = document.querySelector("div#$badId");
+  for (final String badId in <String>["taboolaandnews", "news_panel"]) {
+    final div = document.querySelector("div#$badId");
     div?.remove();
   }
 }
 
 /// Extract image URLs from HTML document
-List<ImageData> _extractImageUrls(var document) {
-  final Set<ImageData> imageDataSet = {};
-
-  for (var img in document.querySelectorAll("img")) {
-    final src = img.attributes['src'];
-    if (src == null ||
-        !src.toLowerCase().endsWith(".jpg") ||
-        (!src.startsWith("http") && !src.startsWith("../"))) {
-      continue;
-    }
-
-    String thumbnailUrl =
-        src.startsWith("http")
-            ? src
-            : "https://www.ragalahari.com/${src.replaceAll("../", "")}";
-
-    String originalUrl = thumbnailUrl.replaceAll(
-      RegExp(r't(?=\.jpg)', caseSensitive: false),
-      '',
-    );
-
-    final parentA = img.parent?.querySelector('a');
-    if (parentA != null && parentA.attributes['href'] != null) {
-      final href = parentA.attributes['href']!;
-      if (href.toLowerCase().endsWith('.jpg')) {
-        originalUrl =
-            href.startsWith('http') ? href : "https://www.ragalahari.com/$href";
-      }
-    }
-
-    imageDataSet.add(
-      ImageData(thumbnailUrl: thumbnailUrl, originalUrl: originalUrl),
-    );
-  }
-
-  return imageDataSet.toList();
+List<ImageData> _extractImageUrls(dom.Document document, String baseUrl) {
+  final parser = ParserFactory.getParser(baseUrl);
+  return parser.extractImageUrls(document, baseUrl);
 }

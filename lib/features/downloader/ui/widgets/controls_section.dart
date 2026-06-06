@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controllers/downloader_controller.dart';
 import '../utils/snackbar_helper.dart';
@@ -88,14 +88,14 @@ class ControlsSection extends StatelessWidget {
               border: Border.all(
                 color:
                     controller.urlController.text.isNotEmpty &&
-                            !controller.downloaderService.isValidRagaUrl(
+                            !controller.downloaderService.isValidUrl(
                               controller.urlController.text,
                             )
                         ? color.error
                         : color.outline.withValues(alpha: 0.2),
                 width:
                     controller.urlController.text.isNotEmpty &&
-                            !controller.downloaderService.isValidRagaUrl(
+                            !controller.downloaderService.isValidUrl(
                               controller.urlController.text,
                             )
                         ? 2
@@ -114,16 +114,16 @@ class ControlsSection extends StatelessWidget {
               focusNode: controller.urlFocusNode,
               decoration: InputDecoration(
                 labelText: 'Gallery URL',
-                hintText: 'https://www.ragalahari.com/...',
+                hintText: 'https://www.ragalahari.com/... or https://www.idlebrain.com/...',
                 prefixIcon: Icon(
                   Icons.link_rounded,
                   color:
                       controller.urlController.text.isNotEmpty &&
-                              !controller.downloaderService.isValidRagaUrl(
-                                controller.urlController.text,
-                              )
-                          ? color.error
-                          : color.primary,
+                               !controller.downloaderService.isValidUrl(
+                                 controller.urlController.text,
+                               )
+                           ? color.error
+                           : color.primary,
                 ),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -190,10 +190,10 @@ class ControlsSection extends StatelessWidget {
                 ),
                 errorText:
                     controller.urlController.text.isNotEmpty &&
-                            !controller.downloaderService.isValidRagaUrl(
+                            !controller.downloaderService.isValidUrl(
                               controller.urlController.text,
                             )
-                        ? 'URL must start with https://www.ragalahari.com'
+                        ? 'URL must be a valid Ragalahari or Idlebrain gallery URL'
                         : null,
               ),
               keyboardType: TextInputType.url,
