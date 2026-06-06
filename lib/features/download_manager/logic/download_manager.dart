@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:collection';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +9,7 @@ import '../models/download_task.dart';
 
 export '../models/download_task.dart';
 
-class DownloadManager {
+class DownloadManager extends ChangeNotifier {
   static final DownloadManager _instance = DownloadManager._internal();
   factory DownloadManager() => _instance;
   DownloadManager._internal() {
@@ -39,7 +40,7 @@ class DownloadManager {
   Map<String, DownloadTask> get runningDownloads {
     return Map.fromEntries(
       _activeDownloads.entries.where(
-        (e) =>
+        (MapEntry<String, DownloadTask> e) =>
             e.value.status == DownloadStatus.downloading ||
             e.value.status == DownloadStatus.queued,
       ),
@@ -49,7 +50,7 @@ class DownloadManager {
   Map<String, DownloadTask> get failedDownloads {
     return Map.fromEntries(
       _activeDownloads.entries.where(
-        (e) => e.value.status == DownloadStatus.failed,
+        (MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.failed,
       ),
     );
   }
@@ -57,7 +58,7 @@ class DownloadManager {
   Map<String, DownloadTask> get completedDownloads {
     return Map.fromEntries(
       _activeDownloads.entries.where(
-        (e) => e.value.status == DownloadStatus.completed,
+        (MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.completed,
       ),
     );
   }
@@ -65,7 +66,7 @@ class DownloadManager {
   Map<String, DownloadTask> get pausedDownloads {
     return Map.fromEntries(
       _activeDownloads.entries.where(
-        (e) => e.value.status == DownloadStatus.paused,
+        (MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.paused,
       ),
     );
   }
@@ -82,6 +83,7 @@ class DownloadManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('max_concurrent_downloads', count);
     _processQueue();
+    notifyListeners();
   }
 
   // Public API — add / pause / resume / cancel / retry / clear
@@ -133,6 +135,7 @@ class DownloadManager {
       }
 
       _enqueueDownload(task);
+      notifyListeners();
     } catch (e) {
       if (task != null) {
         _activeDownloads.remove(url);
@@ -141,6 +144,7 @@ class DownloadManager {
         _galleryFailedCount[batchId] = (_galleryFailedCount[batchId] ?? 0) + 1;
       }
       onComplete(false);
+      notifyListeners();
     }
   }
 
@@ -151,6 +155,7 @@ class DownloadManager {
       _activeDownloads[url] = task.copyWith(status: DownloadStatus.paused);
       _downloadingUrls.remove(url);
       _processQueue();
+      notifyListeners();
     }
   }
 
@@ -163,6 +168,7 @@ class DownloadManager {
       );
       _activeDownloads[url] = newTask;
       _enqueueDownload(newTask);
+      notifyListeners();
     }
   }
 
@@ -176,6 +182,7 @@ class DownloadManager {
       }
       _activeDownloads.remove(url);
       _downloadQueue.remove(url);
+      notifyListeners();
     }
   }
 
@@ -191,6 +198,7 @@ class DownloadManager {
       );
       _activeDownloads[url] = newTask;
       _enqueueDownload(newTask);
+      notifyListeners();
     }
   }
 
@@ -200,18 +208,21 @@ class DownloadManager {
       if (task.status == DownloadStatus.completed ||
           task.status == DownloadStatus.failed) {
         _activeDownloads.remove(url);
+        notifyListeners();
       }
     }
   }
 
   void clearCompleted() {
     _activeDownloads.removeWhere(
-      (_, t) => t.status == DownloadStatus.completed,
+      (String _, DownloadTask t) => t.status == DownloadStatus.completed,
     );
+    notifyListeners();
   }
 
   void clearFailed() {
-    _activeDownloads.removeWhere((_, t) => t.status == DownloadStatus.failed);
+    _activeDownloads.removeWhere((String _, DownloadTask t) => t.status == DownloadStatus.failed);
+    notifyListeners();
   }
 
   void pauseAll() {
@@ -236,14 +247,15 @@ class DownloadManager {
       }
     }
     _refreshBatchNotification(isPaused: true);
+    notifyListeners();
   }
 
   void resumeAll() {
     _isPaused = false;
     final pausedUrls =
         _activeDownloads.entries
-            .where((e) => e.value.status == DownloadStatus.paused)
-            .map((e) => e.key)
+            .where((MapEntry<String, DownloadTask> e) => e.value.status == DownloadStatus.paused)
+            .map((MapEntry<String, DownloadTask> e) => e.key)
             .toList();
     for (final url in pausedUrls) {
       final task = _activeDownloads[url];
@@ -260,6 +272,7 @@ class DownloadManager {
     }
     _processQueue();
     _refreshBatchNotification(isPaused: false);
+    notifyListeners();
   }
 
   void cancelAll() {
@@ -270,7 +283,7 @@ class DownloadManager {
     _downloadingUrls.clear();
     _downloadQueue.clear();
     _activeDownloads.removeWhere(
-      (_, t) =>
+      (String _, DownloadTask t) =>
           t.status == DownloadStatus.downloading ||
           t.status == DownloadStatus.queued ||
           t.status == DownloadStatus.paused,
@@ -280,6 +293,7 @@ class DownloadManager {
     _galleryFailedCount.clear();
     _galleryNameMap.clear();
     NotificationController.cancelBatchNotification();
+    notifyListeners();
   }
 
   // Internal queue management
@@ -297,7 +311,8 @@ class DownloadManager {
     _activeDownloads[task.url] = task.copyWith(
       status: DownloadStatus.downloading,
     );
-    _download(task, (success) {
+    notifyListeners();
+    _download(task, (bool success) {
       _handleDownloadComplete(task.url, success, task.batchId);
     });
   }
@@ -350,6 +365,7 @@ class DownloadManager {
       }
     }
 
+    notifyListeners();
     _processQueue();
   }
 
@@ -372,9 +388,7 @@ class DownloadManager {
     String galleryName = 'Download';
     for (final batchId in _galleryTotalCount.keys) {
       total += _galleryTotalCount[batchId] ?? 0;
-      completed +=
-          (_galleryCompletedCount[batchId] ?? 0) +
-          (_galleryFailedCount[batchId] ?? 0);
+      completed += _galleryCompletedCount[batchId] ?? 0;
       galleryName = _galleryNameMap[batchId] ?? galleryName;
     }
     if (total > 0) {
@@ -397,7 +411,7 @@ class DownloadManager {
     final processed = completed + failed;
 
     await NotificationController.showBatchProgress(
-      completed: processed,
+      completed: completed,
       total: total,
       galleryName: galleryName,
       isPaused: _isPaused,
@@ -460,7 +474,6 @@ class DownloadManager {
               _activeDownloads[task.url] = task.copyWith(
                 progress: initialProgress,
               );
-              task.onProgress?.call(initialProgress);
             }
           } else {
             await file.delete();
@@ -487,16 +500,7 @@ class DownloadManager {
         task.savePath,
         cancelToken: task.cancelToken,
         deleteOnError: false,
-        onReceiveProgress: (received, total) {
-          double progress;
-          if (canResume && start > 0 && total != -1) {
-            progress = (start + received) / (total + start);
-          } else {
-            progress = total > 0 ? received / total : 0.0;
-          }
-          _activeDownloads[task.url] = task.copyWith(progress: progress);
-          task.onProgress?.call(progress);
-        },
+        onReceiveProgress: null,
         options: Options(
           headers: headers,
           followRedirects: true,

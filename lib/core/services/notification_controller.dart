@@ -18,7 +18,7 @@ class NotificationController {
         id: batchNotificationId,
         channelKey: channelKey,
         title: '$label · $galleryName',
-        body: '$completed of $total completed',
+        body: '$label: $completed of $total images',
         notificationLayout: NotificationLayout.ProgressBar,
         progress: total > 0 ? ((completed / total) * 100).toDouble() : 0,
         locked: true,
