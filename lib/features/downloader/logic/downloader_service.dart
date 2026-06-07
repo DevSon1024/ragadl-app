@@ -51,17 +51,15 @@ class DownloaderService {
 
   /// Construct page URL for pagination
   String constructPageUrl(String baseUrl, String galleryId, int index) {
-    if (index == 0) return baseUrl;
-    if (baseUrl.toLowerCase().contains('idlebrain.com')) return baseUrl;
-    return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
+    final parser = ParserFactory.getParser(baseUrl);
+    return parser.constructPageUrl(baseUrl, galleryId, index);
   }
 
   bool isValidUrl(String url) {
     try {
       final uri = Uri.tryParse(url.trim());
       if (uri == null || !uri.hasScheme) return false;
-      final host = uri.host.toLowerCase();
-      return host.endsWith('ragalahari.com') || host.endsWith('idlebrain.com');
+      return ParserFactory.isSupported(url);
     } catch (_) {
       return false;
     }
@@ -340,9 +338,7 @@ void _processGalleryIsolate(SendPort sendPort) {
 /// Get total number of pages in gallery
 Future<int> _getTotalPages(Dio dio, String url) async {
   try {
-    if (url.toLowerCase().contains('idlebrain.com')) {
-      return 1;
-    }
+    final parser = ParserFactory.getParser(url);
     final headers = <String, String>{
       'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
@@ -350,14 +346,7 @@ Future<int> _getTotalPages(Dio dio, String url) async {
 
     if (response.statusCode == 200 && response.data != null) {
       final document = parse(response.data!);
-      final pageLinks = document.querySelectorAll("a.otherPage");
-      final pages =
-          pageLinks
-              .map((dom.Element e) => int.tryParse(e.text))
-              .where((int? page) => page != null)
-              .cast<int>()
-              .toList();
-      return pages.isEmpty ? 1 : pages.reduce(max);
+      return parser.getPages(document);
     }
     return 1;
   } catch (e) {
@@ -382,9 +371,6 @@ Future<void> _processPage(
 
     if (response.statusCode == 200 && response.data != null) {
       final document = parse(response.data!);
-      if (!pageUrl.toLowerCase().contains('idlebrain.com')) {
-        _removeUnwantedDivs(document);
-      }
       final pageImages = _extractImageUrls(document, pageUrl);
       replyPort.send({'type': 'images', 'images': pageImages});
     } else {
@@ -418,30 +404,8 @@ String _extractGalleryIdIsolate(String url) {
 
 /// Construct page URL for pagination (isolate version)
 String _constructPageUrlIsolate(String baseUrl, String galleryId, int index) {
-  if (index == 0) return baseUrl;
-  if (baseUrl.toLowerCase().contains('idlebrain.com')) return baseUrl;
-  return baseUrl.replaceAll(RegExp("$galleryId/?"), "$galleryId/$index/");
-}
-
-/// Remove unwanted divs from HTML document
-void _removeUnwantedDivs(dom.Document document) {
-  final unwantedHeadings = <String>{
-    "Latest Local Events",
-    "Latest Movie Events",
-    "Latest Starzone",
-  };
-
-  for (final dom.Element div in document.querySelectorAll("div#btmlatest")) {
-    final h4 = div.querySelector("h4");
-    if (h4 != null && unwantedHeadings.contains(h4.text.trim())) {
-      div.remove();
-    }
-  }
-
-  for (final String badId in <String>["taboolaandnews", "news_panel"]) {
-    final div = document.querySelector("div#$badId");
-    div?.remove();
-  }
+  final parser = ParserFactory.getParser(baseUrl);
+  return parser.constructPageUrl(baseUrl, galleryId, index);
 }
 
 /// Extract image URLs from HTML document

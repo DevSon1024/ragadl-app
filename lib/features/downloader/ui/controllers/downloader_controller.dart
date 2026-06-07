@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ragadl/core/permissions.dart';
 import '../../logic/downloader_service.dart';
+import '../../../gallery_links/logic/site_parser.dart';
 
 final downloaderControllerProvider = ChangeNotifierProvider.autoDispose<DownloaderController>((ref) {
   final service = DownloaderService();
@@ -64,30 +65,15 @@ class DownloaderController extends ChangeNotifier {
 
   void _handleUrlChange() {
     final url = urlController.text.trim();
-    if (url.isNotEmpty && url.toLowerCase().contains('idlebrain.com')) {
-      final folderName = _extractIdlebrainFolderName(url);
+    if (url.isNotEmpty && ParserFactory.isSupported(url)) {
+      final parser = ParserFactory.getParser(url);
+      final folderName = parser.suggestFolderName(url);
       if (folderName != null && folderName.isNotEmpty && folderController.text != folderName) {
         folderController.text = folderName;
         mainFolderName = folderName;
         notifyListeners();
       }
     }
-  }
-
-  String? _extractIdlebrainFolderName(String url) {
-    try {
-      final uri = Uri.tryParse(url);
-      if (uri == null) return null;
-      final segments = uri.pathSegments.where((String s) => s.isNotEmpty).toList();
-      if (segments.length >= 2) {
-        final last = segments.last.toLowerCase();
-        if (last == 'index.html' || last.endsWith('.html')) {
-          return segments[segments.length - 2];
-        }
-        return segments.last;
-      }
-    } catch (_) {}
-    return null;
   }
 
   void initializeFields({
@@ -207,23 +193,16 @@ class DownloaderController extends ChangeNotifier {
       showSnackBar('Storage permission granted', Icons.check_circle_rounded, isError: false);
     }
 
+    final parser = ParserFactory.getParser(baseUrl);
     if (mainFolderName.isEmpty && folderController.text.isNotEmpty) {
       mainFolderName = folderController.text.trim();
     } else if (mainFolderName.isEmpty) {
-      mainFolderName = baseUrl.contains('idlebrain.com') ? "IdlebrainDownloads" : "RagaDownloads";
+      mainFolderName = parser.defaultMainFolderName;
       folderController.text = mainFolderName;
     }
 
-    if (baseUrl.contains('idlebrain.com')) {
-      final galleryId = downloaderService.extractGalleryId(baseUrl);
-      if (mainFolderName == galleryId) {
-        subFolderName = mainFolderName;
-      } else {
-        subFolderName = "$mainFolderName-$galleryId";
-      }
-    } else {
-      subFolderName = "$mainFolderName-${downloaderService.extractGalleryId(baseUrl)}";
-    }
+    final galleryId = parser.extractGalleryId(baseUrl);
+    subFolderName = parser.getSubFolderName(mainFolderName, galleryId);
 
     await downloaderService.setBaseDownloadPath('/storage/emulated/0/Download/RagaDL Downloads');
 
