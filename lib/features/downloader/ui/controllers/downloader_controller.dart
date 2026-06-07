@@ -5,19 +5,21 @@ import 'package:ragadl/core/permissions.dart';
 import '../../logic/downloader_service.dart';
 import '../../../gallery_links/logic/site_parser.dart';
 
-final downloaderControllerProvider = ChangeNotifierProvider.autoDispose<DownloaderController>((ref) {
-  final service = DownloaderService();
-  final controller = DownloaderController(service);
-  ref.onDispose(() {
-    controller.dispose();
-  });
-  return controller;
-});
+final downloaderControllerProvider =
+    ChangeNotifierProvider.autoDispose<DownloaderController>((ref) {
+      final service = DownloaderService();
+      final controller = DownloaderController(service);
+      ref.onDispose(() {
+        controller.dispose();
+      });
+      return controller;
+    });
 
 class DownloaderController extends ChangeNotifier {
   final DownloaderService downloaderService;
 
-  bool get isBehindwoodsLink => urlController.text.trim().toLowerCase().contains('behindwoods.com');
+  bool get isBehindwoodsLink =>
+      urlController.text.trim().toLowerCase().contains('behindwoods.com');
 
   DownloaderController(this.downloaderService) {
     urlFocusNode.addListener(_handleFocusChange);
@@ -75,7 +77,9 @@ class DownloaderController extends ChangeNotifier {
     if (url.isNotEmpty && ParserFactory.isSupported(url)) {
       final parser = ParserFactory.getParser(url);
       final folderName = parser.suggestFolderName(url);
-      if (folderName != null && folderName.isNotEmpty && folderController.text != folderName) {
+      if (folderName != null &&
+          folderName.isNotEmpty &&
+          folderController.text != folderName) {
         folderController.text = folderName;
         mainFolderName = folderName;
         notifyListeners();
@@ -174,7 +178,9 @@ class DownloaderController extends ChangeNotifier {
     bool permissionsGranted = await PermissionHandler.checkStoragePermissions();
     if (!permissionsGranted) {
       if (!context.mounted) return false;
-      permissionsGranted = await PermissionHandler.requestAllPermissions(context);
+      permissionsGranted = await PermissionHandler.requestAllPermissions(
+        context,
+      );
     }
     return permissionsGranted;
   }
@@ -183,7 +189,8 @@ class DownloaderController extends ChangeNotifier {
     required String baseUrl,
     required String? galleryTitle,
     required BuildContext context,
-    required void Function(String message, IconData icon, {bool isError}) showSnackBar,
+    required void Function(String message, IconData icon, {bool isError})
+    showSnackBar,
   }) async {
     await downloaderService.saveToHistory(
       url: baseUrl,
@@ -205,7 +212,11 @@ class DownloaderController extends ChangeNotifier {
     final permissionsGranted = await checkPermissions(context);
     if (!context.mounted) return;
     if (permissionsGranted) {
-      showSnackBar('Storage permission granted', Icons.check_circle_rounded, isError: false);
+      showSnackBar(
+        'Storage permission granted',
+        Icons.check_circle_rounded,
+        isError: false,
+      );
     }
 
     final parser = ParserFactory.getParser(baseUrl);
@@ -219,15 +230,25 @@ class DownloaderController extends ChangeNotifier {
     final galleryId = parser.extractGalleryId(baseUrl);
     subFolderName = parser.getSubFolderName(mainFolderName, galleryId);
 
-    await downloaderService.setBaseDownloadPath('/storage/emulated/0/Download/RagaDL Downloads');
+    await downloaderService.setBaseDownloadPath(
+      '/storage/emulated/0/Download/RagaDL Downloads',
+    );
 
     if (isBehindwoodsLink) {
       final startVal = int.tryParse(startPageController.text.trim());
       final endVal = int.tryParse(endPageController.text.trim());
-      if (startVal == null || endVal == null || startVal <= 0 || endVal <= 0 || startVal > endVal) {
+      if (startVal == null ||
+          endVal == null ||
+          startVal <= 0 ||
+          endVal <= 0 ||
+          startVal > endVal) {
         isLoading = false;
         notifyListeners();
-        showSnackBar('Please enter a valid page range (Start Page <= End Page)', Icons.warning_rounded, isError: true);
+        showSnackBar(
+          'Please enter a valid page range (Start Image <= End Image)',
+          Icons.warning_rounded,
+          isError: true,
+        );
         return;
       }
 
@@ -247,8 +268,12 @@ class DownloaderController extends ChangeNotifier {
         isLoading = false;
         notifyListeners();
         showSnackBar(
-          imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images',
-          imageUrls.isEmpty ? Icons.search_off_rounded : Icons.photo_library_rounded,
+          imageUrls.isEmpty
+              ? 'No images found!'
+              : 'Found ${imageUrls.length} images',
+          imageUrls.isEmpty
+              ? Icons.search_off_rounded
+              : Icons.photo_library_rounded,
         );
       } catch (e) {
         isLoading = false;
@@ -273,13 +298,20 @@ class DownloaderController extends ChangeNotifier {
           isLoading = false;
           notifyListeners();
           showSnackBar(
-            imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images',
-            imageUrls.isEmpty ? Icons.search_off_rounded : Icons.photo_library_rounded,
+            imageUrls.isEmpty
+                ? 'No images found!'
+                : 'Found ${imageUrls.length} images',
+            imageUrls.isEmpty
+                ? Icons.search_off_rounded
+                : Icons.photo_library_rounded,
           );
-        } else if (data['type'] == 'error' || data['type'] == 'dio_error' || data['type'] == 'page_error') {
-          final errorMsg = data['type'] == 'dio_error'
-              ? 'Network error on page ${data['page']}: ${data['error']}'
-              : data['type'] == 'page_error'
+        } else if (data['type'] == 'error' ||
+            data['type'] == 'dio_error' ||
+            data['type'] == 'page_error') {
+          final errorMsg =
+              data['type'] == 'dio_error'
+                  ? 'Network error on page ${data['page']}: ${data['error']}'
+                  : data['type'] == 'page_error'
                   ? 'Page ${data['page']} failed with status ${data['status']}'
                   : data['error'];
           isLoading = false;

@@ -101,7 +101,7 @@ class DownloadManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Public API — add / pause / resume / cancel / retry / clear
+  // Public API - add / pause / resume / cancel / retry / clear
   Future<void> addDownload({
     required String url,
     required String folder,
@@ -297,14 +297,17 @@ class DownloadManager extends ChangeNotifier {
     }
     _downloadingUrls.clear();
     _downloadQueue.clear();
-    
-    final urlsToCancel = _activeDownloads.entries
-        .where((e) =>
-            e.value.status == DownloadStatus.downloading ||
-            e.value.status == DownloadStatus.queued ||
-            e.value.status == DownloadStatus.paused)
-        .map((e) => e.key)
-        .toList();
+
+    final urlsToCancel =
+        _activeDownloads.entries
+            .where(
+              (e) =>
+                  e.value.status == DownloadStatus.downloading ||
+                  e.value.status == DownloadStatus.queued ||
+                  e.value.status == DownloadStatus.paused,
+            )
+            .map((e) => e.key)
+            .toList();
     for (final url in urlsToCancel) {
       _updateTask(url, null);
     }
@@ -329,9 +332,7 @@ class DownloadManager extends ChangeNotifier {
 
   void _startDownload(DownloadTask task) {
     _downloadingUrls.add(task.url);
-    _updateTask(task.url, task.copyWith(
-      status: DownloadStatus.downloading,
-    ));
+    _updateTask(task.url, task.copyWith(status: DownloadStatus.downloading));
     notifyListeners();
     _download(task, (bool success) {
       _handleDownloadComplete(task.url, success, task.batchId);
@@ -344,11 +345,14 @@ class DownloadManager extends ChangeNotifier {
 
     if (success) {
       if (task != null) {
-        _updateTask(url, task.copyWith(
-          status: DownloadStatus.completed,
-          progress: 1.0,
-          completedTime: DateTime.now(),
-        ));
+        _updateTask(
+          url,
+          task.copyWith(
+            status: DownloadStatus.completed,
+            progress: 1.0,
+            completedTime: DateTime.now(),
+          ),
+        );
         if (batchId != null) {
           _galleryCompletedCount[batchId] =
               (_galleryCompletedCount[batchId] ?? 0) + 1;
@@ -373,10 +377,14 @@ class DownloadManager extends ChangeNotifier {
       }
       // Final failure
       if (task != null) {
-        _updateTask(url, task.copyWith(
-          status: DownloadStatus.failed,
-          errorMessage: 'Download failed after ${task.retryCount + 1} attempts',
-        ));
+        _updateTask(
+          url,
+          task.copyWith(
+            status: DownloadStatus.failed,
+            errorMessage:
+                'Download failed after ${task.retryCount + 1} attempts',
+          ),
+        );
         if (batchId != null) {
           _galleryFailedCount[batchId] =
               (_galleryFailedCount[batchId] ?? 0) + 1;

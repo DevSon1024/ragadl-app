@@ -14,7 +14,7 @@ This document serves as the absolute source of truth for any AI agent or LLM ass
 - **Framework:** Flutter is the exclusive UI framework.[cite: 3]
 - **Design Principle:** Always consider a mobile-first approach to UI styling and layouts, ensuring the mobile screen size layout is considered first.[cite: 3]
 - **Widgets & Rebuilds:** Keep widgets highly focused and modular. Prevent unnecessary rebuilds by using `const` constructors wherever possible and ensuring state updates are strictly targeted.[cite: 3]
-- **State Separation:** Prefer state hoisting for UI components to keep them stateless. **Never** perform heavy calculations, HTML parsing, or file operations directly within `build()` methods.[cite: 3] Think of the main UI thread like the lead actor on a movie set—never make it wait around for the heavy lifting that should be done behind the scenes by the background crew.
+- **State Separation:** Prefer state hoisting for UI components to keep them stateless. **Never** perform heavy calculations, HTML parsing, or file operations directly within `build()` methods.[cite: 3] Think of the main UI thread like the lead actor on a movie set-never make it wait around for the heavy lifting that should be done behind the scenes by the background crew.
 
 ## 3. Code Quality & Performance Optimization
 

@@ -1,178 +1,87 @@
 <div align="center">
 
-<img src="assets/logo.png" width="160" height="160" />
+<img src="assets/logo.png" width="140" height="140" style="border-radius: 28px;" />
 
-# 📸 Ragalahari Image Gallery Downloader
+# RagaDL: Gallery Downloader
 
-### Flutter App to Download Celeb Albums from Ragalahari.com
+### A Flutter application for scraping and downloading high-fidelity celebrity image galleries.
 
-[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragadl-app?label=Release&logo=github)](https://github.com/DevSon1024/ragadl-app/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragadl-app/total?logo=github)](https://github.com/DevSon1024/ragadl-app/releases)
-[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragadl-app)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/ragadl-app?label=Release&logo=github&color=blue)](https://github.com/DevSon1024/ragadl-app/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/ragadl-app/total?logo=github&color=green)](https://github.com/DevSon1024/ragadl-app/releases)
+[![License: MIT](https://img.shields.io/github/license/DevSon1024/ragadl-app?color=orange)](LICENSE)
 
 </div>
 
 ---
 
-## 📱 Screenshots
+> ## Screenshots
 
 <div align="center">
-<img src="screenshots/homePage.jpg" width="30%" />
-<img src="screenshots/celebritiesPage.jpg" width="30%" />
-<img src="screenshots/celebrityGalleriesPage.jpg" width="30%" />
-<img src="screenshots/downloaderPage.jpg" width="30%" />
-<img src="screenshots/downloadsPage.jpg" width="30%" />
-<img src="screenshots/historyPage.jpg" width="30%" />
-<img src="screenshots/latestActresses.jpg" width="30%" />
-<img src="screenshots/linkHistoryPage.jpg" width="30%" />
-
+<img src="screenshots/homePage.jpg" width="30%" style="margin: 4px; border-radius: 8px;" />
+<img src="screenshots/celebrityGalleriesPage.jpg" width="30%" style="margin: 4px; border-radius: 8px;" />
+<img src="screenshots/downloaderPage.jpg" width="30%" style="margin: 4px; border-radius: 8px;" />
+<img src="screenshots/downloadsPage.jpg" width="30%" style="margin: 4px; border-radius: 8px;" />
+<img src="screenshots/historyPage.jpg" width="30%" style="margin: 4px; border-radius: 8px;" />
+<img src="screenshots/linkHistoryPage.jpg" width="30%" style="margin: 4px; border-radius: 8px;" />
 </div>
 
 ---
 
-## ✨ Overview
+> ## Supported Portals
 
-**Ragalahari Gallery Downloader** is a Flutter-based Android app that lets you explore and download image galleries of your favorite celebrities from [Ragalahari.com](https://www.ragalahari.com).
+RagaDL utilizes a decoupled, strategy-based scraping engine. The parser automatically cleans markup patterns and resolves high-resolution source images from:
 
-This app supports gallery previews, celebrity management via CSV and JSON, bulk downloads, and download history — all built with a **mobile-first approach** and sleek UI.
-
----
-
-## 🌟 Features
-
-- **Latest Celebrity Albums** with preview
-- **Celebrity Explorer** – Browse by actress/model
-- **Gallery Downloader** – Paste a gallery URL and download all images
-- ✅ Select individual images before downloading (optional)
-- **Download Manager** – Pause, resume, cancel downloads
-- **History Viewer** – Sort, delete, and share past downloads
-- **Favorites Tab** – Save your favorite celebrities and albums
-- **Display Settings** – Light/Dark mode
-- **Storage Settings** – Set your download folder
-- **CSV-JSON based Celebrity Management**
+- **Ragalahari (`ragalahari.com`, `m.ragalahari.com`)** - Resolves full actress portfolios and media events. Downloads the entire set of high-res image listings directly.
+- **Idlebrain (`idlebrain.com`)** - Tollywood gallery archives. Filters out promotional/navigation layouts and strips thumbnail suffixes to retrieve original clean source files.
+- **Behindwoods (`behindwoods.com`)** - Extensive cinema and actress galleries. Because single galleries can hold thousands of images, it includes a batch range selector (`Start Image` to `End Image`) to crawl and download images in custom sizes safely.
 
 ---
 
-## 🧪 How It Works
+> ## 🌟 Key Features
 
-1. Paste a gallery URL from Ragalahari into the downloader.
-2. The app fetches all image previews.
-3. Select individual or all images and hit download.
-4. Manage, view, or share downloads from the History tab.
-
----
-
-## 🛠 Tech Stack
-
-- **Flutter & Dart**
-- **Dio, Http, HTML Parsing**
-- **Provider for State Management**
-- **Permission Handler & Path Provider**
-- **Mobile-First Responsive UI**
+- **Smart Downloader** - Paste a link from any of the supported portals. The scraper automatically detects the source, extracts individual image previews, and presents them in an interactive grid.
+- **Controlled Batch Downloading** - Downloader queues downloads via background worker threads using a connection-pooled HTTP client. Supports pausing, resuming, and cancelling active downloads.
+- **Range-Bound Fetching** - Enter custom ranges for Behindwoods links. Enables downloading large galleries in smaller batches to save data and prevent network timeouts.
+- **Favorites & History** - Save your favorite galleries and celebrities. Features an offline search, download history, recycle bin, and single-click share options.
+- **Material 3 Customization** - Sleek dark and light themes with dynamic primary color generation. Select an accent color from display settings, and the entire app adapts its color scheme on the fly.
+- **Offline Data Logs** - View downloaded lists sorted by folder structure, search history, and manage space settings directly.
 
 ---
 
-## 📁 Folder Structure
+> ## ⚙️ Architecture & Technical Highlights
 
-```text
-ragadl-app/
-├── android/
-├── assets/
-│   ├── data/
-│   │   ├── Fetched_Albums_StarZone.json
-│   │   └── Fetched_StarZone_Data.csv
-│   └── images/
-│       ├── logo.png
-│       └── logo2.png
-├── ios/
-├── lib/
-│   ├── main.dart
-│   ├── core/
-│   │   ├── permissions/
-│   │   │   └── permissions.dart
-│   │   └── utils/
-│   ├── features/
-│   │   ├── celebrity/
-│   │   │   ├── data/
-│   │   │   │   └── celebrity_repository.dart
-│   │   │   ├── ui/
-│   │   │   │   ├── celebrity_list_page.dart
-│   │   │   │   ├── gallery_links_page.dart
-│   │   │   │   ├── latest_actor_and_actress.dart
-│   │   │   │   └── latest_celebrity.dart
-│   │   │   └── utils/
-│   │   │       ├── celebrity_image_cache.dart
-│   │   │       └── celebrity_utils.dart
-│   │   ├── downloader/
-│   │   │   └── ui/
-│   │   │       ├── download_manager_page.dart
-│   │   │       ├── link_history_page.dart
-│   │   │       └── ragadl.dart
-│   │   ├── history/
-│   │   │   └── ui/
-│   │   │       ├── history_full_image_viewer.dart
-│   │   │       ├── history_page.dart
-│   │   │       └── recycle_page.dart
-│   │   ├── home/
-│   │   │   └── ui/
-│   │   │       └── home_page.dart
-│   │   └── settings/
-│   │       └── ui/
-│   │           ├── contact_us_page.dart
-│   │           ├── display_settings_page.dart
-│   │           ├── favourite_page.dart
-│   │           ├── history_settings.dart
-│   │           ├── notification_settings_page.dart
-│   │           ├── privacy_policy_page.dart
-│   │           ├── settings_page.dart
-│   │           ├── storage_settings.dart
-│   │           └── update_database_page.dart
-│   └── shared/
-│       └── widgets/
-│           ├── grid_utils.dart
-│           ├── theme_config.dart
-│           └── theme_notifier.dart
-├── linux/
-├── macos/
-├── screenshots/
-│   ├── celebrities.jpg
-│   ├── celebrity_galleries.jpg
-│   ├── display_setting.jpg
-│   ├── downloader.jpg
-│   ├── favourites.jpg
-│   ├── history.jpg
-│   ├── home.jpg
-│   └── link_history.jpg
-├── test/
-│   └── widget_test.dart
-├── web/
-└── windows/
-```
+- **State Management & Lifecycle** - Built on **Riverpod** for reactive, compile-safe state caching. Implements `autoDispose` controllers to clean up memory, isolate instances, and tear down streams when the user leaves a tab.
+- **Concurrency Controls** - Scrapers run on background **Dart Isolates** to offload HTML parsing and DOM manipulation from the main UI thread. Network crawling is restricted to a batch concurrency of `5` to prevent server rate-limiting and connection exhaustion.
+- **Connection Caching** - Reusable, connection-pooled client using a singleton **Dio** client with custom exponential-backoff retries.
+- **Render Optimizations** - Uses `RepaintBoundary` wrappers on high-frequency scrolling widgets and lazy-loads zoom/gesture controllers in full-screen viewers to prevent frame drops.
 
 ---
 
-## ⬇️ Download
+> ## How to Run Locally
 
-- [GitHub Releases](https://github.com/DevSon1024/ragadl-app/releases)
-- F-Droid / Play Store (Coming soon)
+1.  Make sure you have [Flutter SDK](https://docs.flutter.dev/get-started/install) installed.
+2.  Clone the repository:
+    ```bash
+    git clone https://github.com/DevSon1024/ragadl-app.git
+    cd ragadl-app
+    ```
+3.  Install dependencies:
+    ```bash
+    flutter pub get
+    ```
+4.  Run the application on an emulator or connected device:
+    ```bash
+    flutter run
+    ```
 
 ---
 
 ## 💬 Feedback & Contributions
 
-Found a bug or have a feature request?  
-Open an [issue](https://github.com/DevSon1024/ragadl-app/issues) on GitHub.
+If you find a bug, encounter a scraping error on a specific gallery, or want to suggest adding support for a new portal, please feel free to open a [GitHub Issue](https://github.com/DevSon1024/ragadl-app/issues).
 
 ---
 
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
-
----
-
-<div align="right">
-
-[↑ Back to Top](#📸-ragalahari-image-gallery-downloader)
-
-</div>
