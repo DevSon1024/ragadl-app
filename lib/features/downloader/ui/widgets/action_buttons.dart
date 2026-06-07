@@ -41,7 +41,7 @@ class ActionButtons extends StatelessWidget {
                           if (!controller.downloaderService.isValidUrl(url)) {
                             SnackbarHelper.showModernSnackBar(
                               context: context,
-                              message: 'Invalid URL: Must be a Ragalahari or Idlebrain gallery URL',
+                              message: 'Invalid URL: Must be a Ragalahari, Idlebrain, or Behindwoods gallery URL',
                               icon: Icons.error_rounded,
                               isError: true,
                             );

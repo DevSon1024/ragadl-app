@@ -2,9 +2,11 @@ import 'package:html/dom.dart' as dom;
 import '../../downloader/logic/downloader_service.dart';
 import 'idlebrain.dart';
 import 'ragalahari.dart';
+import 'behindwoods.dart';
 
 export 'idlebrain.dart';
 export 'ragalahari.dart';
+export 'behindwoods.dart';
 
 abstract class SiteParser {
   List<String> extractGalleryLinks(dom.Document document, String profileUrl);
@@ -23,7 +25,7 @@ abstract class SiteParser {
 }
 
 class ParserFactory {
-  static const List<String> supportedDomains = ['idlebrain.com', 'ragalahari.com'];
+  static const List<String> supportedDomains = ['idlebrain.com', 'ragalahari.com', 'behindwoods.com'];
 
   static bool isSupported(String url) {
     final lowerUrl = url.toLowerCase();
@@ -33,6 +35,9 @@ class ParserFactory {
   static SiteParser getParser(String url) {
     if (url.toLowerCase().contains('idlebrain.com')) {
       return IdlebrainParser();
+    }
+    if (url.toLowerCase().contains('behindwoods.com')) {
+      return BehindwoodsParser();
     }
     return RagalahariParser();
   }

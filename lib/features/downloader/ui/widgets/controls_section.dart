@@ -114,25 +114,27 @@ class ControlsSection extends StatelessWidget {
               focusNode: controller.urlFocusNode,
               decoration: InputDecoration(
                 labelText: 'Gallery URL',
-                hintText: 'https://www.ragalahari.com/... or https://www.idlebrain.com/...',
+                hintText: 'Enter gallery URL',
                 prefixIcon: Icon(
                   Icons.link_rounded,
                   color:
                       controller.urlController.text.isNotEmpty &&
-                               !controller.downloaderService.isValidUrl(
-                                 controller.urlController.text,
-                               )
-                           ? color.error
-                           : color.primary,
+                              !controller.downloaderService.isValidUrl(
+                                controller.urlController.text,
+                              )
+                          ? color.error
+                          : color.primary,
                 ),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (controller.urlController.text.isNotEmpty)
+                    if (controller.urlController.text.isNotEmpty) ...[
                       Container(
                         margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: color.surfaceContainerHighest.withValues(alpha: 0.5),
+                          color: color.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
@@ -143,7 +145,9 @@ class ControlsSection extends StatelessWidget {
                           ),
                           onPressed: () {
                             Clipboard.setData(
-                              ClipboardData(text: controller.urlController.text),
+                              ClipboardData(
+                                text: controller.urlController.text,
+                              ),
                             );
                             SnackbarHelper.showModernSnackBar(
                               context: context,
@@ -158,29 +162,57 @@ class ControlsSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                    Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: color.surfaceContainerHighest.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.clear_rounded,
-                          color: color.onSurfaceVariant,
-                          size: 18,
+                      Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: color.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        onPressed: () {
-                          controller.urlController.clear();
-                          controller.refreshState();
-                        },
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.clear_rounded,
+                            color: color.onSurfaceVariant,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            controller.urlController.clear();
+                            controller.refreshState();
+                          },
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
                         ),
                       ),
-                    ),
+                    ] else
+                      Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: color.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.help_outline_rounded,
+                            color: color.primary,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            _showSupportedPortalsBottomSheet(context);
+                          },
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          tooltip: 'Supported Portals',
+                        ),
+                      ),
                   ],
                 ),
                 border: InputBorder.none,
@@ -193,7 +225,7 @@ class ControlsSection extends StatelessWidget {
                             !controller.downloaderService.isValidUrl(
                               controller.urlController.text,
                             )
-                        ? 'URL must be a valid Ragalahari or Idlebrain gallery URL'
+                        ? 'Enter a valid Ragalahari, Idlebrain, or Behindwoods URL'
                         : null,
               ),
               keyboardType: TextInputType.url,
@@ -201,13 +233,158 @@ class ControlsSection extends StatelessWidget {
             ),
           ),
 
+          // Page Range input for Behindwoods
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child:
+                controller.isBehindwoodsLink
+                    ? Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: color.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: color.outline.withValues(alpha: 0.2),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: color.shadow.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: TextField(
+                                  controller: controller.startPageController,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: InputDecoration(
+                                    labelText: 'Start Image',
+                                    labelStyle: TextStyle(
+                                      fontSize: 13,
+                                      color: color.onSurfaceVariant,
+                                    ),
+                                    hintText: 'e.g. 1',
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: Icon(
+                                controller.showBehindwoodsInfo
+                                    ? Icons.info_rounded
+                                    : Icons.info_outline_rounded,
+                                color: color.secondary,
+                              ),
+                              onPressed: () {
+                                controller.toggleBehindwoodsInfo();
+                                HapticFeedback.lightImpact();
+                              },
+                              tooltip: 'Scraping Info',
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: color.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: color.outline.withValues(alpha: 0.2),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: color.shadow.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: TextField(
+                                  controller: controller.endPageController,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: InputDecoration(
+                                    labelText: 'End Image',
+                                    labelStyle: TextStyle(
+                                      fontSize: 13,
+                                      color: color.onSurfaceVariant,
+                                    ),
+                                    hintText: 'e.g. 10',
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (controller.showBehindwoodsInfo) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: color.secondaryContainer.withValues(
+                                alpha: 0.4,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: color.secondary.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  color: color.secondary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    "We have added range input as it is required for the limitation of downloads as per user need instead of downloading all images because, as we know, Rakul Preet's page has almost 2500+ images in it, and if we direct download images without locking the range, it will be a heavy load on the device and internet data as well. Please download images in batches instead of all at once.",
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: color.onSecondaryContainer,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                    : const SizedBox.shrink(),
+          ),
+
           const SizedBox(height: 20),
 
           // Action buttons
-          ActionButtons(
-            controller: controller,
-            galleryTitle: galleryTitle,
-          ),
+          ActionButtons(controller: controller, galleryTitle: galleryTitle),
 
           const SizedBox(height: 16),
 
@@ -238,6 +415,117 @@ class ControlsSection extends StatelessWidget {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showSupportedPortalsBottomSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: color.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Supported Portals',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'RagaDL supports downloading galleries from the following portals:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: color.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildSheetPortalItem(
+                context,
+                title: 'Ragalahari',
+                domains: ['ragalahari.com', 'm.ragalahari.com'],
+              ),
+              const SizedBox(height: 12),
+              _buildSheetPortalItem(
+                context,
+                title: 'Idlebrain',
+                domains: ['idlebrain.com'],
+              ),
+              const SizedBox(height: 12),
+              _buildSheetPortalItem(
+                context,
+                title: 'Behindwoods',
+                domains: ['behindwoods.com'],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSheetPortalItem(
+    BuildContext context, {
+    required String title,
+    required List<String> domains,
+  }) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Wrap(
+            spacing: 6,
+            children: domains.map((domain) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: color.surfaceContainerHighest.withValues(
+                    alpha: 0.6,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  domain,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: color.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );

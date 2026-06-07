@@ -17,6 +17,8 @@ final downloaderControllerProvider = ChangeNotifierProvider.autoDispose<Download
 class DownloaderController extends ChangeNotifier {
   final DownloaderService downloaderService;
 
+  bool get isBehindwoodsLink => urlController.text.trim().toLowerCase().contains('behindwoods.com');
+
   DownloaderController(this.downloaderService) {
     urlFocusNode.addListener(_handleFocusChange);
     folderFocusNode.addListener(_handleFocusChange);
@@ -26,6 +28,8 @@ class DownloaderController extends ChangeNotifier {
   // Focus nodes & controllers
   final TextEditingController urlController = TextEditingController();
   final TextEditingController folderController = TextEditingController();
+  final TextEditingController startPageController = TextEditingController();
+  final TextEditingController endPageController = TextEditingController();
   final FocusNode urlFocusNode = FocusNode();
   final FocusNode folderFocusNode = FocusNode();
 
@@ -44,6 +48,7 @@ class DownloaderController extends ChangeNotifier {
   String mainFolderName = '';
   String subFolderName = '';
   bool isInitialized = false;
+  bool showBehindwoodsInfo = false;
 
   @override
   void dispose() {
@@ -52,6 +57,8 @@ class DownloaderController extends ChangeNotifier {
     folderFocusNode.removeListener(_handleFocusChange);
     urlController.dispose();
     folderController.dispose();
+    startPageController.dispose();
+    endPageController.dispose();
     urlFocusNode.dispose();
     folderFocusNode.dispose();
     downloaderService.dispose();
@@ -120,6 +127,8 @@ class DownloaderController extends ChangeNotifier {
   void clearAll({required void Function() onClearCompleted}) {
     urlController.clear();
     folderController.clear();
+    startPageController.clear();
+    endPageController.clear();
     imageUrls.clear();
     selectedImages.clear();
     isSelectionMode = false;
@@ -132,6 +141,7 @@ class DownloaderController extends ChangeNotifier {
     error = null;
     successMessage = null;
     isInitialized = false;
+    showBehindwoodsInfo = false;
     notifyListeners();
 
     HapticFeedback.mediumImpact();
@@ -141,6 +151,11 @@ class DownloaderController extends ChangeNotifier {
   void clearSelection() {
     selectedImages.clear();
     isSelectionMode = false;
+    notifyListeners();
+  }
+
+  void toggleBehindwoodsInfo() {
+    showBehindwoodsInfo = !showBehindwoodsInfo;
     notifyListeners();
   }
 
@@ -205,6 +220,44 @@ class DownloaderController extends ChangeNotifier {
     subFolderName = parser.getSubFolderName(mainFolderName, galleryId);
 
     await downloaderService.setBaseDownloadPath('/storage/emulated/0/Download/RagaDL Downloads');
+
+    if (isBehindwoodsLink) {
+      final startVal = int.tryParse(startPageController.text.trim());
+      final endVal = int.tryParse(endPageController.text.trim());
+      if (startVal == null || endVal == null || startVal <= 0 || endVal <= 0 || startVal > endVal) {
+        isLoading = false;
+        notifyListeners();
+        showSnackBar('Please enter a valid page range (Start Page <= End Page)', Icons.warning_rounded, isError: true);
+        return;
+      }
+
+      try {
+        final scraper = BehindwoodsScraper();
+        final results = await scraper.scrapeRange(
+          baseUrl,
+          startVal,
+          endVal,
+          onProgress: (scraped, total) {
+            currentPage = scraped;
+            totalPages = total;
+            notifyListeners();
+          },
+        );
+        imageUrls.addAll(results);
+        isLoading = false;
+        notifyListeners();
+        showSnackBar(
+          imageUrls.isEmpty ? 'No images found!' : 'Found ${imageUrls.length} images',
+          imageUrls.isEmpty ? Icons.search_off_rounded : Icons.photo_library_rounded,
+        );
+      } catch (e) {
+        isLoading = false;
+        error = e.toString();
+        notifyListeners();
+        showSnackBar('Error: $e', Icons.error_rounded, isError: true);
+      }
+      return;
+    }
 
     downloaderService.processGallery(
       baseUrl: baseUrl,
