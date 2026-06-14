@@ -69,8 +69,8 @@ class _DownloadManagerPageState extends ConsumerState<DownloadManagerPage>
                     Slider(
                       value: currentValue.toDouble(),
                       min: 1,
-                      max: 10,
-                      divisions: 9,
+                      max: 5,
+                      divisions: 4,
                       label: currentValue.toString(),
                       onChanged: (v) {
                         setDialogState(() => currentValue = v.toInt());
@@ -78,9 +78,9 @@ class _DownloadManagerPageState extends ConsumerState<DownloadManagerPage>
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      currentValue <= 3
+                      currentValue <= 2
                           ? 'Light Load – Recommended for slower connections'
-                          : currentValue <= 6
+                          : currentValue <= 4
                           ? 'Moderate Load – Balanced performance'
                           : 'Heavy Load – For fast connections only',
                       style: TextStyle(

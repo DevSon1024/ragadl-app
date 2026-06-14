@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/download_task.dart';
 
 // Running download item
@@ -127,9 +128,20 @@ class FailedDownloadItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: ListTile(
+    return GestureDetector(
+      onLongPress: () {
+        if (task.status == DownloadStatus.failed) {
+          Clipboard.setData(ClipboardData(text: task.url));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Link copied to clipboard.'),
+            ),
+          );
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -170,8 +182,9 @@ class FailedDownloadItem extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // Completed download item

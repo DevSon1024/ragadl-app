@@ -9,6 +9,8 @@ import 'privacy_policy_page.dart';
 import 'contact_us_page.dart';
 // import 'package:ragadl/features/settings/ui/update_database_page.dart';
 import 'version_page.dart';
+import 'technical_settings_page.dart';
+import 'ui_settings_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -35,6 +37,34 @@ class SettingsPage extends ConsumerWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const DisplaySettingsPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildSettingsItem(
+                context,
+                icon: Icons.tune,
+                title: 'Technical & Scraping',
+                subtitle: 'User-Agent, threads, retries',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TechnicalSettingsPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildSettingsItem(
+                context,
+                icon: Icons.palette,
+                title: 'UI & Customization',
+                subtitle: 'Grid columns, quality, black theme',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UiSettingsPage(),
                     ),
                   );
                 },

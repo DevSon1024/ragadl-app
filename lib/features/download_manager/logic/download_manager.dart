@@ -1,14 +1,13 @@
 import 'dart:io';
-import 'dart:collection';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:ragadl/core/services/dio_client.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
+import 'package:ragadl/features/settings/logic/settings_service.dart';
 import '../models/download_task.dart';
 
 export '../models/download_task.dart';
@@ -17,17 +16,26 @@ class DownloadManager extends ChangeNotifier {
   static final DownloadManager _instance = DownloadManager._internal();
   factory DownloadManager() => _instance;
   DownloadManager._internal() {
-    _loadConcurrentDownloads();
+    _downloadDio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(minutes: 10),
+      ),
+    );
+    SettingsService().addListener(() {
+      notifyListeners();
+      _processQueue();
+    });
   }
 
-  final Map<String, DownloadTask> _activeDownloads = {};
+  final Map<String, DownloadTask> _tasks = {};
   final Map<String, DownloadTask> _runningDownloads = {};
   final Map<String, DownloadTask> _failedDownloads = {};
   final Map<String, DownloadTask> _completedDownloads = {};
   final Map<String, DownloadTask> _pausedDownloads = {};
-  final Queue<String> _downloadQueue = Queue();
+  final List<DownloadTask> _pendingQueue = [];
   final Dio _dio = DioClient().dio;
-  final Set<String> _downloadingUrls = {};
+  late final Dio _downloadDio;
 
   final Map<String, int> _galleryTotalCount = {};
   final Map<String, int> _galleryCompletedCount = {};
@@ -36,13 +44,12 @@ class DownloadManager extends ChangeNotifier {
 
   bool _isPaused = false;
 
-  int _maxConcurrentDownloads = 3;
-  static const int maxRetries = 3;
+  int get maxConcurrentDownloads => SettingsService().concurrentDownloads;
+  int _activeDownloads = 0;
+  int get maxRetries => SettingsService().maxRetries;
 
   Map<String, DownloadTask> get activeDownloads =>
-      Map.unmodifiable(_activeDownloads);
-
-  int get maxConcurrentDownloads => _maxConcurrentDownloads;
+      Map.unmodifiable(_tasks);
 
   // Filtered views by status (cached/persistent to avoid GC thrashing)
   Map<String, DownloadTask> get runningDownloads =>
@@ -59,13 +66,13 @@ class DownloadManager extends ChangeNotifier {
 
   void _updateTask(String url, DownloadTask? task) {
     if (task == null) {
-      _activeDownloads.remove(url);
+      _tasks.remove(url);
       _runningDownloads.remove(url);
       _failedDownloads.remove(url);
       _completedDownloads.remove(url);
       _pausedDownloads.remove(url);
     } else {
-      _activeDownloads[url] = task;
+      _tasks[url] = task;
       _runningDownloads.remove(url);
       _failedDownloads.remove(url);
       _completedDownloads.remove(url);
@@ -90,18 +97,8 @@ class DownloadManager extends ChangeNotifier {
   }
 
   // Settings
-  Future<void> _loadConcurrentDownloads() async {
-    final prefs = await SharedPreferences.getInstance();
-    _maxConcurrentDownloads = prefs.getInt('max_concurrent_downloads') ?? 3;
-  }
-
   Future<void> setMaxConcurrentDownloads(int count) async {
-    if (count < 1 || count > 10) return;
-    _maxConcurrentDownloads = count;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('max_concurrent_downloads', count);
-    _processQueue();
-    notifyListeners();
+    await SettingsService().setConcurrentDownloads(count);
   }
 
   // Public API - add / pause / resume / cancel / retry / clear
@@ -115,8 +112,8 @@ class DownloadManager extends ChangeNotifier {
     String? batchId,
     String? albumName,
   }) async {
-    if (_activeDownloads.containsKey(url)) {
-      final task = _activeDownloads[url]!;
+    if (_tasks.containsKey(url)) {
+      final task = _tasks[url]!;
       if (task.status == DownloadStatus.paused) {
         resumeDownload(url);
       }
@@ -173,7 +170,8 @@ class DownloadManager extends ChangeNotifier {
         _galleryNameMap[batchId] = galleryName;
       }
 
-      _enqueueDownload(task);
+      _pendingQueue.add(task);
+      _processQueue();
       notifyListeners();
     } catch (e) {
       if (task != null) {
@@ -188,45 +186,46 @@ class DownloadManager extends ChangeNotifier {
   }
 
   void pauseDownload(String url) {
-    final task = _activeDownloads[url];
-    if (task != null && task.status == DownloadStatus.downloading) {
+    final task = _tasks[url];
+    if (task != null && (task.status == DownloadStatus.downloading || task.status == DownloadStatus.scraping)) {
       task.cancelToken.cancel('Download paused');
       _updateTask(url, task.copyWith(status: DownloadStatus.paused));
-      _downloadingUrls.remove(url);
-      _processQueue();
+      notifyListeners();
+    } else if (task != null && task.status == DownloadStatus.queued) {
+      _updateTask(url, task.copyWith(status: DownloadStatus.paused));
+      _pendingQueue.removeWhere((t) => t.url == url);
       notifyListeners();
     }
   }
 
   void resumeDownload(String url) {
-    final task = _activeDownloads[url];
+    final task = _tasks[url];
     if (task != null && task.status == DownloadStatus.paused) {
       final newTask = task.copyWith(
         cancelToken: CancelToken(),
         status: DownloadStatus.queued,
       );
       _updateTask(url, newTask);
-      _enqueueDownload(newTask);
+      _pendingQueue.add(newTask);
+      _processQueue();
       notifyListeners();
     }
   }
 
   void cancelDownload(String url) {
-    final task = _activeDownloads[url];
+    final task = _tasks[url];
     if (task != null) {
-      if (task.status == DownloadStatus.downloading) {
+      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.scraping) {
         task.cancelToken.cancel('Download canceled');
-        _downloadingUrls.remove(url);
-        _processQueue();
       }
       _updateTask(url, null);
-      _downloadQueue.remove(url);
+      _pendingQueue.removeWhere((t) => t.url == url);
       notifyListeners();
     }
   }
 
   void retryFailedDownload(String url) {
-    final task = _activeDownloads[url];
+    final task = _tasks[url];
     if (task != null && task.status == DownloadStatus.failed) {
       final newTask = task.copyWith(
         status: DownloadStatus.queued,
@@ -236,14 +235,15 @@ class DownloadManager extends ChangeNotifier {
         errorMessage: null,
       );
       _updateTask(url, newTask);
-      _enqueueDownload(newTask);
+      _pendingQueue.add(newTask);
+      _processQueue();
       notifyListeners();
     }
   }
 
   void removeCompletedDownload(String url) {
-    if (_activeDownloads.containsKey(url)) {
-      final task = _activeDownloads[url]!;
+    if (_tasks.containsKey(url)) {
+      final task = _tasks[url]!;
       if (task.status == DownloadStatus.completed ||
           task.status == DownloadStatus.failed) {
         _updateTask(url, null);
@@ -270,44 +270,34 @@ class DownloadManager extends ChangeNotifier {
 
   void pauseAll() {
     _isPaused = true;
-    for (final url in List<String>.from(_downloadingUrls)) {
-      final task = _activeDownloads[url];
-      if (task != null) {
-        task.cancelToken.cancel('Paused');
-        final paused = task.copyWith(
-          status: DownloadStatus.paused,
-          cancelToken: CancelToken(),
-        );
-        _updateTask(url, paused);
-        _downloadQueue.addFirst(url);
-      }
+    final activeRunningTasks = _tasks.values
+        .where((t) => t.status == DownloadStatus.downloading || t.status == DownloadStatus.scraping)
+        .toList();
+    for (final task in activeRunningTasks) {
+      task.cancelToken.cancel('Paused');
+      _updateTask(task.url, task.copyWith(
+        status: DownloadStatus.paused,
+        cancelToken: CancelToken(),
+      ));
     }
-    _downloadingUrls.clear();
-    for (final url in List<String>.from(_downloadQueue)) {
-      final task = _activeDownloads[url];
-      if (task != null && task.status == DownloadStatus.queued) {
-        _updateTask(url, task.copyWith(status: DownloadStatus.paused));
-      }
+    for (final task in _pendingQueue) {
+      _updateTask(task.url, task.copyWith(status: DownloadStatus.paused));
     }
+    _pendingQueue.clear();
     _refreshBatchNotification(isPaused: true);
     notifyListeners();
   }
 
   void resumeAll() {
     _isPaused = false;
-    final pausedUrls = List<String>.from(_pausedDownloads.keys);
-    for (final url in pausedUrls) {
-      final task = _activeDownloads[url];
-      if (task != null) {
-        final queued = task.copyWith(
-          status: DownloadStatus.queued,
-          cancelToken: CancelToken(),
-        );
-        _updateTask(url, queued);
-        if (!_downloadQueue.contains(url)) {
-          _downloadQueue.add(url);
-        }
-      }
+    final pausedTasks = _tasks.values.where((t) => t.status == DownloadStatus.paused).toList();
+    for (final task in pausedTasks) {
+      final queuedTask = task.copyWith(
+        status: DownloadStatus.queued,
+        cancelToken: CancelToken(),
+      );
+      _updateTask(task.url, queuedTask);
+      _pendingQueue.add(queuedTask);
     }
     _processQueue();
     _refreshBatchNotification(isPaused: false);
@@ -316,23 +306,22 @@ class DownloadManager extends ChangeNotifier {
 
   void cancelAll() {
     _isPaused = false;
-    for (final url in List<String>.from(_downloadingUrls)) {
-      _activeDownloads[url]?.cancelToken.cancel('Cancelled');
+    final activeRunningTasks = _tasks.values
+        .where((t) => t.status == DownloadStatus.downloading || t.status == DownloadStatus.scraping)
+        .toList();
+    for (final task in activeRunningTasks) {
+      task.cancelToken.cancel('Cancelled');
     }
-    _downloadingUrls.clear();
-    _downloadQueue.clear();
+    _pendingQueue.clear();
 
-    final urlsToCancel =
-        _activeDownloads.entries
-            .where(
-              (e) =>
-                  e.value.status == DownloadStatus.downloading ||
-                  e.value.status == DownloadStatus.queued ||
-                  e.value.status == DownloadStatus.paused ||
-                  e.value.status == DownloadStatus.scraping,
-            )
-            .map((e) => e.key)
-            .toList();
+    final urlsToCancel = _tasks.entries
+        .where((e) =>
+            e.value.status == DownloadStatus.downloading ||
+            e.value.status == DownloadStatus.queued ||
+            e.value.status == DownloadStatus.paused ||
+            e.value.status == DownloadStatus.scraping)
+        .map((e) => e.key)
+        .toList();
     for (final url in urlsToCancel) {
       _updateTask(url, null);
     }
@@ -345,125 +334,111 @@ class DownloadManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Internal queue management
-  void _enqueueDownload(DownloadTask task) {
-    if (_downloadingUrls.length < _maxConcurrentDownloads) {
-      _startDownload(task);
-    } else {
-      _downloadQueue.add(task.url);
-      _updateTask(task.url, task.copyWith(status: DownloadStatus.queued));
+  void _processQueue() {
+    if (_isPaused) return;
+    while (_activeDownloads < maxConcurrentDownloads && _pendingQueue.isNotEmpty) {
+      final task = _pendingQueue.removeAt(0);
+      _activeDownloads++;
+      _scrapeAndDownload(task);
     }
   }
 
-  void _startDownload(DownloadTask task) async {
-    _downloadingUrls.add(task.url);
+  Future<void> _scrapeAndDownload(DownloadTask task) async {
+    DownloadTask currentTask = task;
+    try {
+      final isImgBBPage = task.url.toLowerCase().contains('ibb.co') &&
+          !task.url.toLowerCase().contains('i.ibb.co');
 
-    final isImgBBPage = task.url.toLowerCase().contains('ibb.co') &&
-        !task.url.toLowerCase().contains('i.ibb.co');
+      if (isImgBBPage && task.resolvedUrl == null) {
+        currentTask = task.copyWith(status: DownloadStatus.scraping);
+        _updateTask(task.url, currentTask);
+        notifyListeners();
 
-    if (isImgBBPage && task.resolvedUrl == null) {
-      final scrapingTask = task.copyWith(status: DownloadStatus.scraping);
-      _updateTask(task.url, scrapingTask);
-      notifyListeners();
+        final directUrl = await _scrapeImageLink(task.url);
+        if (directUrl == null) {
+          final failedTask = currentTask.copyWith(
+            status: DownloadStatus.failed,
+            errorMessage: 'Failed to scrape direct image link',
+          );
+          _updateTask(task.url, failedTask);
+          _handleDownloadComplete(task.url, false, task.batchId);
+          return;
+        }
 
-      final directUrl = await _scrapeImageLink(task.url);
-      if (directUrl == null) {
-        final failedTask = task.copyWith(
-          status: DownloadStatus.failed,
-          errorMessage: 'Failed to scrape direct image link',
+        final urlcode = task.url.split('/').last;
+        final rawFilename = directUrl.split('/').last.split('?').first;
+        final nameParts = rawFilename.split('.');
+        final extension = nameParts.last;
+        final baseName = nameParts.length > 1
+            ? nameParts.sublist(0, nameParts.length - 1).join('.')
+            : nameParts.first;
+        final finalFileName = "$baseName[$urlcode].$extension";
+        final finalSavePath = task.targetDirectory != null
+            ? p.join(task.targetDirectory!, finalFileName)
+            : p.join(p.dirname(task.savePath), finalFileName);
+
+        currentTask = currentTask.copyWith(
+          status: DownloadStatus.downloading,
+          resolvedUrl: directUrl,
+          fileName: finalFileName,
+          savePath: finalSavePath,
         );
-        _updateTask(task.url, failedTask);
-        _handleDownloadComplete(task.url, false, task.batchId);
-        return;
+        _updateTask(task.url, currentTask);
+        notifyListeners();
+      } else {
+        currentTask = currentTask.copyWith(status: DownloadStatus.downloading);
+        _updateTask(task.url, currentTask);
+        notifyListeners();
       }
 
-      final realExtension = directUrl.split('.').last.split('?').first;
-      final nodeId = task.url.split('/').last;
-      final finalFileName = '$nodeId.$realExtension';
-      final finalSavePath = task.targetDirectory != null
-          ? p.join(task.targetDirectory!, finalFileName)
-          : p.join(p.dirname(task.savePath), finalFileName);
-
-      final downloadingTask = task.copyWith(
-        status: DownloadStatus.downloading,
-        resolvedUrl: directUrl,
-        fileName: finalFileName,
-        savePath: finalSavePath,
+      final success = await _download(currentTask);
+      _handleDownloadComplete(currentTask.url, success, currentTask.batchId);
+    } catch (e) {
+      debugPrint("Error in _scrapeAndDownload: $e");
+      final failedTask = currentTask.copyWith(
+        status: DownloadStatus.failed,
+        errorMessage: e.toString(),
       );
-      _updateTask(task.url, downloadingTask);
-      notifyListeners();
-
-      _download(downloadingTask, (bool success) {
-        _handleDownloadComplete(task.url, success, task.batchId);
-      });
-    } else {
-      _updateTask(task.url, task.copyWith(status: DownloadStatus.downloading));
-      notifyListeners();
-      _download(task, (bool success) {
-        _handleDownloadComplete(task.url, success, task.batchId);
-      });
+      _updateTask(currentTask.url, failedTask);
+      _handleDownloadComplete(currentTask.url, false, currentTask.batchId);
+    } finally {
+      _activeDownloads--;
+      _processQueue();
     }
   }
 
   Future<String?> _scrapeImageLink(String pageUrl) async {
-    HeadlessInAppWebView? headlessWebView;
     try {
-      final completer = Completer<String?>();
-
-      headlessWebView = HeadlessInAppWebView(
-        onWebViewCreated: (controller) async {
-          try {
-            await controller.loadUrl(urlRequest: URLRequest(url: WebUri(pageUrl)));
-          } catch (_) {
-            if (!completer.isCompleted) completer.complete(null);
-          }
-        },
-        onLoadStop: (controller, url) async {
-          try {
-            await Future.delayed(const Duration(seconds: 3));
-            final html = await controller.getHtml();
-            if (html != null) {
-              final regExp = RegExp(
-                r'https://i\.ibb\.co/[a-zA-Z0-9]+/[a-zA-Z0-9\-_.]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)',
-                caseSensitive: false,
-              );
-              final match = regExp.firstMatch(html);
-              if (match != null) {
-                if (!completer.isCompleted) completer.complete(match.group(0));
-                return;
-              }
-            }
-            if (!completer.isCompleted) completer.complete(null);
-          } catch (e) {
-            if (!completer.isCompleted) completer.completeError(e);
-          }
-        },
-        onReceivedError: (controller, request, error) {
-          if (!completer.isCompleted) completer.complete(null);
-        },
+      final response = await _dio.get<String>(
+        pageUrl,
+        options: Options(
+          headers: {
+            'User-Agent': SettingsService().customUserAgent,
+          },
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 10),
+        ),
       );
-
-      await headlessWebView.run();
-      final result = await completer.future.timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => null,
-      );
-      return result;
-    } catch (e) {
-      debugPrint("Error scraping ImgBB link: $e");
-      return null;
-    } finally {
-      try {
-        await headlessWebView?.dispose();
-      } catch (e) {
-        debugPrint("Error disposing webview: $e");
+      if (response.statusCode == 200 && response.data != null) {
+        final html = response.data.toString();
+        final regExp = RegExp(
+          r'https://i\.ibb\.co/[a-zA-Z0-9]+/[a-zA-Z0-9\-_.]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)',
+          caseSensitive: false,
+        );
+        final match = regExp.firstMatch(html);
+        if (match != null) {
+          return match.group(0);
+        }
       }
+      return null;
+    } catch (e) {
+      debugPrint("Error scraping ImgBB link via Dio: $e");
+      return null;
     }
   }
 
   void _handleDownloadComplete(String url, bool success, String? batchId) {
-    _downloadingUrls.remove(url);
-    final task = _activeDownloads[url];
+    final task = _tasks[url];
 
     if (success) {
       if (task != null) {
@@ -486,18 +461,16 @@ class DownloadManager extends ChangeNotifier {
       if (task != null &&
           task.retryCount < maxRetries &&
           task.status != DownloadStatus.paused) {
-        // Retry
         final newTask = task.copyWith(
           retryCount: task.retryCount + 1,
-          status: DownloadStatus.downloading,
+          status: DownloadStatus.queued,
           progress: 0.0,
           cancelToken: CancelToken(),
         );
         _updateTask(url, newTask);
-        _startDownload(newTask);
+        _pendingQueue.insert(0, newTask);
         return;
       }
-      // Final failure
       if (task != null) {
         _updateTask(
           url,
@@ -517,22 +490,8 @@ class DownloadManager extends ChangeNotifier {
     }
 
     notifyListeners();
-    _processQueue();
   }
 
-  void _processQueue() {
-    if (_isPaused) return;
-    while (_downloadQueue.isNotEmpty &&
-        _downloadingUrls.length < _maxConcurrentDownloads) {
-      final url = _downloadQueue.removeFirst();
-      final task = _activeDownloads[url];
-      if (task != null && task.status != DownloadStatus.paused) {
-        _startDownload(task);
-      }
-    }
-  }
-
-  // Notifications
   void _refreshBatchNotification({required bool isPaused}) {
     int completed = 0;
     int total = 0;
@@ -589,11 +548,7 @@ class DownloadManager extends ChangeNotifier {
     }
   }
 
-  // Download execution (Dio)
-  Future<void> _download(
-    DownloadTask task,
-    void Function(bool success) onCompleteInner,
-  ) async {
+  Future<bool> _download(DownloadTask task) async {
     final downloadUrl = task.resolvedUrl ?? task.url;
     final file = File(task.savePath);
     int start = 0;
@@ -604,12 +559,11 @@ class DownloadManager extends ChangeNotifier {
       start = await file.length();
       if (start > 0) {
         try {
-          final headResponse = await _dio.head(
+          final headResponse = await _downloadDio.head(
             downloadUrl,
             options: Options(
               headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent': SettingsService().customUserAgent,
               },
             ),
           );
@@ -619,8 +573,7 @@ class DownloadManager extends ChangeNotifier {
             if (totalStr != null) {
               totalBytes = int.parse(totalStr);
               if (start >= totalBytes) {
-                onCompleteInner(true);
-                return;
+                return true;
               }
             }
           } else {
@@ -636,14 +589,13 @@ class DownloadManager extends ChangeNotifier {
 
     try {
       final headers = {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': SettingsService().customUserAgent,
       };
       if (canResume && start > 0) {
         headers['Range'] = 'bytes=$start-';
       }
 
-      await _dio.download(
+      await _downloadDio.download(
         downloadUrl,
         task.savePath,
         cancelToken: task.cancelToken,
@@ -653,21 +605,19 @@ class DownloadManager extends ChangeNotifier {
           headers: headers,
           followRedirects: true,
           maxRedirects: 5,
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 15),
         ),
       );
 
-      onCompleteInner(true);
+      return true;
     } catch (e) {
       if (e is DioException && CancelToken.isCancel(e)) {
-        final liveTask = _activeDownloads[task.url];
+        final liveTask = _tasks[task.url];
         if (liveTask != null && liveTask.status == DownloadStatus.paused) {
-          return;
+          return false;
         }
-        return;
+        return false;
       }
-      onCompleteInner(false);
+      return false;
     }
   }
 
