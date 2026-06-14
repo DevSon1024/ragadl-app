@@ -25,6 +25,9 @@ class _DownloadManagerPageState extends ConsumerState<DownloadManagerPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -150,6 +153,18 @@ class _DownloadManagerPageState extends ConsumerState<DownloadManagerPage>
           ],
         ),
         actions: [
+          if (_tabController.index == 1 && controller.failedDownloads.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded),
+              tooltip: 'Clear Failed',
+              onPressed: () => controller.clearFailed(),
+            ),
+          if (_tabController.index == 2 && controller.completedDownloads.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded),
+              tooltip: 'Clear History',
+              onPressed: () => controller.clearCompleted(),
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Concurrent Downloads Settings',

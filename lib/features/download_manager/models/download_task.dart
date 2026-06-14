@@ -1,9 +1,10 @@
 import 'package:dio/dio.dart';
 
-enum DownloadStatus { downloading, paused, completed, failed, queued }
+enum DownloadStatus { downloading, paused, completed, failed, queued, scraping }
 
 class DownloadTask {
   final String url;
+  final String? resolvedUrl;
   final String fileName;
   final String savePath;
   final String folder;
@@ -24,6 +25,7 @@ class DownloadTask {
 
   DownloadTask({
     required this.url,
+    this.resolvedUrl,
     required this.fileName,
     required this.savePath,
     required this.folder,
@@ -43,6 +45,7 @@ class DownloadTask {
 
   DownloadTask copyWith({
     String? url,
+    String? resolvedUrl,
     String? fileName,
     String? savePath,
     String? folder,
@@ -61,6 +64,7 @@ class DownloadTask {
   }) {
     return DownloadTask(
       url: url ?? this.url,
+      resolvedUrl: resolvedUrl ?? this.resolvedUrl,
       fileName: fileName ?? this.fileName,
       savePath: savePath ?? this.savePath,
       folder: folder ?? this.folder,

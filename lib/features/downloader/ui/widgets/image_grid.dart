@@ -16,13 +16,17 @@ class DownloaderImageGrid extends StatelessWidget {
     required this.controller,
   });
 
+  int _getColumnCount(BuildContext context) {
+    return calculateGridColumns(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: calculateGridColumns(context),
+          crossAxisCount: _getColumnCount(context),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: 0.8,
@@ -36,7 +40,7 @@ class DownloaderImageGrid extends StatelessWidget {
             index: index,
             isSelected: isSelected,
             onTap: () {
-              if (controller.isSelectionMode) {
+              if (controller.isImgBB || controller.isSelectionMode) {
                 controller.toggleSelection(index);
               } else {
                 Navigator.push(

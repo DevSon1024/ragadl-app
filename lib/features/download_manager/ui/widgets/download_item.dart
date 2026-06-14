@@ -21,6 +21,7 @@ class RunningDownloadItem extends StatelessWidget {
     final color = Theme.of(context).colorScheme;
     final isPaused = task.status == DownloadStatus.paused;
     final isQueued = task.status == DownloadStatus.queued;
+    final isScraping = task.status == DownloadStatus.scraping;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -57,13 +58,15 @@ class RunningDownloadItem extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             LinearProgressIndicator(
-              value: (isQueued || task.status == DownloadStatus.downloading) ? null : task.progress,
+              value: (isQueued || isScraping || task.status == DownloadStatus.downloading) ? null : task.progress,
               backgroundColor: color.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation(
                 isPaused
                     ? Colors.orange
                     : isQueued
                     ? Colors.blue[300]
+                    : isScraping
+                    ? Colors.teal
                     : Colors.blue,
               ),
             ),
@@ -74,9 +77,11 @@ class RunningDownloadItem extends StatelessWidget {
                 Text(
                   isQueued
                       ? 'Queued...'
-                      : task.status == DownloadStatus.downloading
-                          ? 'Downloading...'
-                          : '${(task.progress * 100).toStringAsFixed(1)}%',
+                      : isScraping
+                          ? 'Scraping...'
+                          : task.status == DownloadStatus.downloading
+                              ? 'Downloading...'
+                              : '${(task.progress * 100).toStringAsFixed(1)}%',
                   style: TextStyle(fontSize: 12, color: color.onSurfaceVariant),
                 ),
                 Row(
@@ -242,6 +247,7 @@ class _StatusChip extends StatelessWidget {
       DownloadStatus.downloading => ('Downloading', Colors.blue),
       DownloadStatus.paused => ('Paused', Colors.orange),
       DownloadStatus.queued => ('Queued', Colors.grey),
+      DownloadStatus.scraping => ('Scraping', Colors.teal),
       _ => ('Unknown', Colors.grey),
     };
 

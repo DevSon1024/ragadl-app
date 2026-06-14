@@ -25,7 +25,7 @@ class RunningDownloadsTab extends StatelessWidget {
 
     return ListView.builder(
       itemCount: runningTasks.length,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
       itemBuilder: (_, index) {
         final task = runningTasks.values.elementAt(index);
         return RunningDownloadItem(

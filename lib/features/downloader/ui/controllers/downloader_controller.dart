@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:ragadl/core/permissions.dart';
 import '../../logic/downloader_service.dart';
 import '../../../gallery_links/logic/site_parser.dart';
@@ -20,6 +22,9 @@ class DownloaderController extends ChangeNotifier {
 
   bool get isBehindwoodsLink =>
       urlController.text.trim().toLowerCase().contains('behindwoods.com');
+
+  bool get isImgBB =>
+      urlController.text.trim().toLowerCase().contains('ibb.co');
 
   DownloaderController(this.downloaderService) {
     urlFocusNode.addListener(_handleFocusChange);
@@ -192,6 +197,217 @@ class DownloaderController extends ChangeNotifier {
     required void Function(String message, IconData icon, {bool isError})
     showSnackBar,
   }) async {
+    final isImgBB = baseUrl.toLowerCase().contains('ibb.co');
+
+    if (isImgBB) {
+      isLoading = true;
+      imageUrls.clear();
+      selectedImages.clear();
+      isSelectionMode = false;
+      downloadsSuccessful = 0;
+      downloadsFailed = 0;
+      currentPage = 0;
+      totalPages = 1;
+      error = null;
+      notifyListeners();
+
+      final permissionsGranted = await checkPermissions(context);
+      if (!context.mounted) return;
+      if (permissionsGranted) {
+        showSnackBar(
+          'Storage permission granted',
+          Icons.check_circle_rounded,
+          isError: false,
+        );
+      }
+
+      final parser = ParserFactory.getParser(baseUrl);
+      if (mainFolderName.isEmpty && folderController.text.isNotEmpty) {
+        mainFolderName = folderController.text.trim();
+      } else if (mainFolderName.isEmpty) {
+        mainFolderName = parser.defaultMainFolderName;
+        folderController.text = mainFolderName;
+      }
+      final galleryId = parser.extractGalleryId(baseUrl);
+      subFolderName = parser.getSubFolderName(mainFolderName, galleryId);
+
+      await downloaderService.setBaseDownloadPath(
+        '/storage/emulated/0/Download/RagaDL Downloads',
+      );
+
+      final isAlbum = baseUrl.contains('/album/');
+      if (isAlbum) {
+        HeadlessInAppWebView? headlessWebView;
+        try {
+          final completer = Completer<List<dynamic>?>();
+          headlessWebView = HeadlessInAppWebView(
+            onWebViewCreated: (controller) async {
+              try {
+                await controller.loadUrl(urlRequest: URLRequest(url: WebUri(baseUrl)));
+              } catch (_) {
+                if (!completer.isCompleted) completer.complete(null);
+              }
+            },
+            onLoadStop: (controller, url) async {
+              try {
+                await controller.evaluateJavascript(source: '''
+                  (async () => {
+                    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+                    let lastHeight = 0; let newHeight = document.body.scrollHeight;
+                    while (lastHeight !== newHeight) {
+                      window.scrollTo(0, document.body.scrollHeight);
+                      await delay(800); lastHeight = newHeight; newHeight = document.body.scrollHeight;
+                    }
+                  })();
+                ''');
+
+                await Future.delayed(const Duration(seconds: 3));
+
+                final result = await controller.evaluateJavascript(source: '''
+                  Array.from(document.querySelectorAll('a.image-container.--media')).map(a => {
+                    const img = a.querySelector('img');
+                    return { pageUrl: a.href, thumbnailUrl: img ? img.src : '' };
+                  });
+                ''');
+
+                if (!completer.isCompleted) {
+                  completer.complete(result is List ? result : null);
+                }
+              } catch (e) {
+                if (!completer.isCompleted) completer.completeError(e);
+              }
+            },
+            onReceivedError: (controller, request, error) {
+              if (!completer.isCompleted) completer.complete(null);
+            },
+          );
+
+          await headlessWebView.run();
+
+          final result = await completer.future.timeout(
+            const Duration(seconds: 45),
+            onTimeout: () => null,
+          );
+
+          if (result != null && result.isNotEmpty) {
+            imageUrls = result
+                .where((item) => item is Map && item['pageUrl'] != null)
+                .map((item) {
+                  final map = item as Map;
+                  return ImageData(
+                    thumbnailUrl: map['thumbnailUrl'] ?? '',
+                    originalUrl: map['pageUrl'] ?? '',
+                  );
+                })
+                .toList();
+            isLoading = false;
+            notifyListeners();
+            showSnackBar(
+              'Found ${imageUrls.length} images in ImgBB album',
+              Icons.photo_library_rounded,
+            );
+          } else {
+            isLoading = false;
+            error = 'No images found in this ImgBB album.';
+            notifyListeners();
+            showSnackBar(
+              'No images found in this album',
+              Icons.warning_rounded,
+              isError: true,
+            );
+          }
+        } catch (e) {
+          isLoading = false;
+          error = e.toString();
+          notifyListeners();
+          showSnackBar('Scraping failed: $e', Icons.error_rounded, isError: true);
+        } finally {
+          try {
+            await headlessWebView?.dispose();
+          } catch (_) {}
+        }
+      } else {
+        // Single ImgBB page URL
+        HeadlessInAppWebView? headlessWebView;
+        try {
+          final completer = Completer<String?>();
+          headlessWebView = HeadlessInAppWebView(
+            onWebViewCreated: (controller) async {
+              try {
+                await controller.loadUrl(urlRequest: URLRequest(url: WebUri(baseUrl)));
+              } catch (_) {
+                if (!completer.isCompleted) completer.complete(null);
+              }
+            },
+            onLoadStop: (controller, url) async {
+              try {
+                await Future.delayed(const Duration(seconds: 3));
+                final html = await controller.getHtml();
+                if (html != null) {
+                  final regExp = RegExp(
+                    r'https://i\.ibb\.co/[a-zA-Z0-9]+/[a-zA-Z0-9\-_.]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)',
+                    caseSensitive: false,
+                  );
+                  final match = regExp.firstMatch(html);
+                  if (!completer.isCompleted) {
+                    completer.complete(match?.group(0));
+                  }
+                } else {
+                  if (!completer.isCompleted) completer.complete(null);
+                }
+              } catch (e) {
+                if (!completer.isCompleted) completer.completeError(e);
+              }
+            },
+            onReceivedError: (controller, request, error) {
+              if (!completer.isCompleted) completer.complete(null);
+            },
+          );
+
+          await headlessWebView.run();
+
+          final directUrl = await completer.future.timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => null,
+          );
+
+          if (directUrl != null) {
+            imageUrls = [
+              ImageData(
+                thumbnailUrl: directUrl,
+                originalUrl: baseUrl,
+              )
+            ];
+            isLoading = false;
+            notifyListeners();
+            showSnackBar(
+              'Found 1 image',
+              Icons.photo_rounded,
+            );
+          } else {
+            isLoading = false;
+            error = 'Failed to load single image link.';
+            notifyListeners();
+            showSnackBar(
+              'Failed to find image on page',
+              Icons.warning_rounded,
+              isError: true,
+            );
+          }
+        } catch (e) {
+          isLoading = false;
+          error = e.toString();
+          notifyListeners();
+          showSnackBar('Failed to load image: $e', Icons.error_rounded, isError: true);
+        } finally {
+          try {
+            await headlessWebView?.dispose();
+          } catch (_) {}
+        }
+      }
+      return;
+    }
+
     await downloaderService.saveToHistory(
       url: baseUrl,
       celebrityName: mainFolderName,

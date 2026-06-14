@@ -20,36 +20,17 @@ class FailedDownloadsTab extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: controller.clearFailed,
-                icon: const Icon(Icons.clear_all),
-                label: const Text('Clear All'),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: failedTasks.length,
-            padding: const EdgeInsets.all(8),
-            itemBuilder: (_, index) {
-              final task = failedTasks.values.elementAt(index);
-              return FailedDownloadItem(
-                task: task,
-                onRetry: () => controller.retryFailedDownload(task.url),
-                onRemove: () => controller.removeCompletedDownload(task.url),
-              );
-            },
-          ),
-        ),
-      ],
+    return ListView.builder(
+      itemCount: failedTasks.length,
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
+      itemBuilder: (_, index) {
+        final task = failedTasks.values.elementAt(index);
+        return FailedDownloadItem(
+          task: task,
+          onRetry: () => controller.retryFailedDownload(task.url),
+          onRemove: () => controller.removeCompletedDownload(task.url),
+        );
+      },
     );
   }
 }

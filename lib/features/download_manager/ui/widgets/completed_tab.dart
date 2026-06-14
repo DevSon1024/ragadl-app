@@ -27,45 +27,26 @@ class CompletedDownloadsTab extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: controller.clearCompleted,
-                icon: const Icon(Icons.clear_all),
-                label: const Text('Clear History'),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: completedTasks.length,
-            padding: const EdgeInsets.all(8),
-            itemBuilder: (_, index) {
-              final task = completedTasks[index];
-              return CompletedDownloadItem(
-                task: task,
-                onTap: () async {
-                  final result = await OpenFile.open(task.savePath);
-                  if (result.type != ResultType.done && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Could not open file: ${result.message}'),
-                      ),
-                    );
-                  }
-                },
-                onRemove: () => controller.removeCompletedDownload(task.url),
+    return ListView.builder(
+      itemCount: completedTasks.length,
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 100),
+      itemBuilder: (_, index) {
+        final task = completedTasks[index];
+        return CompletedDownloadItem(
+          task: task,
+          onTap: () async {
+            final result = await OpenFile.open(task.savePath);
+            if (result.type != ResultType.done && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Could not open file: ${result.message}'),
+                ),
               );
-            },
-          ),
-        ),
-      ],
+            }
+          },
+          onRemove: () => controller.removeCompletedDownload(task.url),
+        );
+      },
     );
   }
 }

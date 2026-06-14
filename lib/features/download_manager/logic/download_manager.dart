@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:collection';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:ragadl/core/services/dio_client.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
 import '../models/download_task.dart';
@@ -71,6 +73,7 @@ class DownloadManager extends ChangeNotifier {
       switch (task.status) {
         case DownloadStatus.queued:
         case DownloadStatus.downloading:
+        case DownloadStatus.scraping:
           _runningDownloads[url] = task;
           break;
         case DownloadStatus.completed:
@@ -304,7 +307,8 @@ class DownloadManager extends ChangeNotifier {
               (e) =>
                   e.value.status == DownloadStatus.downloading ||
                   e.value.status == DownloadStatus.queued ||
-                  e.value.status == DownloadStatus.paused,
+                  e.value.status == DownloadStatus.paused ||
+                  e.value.status == DownloadStatus.scraping,
             )
             .map((e) => e.key)
             .toList();
@@ -330,13 +334,125 @@ class DownloadManager extends ChangeNotifier {
     }
   }
 
-  void _startDownload(DownloadTask task) {
+  void _startDownload(DownloadTask task) async {
     _downloadingUrls.add(task.url);
-    _updateTask(task.url, task.copyWith(status: DownloadStatus.downloading));
-    notifyListeners();
-    _download(task, (bool success) {
-      _handleDownloadComplete(task.url, success, task.batchId);
-    });
+
+    final isImgBBPage = task.url.toLowerCase().contains('ibb.co') &&
+        !task.url.toLowerCase().contains('i.ibb.co');
+
+    if (isImgBBPage && task.resolvedUrl == null) {
+      final scrapingTask = task.copyWith(status: DownloadStatus.scraping);
+      _updateTask(task.url, scrapingTask);
+      notifyListeners();
+
+      final directUrl = await _scrapeImageLink(task.url);
+      if (directUrl == null) {
+        final failedTask = task.copyWith(
+          status: DownloadStatus.failed,
+          errorMessage: 'Failed to scrape direct image link',
+        );
+        _updateTask(task.url, failedTask);
+        _handleDownloadComplete(task.url, false, task.batchId);
+        return;
+      }
+
+      // Dynamically resolve correct file name and extension
+      String finalFileName = task.fileName;
+      String finalSavePath = task.savePath;
+      try {
+        final uri = Uri.parse(directUrl);
+        final directFileName = uri.pathSegments.last;
+        if (directFileName.contains('.')) {
+          finalFileName = directFileName;
+          finalSavePath = p.join(p.dirname(task.savePath), finalFileName);
+        } else {
+          if (!finalFileName.contains('.')) {
+            finalFileName = '$finalFileName.jpg';
+            finalSavePath = '$finalSavePath.jpg';
+          }
+        }
+      } catch (_) {
+        if (!finalFileName.contains('.')) {
+          finalFileName = '$finalFileName.jpg';
+          finalSavePath = '$finalSavePath.jpg';
+        }
+      }
+
+      final downloadingTask = task.copyWith(
+        status: DownloadStatus.downloading,
+        resolvedUrl: directUrl,
+        fileName: finalFileName,
+        savePath: finalSavePath,
+      );
+      _updateTask(task.url, downloadingTask);
+      notifyListeners();
+
+      _download(downloadingTask, (bool success) {
+        _handleDownloadComplete(task.url, success, task.batchId);
+      });
+    } else {
+      _updateTask(task.url, task.copyWith(status: DownloadStatus.downloading));
+      notifyListeners();
+      _download(task, (bool success) {
+        _handleDownloadComplete(task.url, success, task.batchId);
+      });
+    }
+  }
+
+  Future<String?> _scrapeImageLink(String pageUrl) async {
+    HeadlessInAppWebView? headlessWebView;
+    try {
+      final completer = Completer<String?>();
+
+      headlessWebView = HeadlessInAppWebView(
+        onWebViewCreated: (controller) async {
+          try {
+            await controller.loadUrl(urlRequest: URLRequest(url: WebUri(pageUrl)));
+          } catch (_) {
+            if (!completer.isCompleted) completer.complete(null);
+          }
+        },
+        onLoadStop: (controller, url) async {
+          try {
+            await Future.delayed(const Duration(seconds: 3));
+            final html = await controller.getHtml();
+            if (html != null) {
+              final regExp = RegExp(
+                r'https://i\.ibb\.co/[a-zA-Z0-9]+/[a-zA-Z0-9\-_.]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)',
+                caseSensitive: false,
+              );
+              final match = regExp.firstMatch(html);
+              if (match != null) {
+                if (!completer.isCompleted) completer.complete(match.group(0));
+                return;
+              }
+            }
+            if (!completer.isCompleted) completer.complete(null);
+          } catch (e) {
+            if (!completer.isCompleted) completer.completeError(e);
+          }
+        },
+        onReceivedError: (controller, request, error) {
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+
+      await headlessWebView.run();
+      final result = await completer.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => null,
+      );
+      return result;
+    } catch (e) {
+      debugPrint("Error scraping ImgBB link: $e");
+      return null;
+    } finally {
+      try {
+        await headlessWebView?.dispose();
+      } catch (e) {
+        debugPrint("Error disposing webview: $e");
+      }
+    }
   }
 
   void _handleDownloadComplete(String url, bool success, String? batchId) {
@@ -472,6 +588,7 @@ class DownloadManager extends ChangeNotifier {
     DownloadTask task,
     void Function(bool success) onCompleteInner,
   ) async {
+    final downloadUrl = task.resolvedUrl ?? task.url;
     final file = File(task.savePath);
     int start = 0;
     bool canResume = false;
@@ -482,7 +599,7 @@ class DownloadManager extends ChangeNotifier {
       if (start > 0) {
         try {
           final headResponse = await _dio.head(
-            task.url,
+            downloadUrl,
             options: Options(
               headers: {
                 'User-Agent':
@@ -521,7 +638,7 @@ class DownloadManager extends ChangeNotifier {
       }
 
       await _dio.download(
-        task.url,
+        downloadUrl,
         task.savePath,
         cancelToken: task.cancelToken,
         deleteOnError: false,
