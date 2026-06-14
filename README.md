@@ -37,7 +37,7 @@ RagaDL utilizes a decoupled, strategy-based scraping engine. The parser automati
 
 ---
 
-> ## 🌟 Key Features
+> ## Key Features
 
 - **Smart Downloader** - Paste a link from any of the supported portals. The scraper automatically detects the source, extracts individual image previews, and presents them in an interactive grid.
 - **Controlled Batch Downloading** - Downloader queues downloads via background worker threads using a connection-pooled HTTP client. Supports pausing, resuming, and cancelling active downloads.
@@ -48,7 +48,7 @@ RagaDL utilizes a decoupled, strategy-based scraping engine. The parser automati
 
 ---
 
-> ## ⚙️ Architecture & Technical Highlights
+> ## Architecture & Technical Highlights
 
 - **State Management & Lifecycle** - Built on **Riverpod** for reactive, compile-safe state caching. Implements `autoDispose` controllers to clean up memory, isolate instances, and tear down streams when the user leaves a tab.
 - **Concurrency Controls** - Scrapers run on background **Dart Isolates** to offload HTML parsing and DOM manipulation from the main UI thread. Network crawling is restricted to a batch concurrency of `5` to prevent server rate-limiting and connection exhaustion.
