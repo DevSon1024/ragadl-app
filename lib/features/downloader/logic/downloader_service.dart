@@ -181,6 +181,7 @@ class DownloaderService {
           subFolder: subFolderName,
           galleryName: galleryName,
           batchId: batchId,
+          albumName: galleryName,
           onProgress: (progress) {},
           onComplete: (success) {
             if (success) {
@@ -238,6 +239,7 @@ class DownloaderService {
           subFolder: subFolderName,
           galleryName: galleryName,
           batchId: batchId,
+          albumName: galleryName,
           onProgress: (progress) {},
           onComplete: (success) {
             if (success) {
@@ -276,6 +278,7 @@ class DownloaderService {
         folder: folderName,
         subFolder: subFolder,
         galleryName: galleryTitle ?? 'Single Image',
+        albumName: galleryTitle ?? 'Single Image',
         onProgress: (progress) {},
         onComplete: (success) {},
       );

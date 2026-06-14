@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'link_history_page.dart';
 import '../controllers/downloader_controller.dart';
@@ -167,6 +168,7 @@ class _RagadlState extends ConsumerState<RagaDL>
         controller: controller,
         galleryTitle: widget.galleryTitle,
       ),
+      bottomNavigationBar: _buildBottomBar(context, controller),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: ScaleTransition(
@@ -213,12 +215,167 @@ class _RagadlState extends ConsumerState<RagaDL>
                 ),
               if (!controller.isLoading && controller.imageUrls.isNotEmpty)
                 DownloaderImageGrid(controller: controller),
+              if (controller.hasMorePages && !controller.isLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+                    child: controller.isLoadMoreLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () {
+                              final url = controller.urlController.text.trim();
+                              controller.processGallery(
+                                baseUrl: url,
+                                galleryTitle: widget.galleryTitle,
+                                context: context,
+                                showSnackBar: (msg, icon, {isError = false}) {
+                                  SnackbarHelper.showModernSnackBar(
+                                    context: context,
+                                    message: msg,
+                                    icon: icon,
+                                    isError: isError,
+                                  );
+                                },
+                                isLoadMore: true,
+                              );
+                            },
+                            icon: const Icon(Icons.arrow_downward_rounded),
+                            label: const Text('Load More Images'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              if (!controller.isLoading && controller.imageUrls.isNotEmpty)
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 100),
+                ),
               if (!controller.isLoading && controller.imageUrls.isEmpty)
                 const SliverToBoxAdapter(
                   child: EmptyState(),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildBottomBar(BuildContext context, DownloaderController controller) {
+    if (controller.imageUrls.isEmpty || controller.isLoading) return null;
+
+    final color = Theme.of(context).colorScheme;
+    final isAllSelected = controller.selectedImages.length == controller.imageUrls.length;
+    final isAnySelected = controller.selectedImages.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.surface,
+        border: Border(
+          top: BorderSide(
+            color: color.outline.withValues(alpha: 0.15),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.shadow.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Checkbox(
+              value: isAllSelected,
+              tristate: controller.selectedImages.isNotEmpty && !isAllSelected,
+              onChanged: (bool? value) {
+                HapticFeedback.lightImpact();
+                controller.toggleSelectAll();
+              },
+            ),
+            Text(
+              'Select All',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color.onSurface,
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (isAnySelected)
+              Text(
+                '(${controller.selectedImages.length})',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: color.primary,
+                ),
+              ),
+            const Spacer(),
+            ElevatedButton.icon(
+              onPressed: !isAnySelected || controller.isDownloading
+                  ? null
+                  : () {
+                      HapticFeedback.mediumImpact();
+                      controller.downloadSelectedImages(
+                        galleryTitle: widget.galleryTitle,
+                        onResult: (success, message) {
+                          SnackbarHelper.showModernSnackBar(
+                            context: context,
+                            message: message,
+                            icon: success
+                                ? Icons.download_for_offline_rounded
+                                : Icons.error_rounded,
+                            isError: !success,
+                          );
+                        },
+                      );
+                    },
+              icon: controller.isDownloading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.download_for_offline_rounded),
+              label: Text(
+                controller.isDownloading ? 'Downloading...' : 'Download Selected',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color.primary,
+                foregroundColor: color.onPrimary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ).copyWith(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.disabled)) {
+                    return color.surfaceContainerHighest.withValues(alpha: 0.5);
+                  }
+                  return color.primary;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.disabled)) {
+                    return color.onSurfaceVariant.withValues(alpha: 0.5);
+                  }
+                  return color.onPrimary;
+                }),
+              ),
+            ),
+          ],
         ),
       ),
     );

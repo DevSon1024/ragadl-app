@@ -7,6 +7,7 @@ class DownloadTask {
   final String? resolvedUrl;
   final String fileName;
   final String savePath;
+  final String? targetDirectory;
   final String folder;
   final String subFolder;
   final String galleryName;
@@ -28,6 +29,7 @@ class DownloadTask {
     this.resolvedUrl,
     required this.fileName,
     required this.savePath,
+    this.targetDirectory,
     required this.folder,
     required this.subFolder,
     required this.galleryName,
@@ -48,6 +50,7 @@ class DownloadTask {
     String? resolvedUrl,
     String? fileName,
     String? savePath,
+    String? targetDirectory,
     String? folder,
     String? subFolder,
     String? galleryName,
@@ -67,6 +70,7 @@ class DownloadTask {
       resolvedUrl: resolvedUrl ?? this.resolvedUrl,
       fileName: fileName ?? this.fileName,
       savePath: savePath ?? this.savePath,
+      targetDirectory: targetDirectory ?? this.targetDirectory,
       folder: folder ?? this.folder,
       subFolder: subFolder ?? this.subFolder,
       galleryName: galleryName ?? this.galleryName,

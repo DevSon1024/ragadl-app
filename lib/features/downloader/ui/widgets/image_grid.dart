@@ -23,7 +23,7 @@ class DownloaderImageGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: _getColumnCount(context),
@@ -119,6 +119,7 @@ class ImageGridItem extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: imageData.thumbnailUrl,
                         fit: BoxFit.cover,
+                        memCacheWidth: 250,
                         placeholder:
                             (context, url) => Shimmer.fromColors(
                               baseColor: color.surfaceContainerHighest

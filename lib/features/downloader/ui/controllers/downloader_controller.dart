@@ -56,6 +56,11 @@ class DownloaderController extends ChangeNotifier {
   String subFolderName = '';
   bool isInitialized = false;
   bool showBehindwoodsInfo = false;
+  String? albumTitle;
+  int imgbbPage = 1;
+  bool hasMorePages = false;
+  bool isLoadMoreLoading = false;
+  String? nextPageUrl;
 
   @override
   void dispose() {
@@ -151,6 +156,11 @@ class DownloaderController extends ChangeNotifier {
     successMessage = null;
     isInitialized = false;
     showBehindwoodsInfo = false;
+    albumTitle = null;
+    imgbbPage = 1;
+    hasMorePages = false;
+    isLoadMoreLoading = false;
+    nextPageUrl = null;
     notifyListeners();
 
     HapticFeedback.mediumImpact();
@@ -196,21 +206,32 @@ class DownloaderController extends ChangeNotifier {
     required BuildContext context,
     required void Function(String message, IconData icon, {bool isError})
     showSnackBar,
+    bool isLoadMore = false,
   }) async {
     final isImgBB = baseUrl.toLowerCase().contains('ibb.co');
 
     if (isImgBB) {
-      isLoading = true;
-      imageUrls.clear();
-      selectedImages.clear();
-      isSelectionMode = false;
-      downloadsSuccessful = 0;
-      downloadsFailed = 0;
-      currentPage = 0;
-      totalPages = 1;
-      error = null;
+      if (!isLoadMore) {
+        isLoading = true;
+        isLoadMoreLoading = false;
+        imgbbPage = 1;
+        hasMorePages = false;
+        nextPageUrl = null;
+        imageUrls.clear();
+        selectedImages.clear();
+        isSelectionMode = false;
+        downloadsSuccessful = 0;
+        downloadsFailed = 0;
+        currentPage = 0;
+        totalPages = 1;
+        error = null;
+      } else {
+        isLoadMoreLoading = true;
+        imgbbPage++;
+      }
       notifyListeners();
 
+      if (!context.mounted) return;
       final permissionsGranted = await checkPermissions(context);
       if (!context.mounted) return;
       if (permissionsGranted) {
@@ -239,17 +260,28 @@ class DownloaderController extends ChangeNotifier {
       if (isAlbum) {
         HeadlessInAppWebView? headlessWebView;
         try {
-          final completer = Completer<List<dynamic>?>();
+          final completer = Completer<Map<dynamic, dynamic>?>();
+          final targetUrl = (isLoadMore && nextPageUrl != null) ? nextPageUrl! : baseUrl;
+
           headlessWebView = HeadlessInAppWebView(
             onWebViewCreated: (controller) async {
               try {
-                await controller.loadUrl(urlRequest: URLRequest(url: WebUri(baseUrl)));
+                await controller.loadUrl(urlRequest: URLRequest(url: WebUri(targetUrl)));
               } catch (_) {
                 if (!completer.isCompleted) completer.complete(null);
               }
             },
             onLoadStop: (controller, url) async {
               try {
+                if (!isLoadMore) {
+                  final titleResult = await controller.evaluateJavascript(
+                    source: "document.title.split(' - ')[0].trim() || 'Unknown Album'",
+                  );
+                  if (titleResult is String) {
+                    albumTitle = titleResult;
+                  }
+                }
+
                 await controller.evaluateJavascript(source: '''
                   (async () => {
                     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -264,14 +296,19 @@ class DownloaderController extends ChangeNotifier {
                 await Future.delayed(const Duration(seconds: 3));
 
                 final result = await controller.evaluateJavascript(source: '''
-                  Array.from(document.querySelectorAll('a.image-container.--media')).map(a => {
-                    const img = a.querySelector('img');
-                    return { pageUrl: a.href, thumbnailUrl: img ? img.src : '' };
-                  });
+                  (() => {
+                    const nextBtn = document.querySelector('[data-pagination="next"]') || document.querySelector('.pagination-next a') || document.querySelector('.btn-load-more');
+                    const nextUrl = nextBtn ? nextBtn.href : null;
+                    const images = Array.from(document.querySelectorAll('a.image-container.--media')).map(a => {
+                      const img = a.querySelector('img');
+                      return { pageUrl: a.href, thumbnailUrl: img ? img.src : '' };
+                    });
+                    return { "nextUrl": nextUrl, "images": images };
+                  })()
                 ''');
 
                 if (!completer.isCompleted) {
-                  completer.complete(result is List ? result : null);
+                  completer.complete(result is Map ? result : null);
                 }
               } catch (e) {
                 if (!completer.isCompleted) completer.completeError(e);
@@ -289,8 +326,11 @@ class DownloaderController extends ChangeNotifier {
             onTimeout: () => null,
           );
 
-          if (result != null && result.isNotEmpty) {
-            imageUrls = result
+          if (result != null) {
+            final imagesList = result['images'] is List ? result['images'] as List : [];
+            final nextUrl = result['nextUrl'] is String ? result['nextUrl'] as String : null;
+
+            final newImages = imagesList
                 .where((item) => item is Map && item['pageUrl'] != null)
                 .map((item) {
                   final map = item as Map;
@@ -300,14 +340,34 @@ class DownloaderController extends ChangeNotifier {
                   );
                 })
                 .toList();
+
+            int addedCount = 0;
+            if (isLoadMore) {
+              for (final img in newImages) {
+                final isDuplicate = imageUrls.any((existing) => existing.originalUrl == img.originalUrl);
+                if (!isDuplicate) {
+                  imageUrls.add(img);
+                  addedCount++;
+                }
+              }
+            } else {
+              imageUrls = newImages;
+              addedCount = newImages.length;
+            }
+            nextPageUrl = nextUrl;
+            hasMorePages = nextPageUrl != null;
             isLoading = false;
+            isLoadMoreLoading = false;
             notifyListeners();
             showSnackBar(
-              'Found ${imageUrls.length} images in ImgBB album',
+              isLoadMore 
+                  ? 'Loaded $addedCount new images'
+                  : 'Found ${imageUrls.length} images in ImgBB album',
               Icons.photo_library_rounded,
             );
           } else {
             isLoading = false;
+            isLoadMoreLoading = false;
             error = 'No images found in this ImgBB album.';
             notifyListeners();
             showSnackBar(
@@ -318,6 +378,7 @@ class DownloaderController extends ChangeNotifier {
           }
         } catch (e) {
           isLoading = false;
+          isLoadMoreLoading = false;
           error = e.toString();
           notifyListeners();
           showSnackBar('Scraping failed: $e', Icons.error_rounded, isError: true);
@@ -425,6 +486,7 @@ class DownloaderController extends ChangeNotifier {
     error = null;
     notifyListeners();
 
+    if (!context.mounted) return;
     final permissionsGranted = await checkPermissions(context);
     if (!context.mounted) return;
     if (permissionsGranted) {
@@ -552,7 +614,7 @@ class DownloaderController extends ChangeNotifier {
       imageUrls: imageUrls,
       mainFolderName: mainFolderName,
       subFolderName: subFolderName,
-      galleryTitle: galleryTitle,
+      galleryTitle: galleryTitle ?? albumTitle,
     );
 
     isDownloading = false;
@@ -584,7 +646,7 @@ class DownloaderController extends ChangeNotifier {
       selectedIndices: selectedImages,
       mainFolderName: mainFolderName,
       subFolderName: subFolderName,
-      galleryTitle: galleryTitle,
+      galleryTitle: galleryTitle ?? albumTitle,
     );
 
     isDownloading = false;
@@ -608,6 +670,19 @@ class DownloaderController extends ChangeNotifier {
       selectedImages.add(index);
     }
     isSelectionMode = selectedImages.isNotEmpty;
+    notifyListeners();
+    HapticFeedback.selectionClick();
+  }
+
+  void toggleSelectAll() {
+    if (selectedImages.length == imageUrls.length) {
+      selectedImages.clear();
+      isSelectionMode = false;
+    } else {
+      selectedImages.clear();
+      selectedImages.addAll(Iterable<int>.generate(imageUrls.length));
+      isSelectionMode = true;
+    }
     notifyListeners();
     HapticFeedback.selectionClick();
   }

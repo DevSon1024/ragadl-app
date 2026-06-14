@@ -35,30 +35,6 @@ class DownloaderFloatingButton extends StatelessWidget {
       );
     }
 
-    if (controller.imageUrls.isNotEmpty &&
-        controller.isSelectionMode &&
-        !controller.isLoading &&
-        !controller.isDownloading) {
-      return FloatingActionButton.extended(
-        onPressed: () => controller.downloadSelectedImages(
-          galleryTitle: galleryTitle,
-          onResult: (success, message) {
-            SnackbarHelper.showModernSnackBar(
-              context: context,
-              message: message,
-              icon: success ? Icons.download_for_offline_rounded : Icons.error_rounded,
-              isError: !success,
-            );
-          },
-        ),
-        icon: const Icon(Icons.download_for_offline_rounded),
-        label: Text('Download ${controller.selectedImages.length}'),
-        backgroundColor: color.primary,
-        foregroundColor: color.onPrimary,
-        elevation: 4,
-      );
-    }
-
     return const SizedBox.shrink();
   }
 }

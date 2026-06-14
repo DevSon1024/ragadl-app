@@ -73,6 +73,7 @@ class CommonCelebrityCard extends StatelessWidget {
               CachedNetworkImage(
                 imageUrl: imageUrl!,
                 fit: BoxFit.cover,
+                memCacheWidth: 250,
                 alignment: Alignment.topCenter,
                 placeholder: (context, url) => const Center(
                   child: CircularProgressIndicator(strokeWidth: 2),

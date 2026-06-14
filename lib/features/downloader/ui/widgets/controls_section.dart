@@ -385,36 +385,6 @@ class ControlsSection extends StatelessWidget {
 
           // Action buttons
           ActionButtons(controller: controller, galleryTitle: galleryTitle),
-
-          const SizedBox(height: 16),
-
-          if (controller.isSelectionMode)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: color.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.primary.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: color.primary),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${controller.selectedImages.length} images selected',
-                    style: TextStyle(
-                      color: color.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => controller.clearSelection(),
-                    child: const Text('Clear'),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

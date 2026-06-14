@@ -113,6 +113,7 @@ class DownloadManager extends ChangeNotifier {
     required void Function(double progress) onProgress,
     required void Function(bool success) onComplete,
     String? batchId,
+    String? albumName,
   }) async {
     if (_activeDownloads.containsKey(url)) {
       final task = _activeDownloads[url]!;
@@ -124,8 +125,27 @@ class DownloadManager extends ChangeNotifier {
 
     DownloadTask? task;
     try {
-      final directory = await _getDownloadDirectory(folder, subFolder);
-      final fileName = url.split('/').last;
+      final host = Uri.parse(url).host.replaceAll('www.', '').replaceAll('m.', '');
+      final directory = await _getBaseDirectory(host, albumName ?? galleryName);
+
+      final nodeId = url.split('/').last;
+      String fileName = nodeId;
+      final isImgBBPage = url.toLowerCase().contains('ibb.co') &&
+          !url.toLowerCase().contains('i.ibb.co');
+
+      if (!isImgBBPage) {
+        if (url.contains('.')) {
+          final lastSeg = url.split('/').last;
+          if (lastSeg.contains('.')) {
+            fileName = lastSeg;
+          }
+        }
+      }
+
+      if (!fileName.contains('.')) {
+        fileName = '$fileName.jpg';
+      }
+
       final savePath = p.join(directory.path, fileName);
       final cancelToken = CancelToken();
 
@@ -133,6 +153,7 @@ class DownloadManager extends ChangeNotifier {
         url: url,
         fileName: fileName,
         savePath: savePath,
+        targetDirectory: directory.path,
         folder: folder,
         subFolder: subFolder,
         galleryName: galleryName,
@@ -356,27 +377,12 @@ class DownloadManager extends ChangeNotifier {
         return;
       }
 
-      // Dynamically resolve correct file name and extension
-      String finalFileName = task.fileName;
-      String finalSavePath = task.savePath;
-      try {
-        final uri = Uri.parse(directUrl);
-        final directFileName = uri.pathSegments.last;
-        if (directFileName.contains('.')) {
-          finalFileName = directFileName;
-          finalSavePath = p.join(p.dirname(task.savePath), finalFileName);
-        } else {
-          if (!finalFileName.contains('.')) {
-            finalFileName = '$finalFileName.jpg';
-            finalSavePath = '$finalSavePath.jpg';
-          }
-        }
-      } catch (_) {
-        if (!finalFileName.contains('.')) {
-          finalFileName = '$finalFileName.jpg';
-          finalSavePath = '$finalSavePath.jpg';
-        }
-      }
+      final realExtension = directUrl.split('.').last.split('?').first;
+      final nodeId = task.url.split('/').last;
+      final finalFileName = '$nodeId.$realExtension';
+      final finalSavePath = task.targetDirectory != null
+          ? p.join(task.targetDirectory!, finalFileName)
+          : p.join(p.dirname(task.savePath), finalFileName);
 
       final downloadingTask = task.copyWith(
         status: DownloadStatus.downloading,
@@ -666,20 +672,43 @@ class DownloadManager extends ChangeNotifier {
   }
 
   // File system helpers
-  Future<Directory> _getDownloadDirectory(
-    String folder,
-    String subFolder,
-  ) async {
+  String _sanitizeFolderName(String name) {
+    return name.replaceAll(RegExp(r'[\\/:\*\?"<>\|]'), '').trim();
+  }
+
+  Future<Directory> _getBaseDirectory(String host, String? albumName) async {
     final prefs = await SharedPreferences.getInstance();
     final basePath =
         prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
 
+    String pathSegment = '';
+    final sanitizedAlbum = albumName != null ? _sanitizeFolderName(albumName) : null;
+
+    if (host == 'ibb.co') {
+      if (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty && sanitizedAlbum != 'Single Image' && sanitizedAlbum != 'ImgBB') {
+        pathSegment = p.join('imgbb', sanitizedAlbum);
+      } else {
+        pathSegment = 'imgbb';
+      }
+    } else if (host == 'ragalahari.com') {
+      final album = (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty) ? sanitizedAlbum : 'Unknown Album';
+      pathSegment = p.join('ragalahari', album);
+    } else if (host == 'idlebrain.com') {
+      final album = (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty) ? sanitizedAlbum : 'Unknown Album';
+      pathSegment = p.join('idlebrain', album);
+    } else if (host == 'behindwoods.com') {
+      pathSegment = 'behindwoods';
+    } else {
+      final album = (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty) ? sanitizedAlbum : 'Unknown Album';
+      pathSegment = p.join(host, album);
+    }
+
     Directory directory;
     if (Platform.isAndroid) {
-      directory = Directory(p.join(basePath, folder, subFolder));
+      directory = Directory(p.join(basePath, pathSegment));
     } else {
-      directory = await getApplicationDocumentsDirectory();
-      directory = Directory(p.join(directory.path, folder, subFolder));
+      final docDir = await getApplicationDocumentsDirectory();
+      directory = Directory(p.join(docDir.path, pathSegment));
     }
 
     if (!await directory.exists()) {
