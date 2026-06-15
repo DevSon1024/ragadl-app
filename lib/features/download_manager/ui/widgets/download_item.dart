@@ -19,96 +19,101 @@ class RunningDownloadItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    final isPaused = task.status == DownloadStatus.paused;
-    final isQueued = task.status == DownloadStatus.queued;
-    final isScraping = task.status == DownloadStatus.scraping;
+    return ListenableBuilder(
+      listenable: task,
+      builder: (context, _) {
+        final color = Theme.of(context).colorScheme;
+        final isPaused = task.status == DownloadStatus.paused;
+        final isQueued = task.status == DownloadStatus.queued;
+        final isScraping = task.status == DownloadStatus.scraping;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.fileName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.fileName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${task.folder}/${task.subFolder}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: color.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${task.folder}/${task.subFolder}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: color.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                    ),
+                    _StatusChip(status: task.status),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: (isQueued || isScraping) ? null : task.progress,
+                  backgroundColor: color.surfaceContainerHighest,
+                  valueColor: AlwaysStoppedAnimation(
+                    isPaused
+                        ? Colors.orange
+                        : isQueued
+                        ? Colors.blue[300]
+                        : isScraping
+                        ? Colors.teal
+                        : Colors.blue,
                   ),
                 ),
-                _StatusChip(status: task.status),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: (isQueued || isScraping || task.status == DownloadStatus.downloading) ? null : task.progress,
-              backgroundColor: color.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation(
-                isPaused
-                    ? Colors.orange
-                    : isQueued
-                    ? Colors.blue[300]
-                    : isScraping
-                    ? Colors.teal
-                    : Colors.blue,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isQueued
-                      ? 'Queued...'
-                      : isScraping
-                          ? 'Scraping...'
-                          : task.status == DownloadStatus.downloading
-                              ? 'Downloading...'
-                              : '${(task.progress * 100).toStringAsFixed(1)}%',
-                  style: TextStyle(fontSize: 12, color: color.onSurfaceVariant),
-                ),
+                const SizedBox(height: 8),
                 Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (!isQueued) ...[
-                      IconButton(
-                        icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
-                        onPressed: isPaused ? onResume : onPause,
-                        tooltip: isPaused ? 'Resume' : 'Pause',
-                        iconSize: 20,
-                      ),
-                    ],
-                    IconButton(
-                      icon: const Icon(Icons.cancel),
-                      onPressed: onCancel,
-                      tooltip: 'Cancel',
-                      iconSize: 20,
+                    Text(
+                      isQueued
+                          ? 'Queued...'
+                          : isScraping
+                              ? 'Scraping...'
+                              : task.status == DownloadStatus.downloading
+                                  ? 'Downloading (${(task.progress * 100).toStringAsFixed(1)}%)'
+                                  : '${(task.progress * 100).toStringAsFixed(1)}%',
+                      style: TextStyle(fontSize: 12, color: color.onSurfaceVariant),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isQueued) ...[
+                          IconButton(
+                            icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
+                            onPressed: isPaused ? onResume : onPause,
+                            tooltip: isPaused ? 'Resume' : 'Pause',
+                            iconSize: 20,
+                          ),
+                        ],
+                        IconButton(
+                          icon: const Icon(Icons.cancel),
+                          onPressed: onCancel,
+                          tooltip: 'Cancel',
+                          iconSize: 20,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

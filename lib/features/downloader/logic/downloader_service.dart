@@ -173,6 +173,14 @@ class DownloaderService {
         galleryName: galleryName,
       );
 
+      final targetDirectoryPath = imageUrls.isNotEmpty
+          ? await downloadManager.getResolvedTargetDirectory(
+              url: imageUrls.first.originalUrl,
+              galleryName: galleryName,
+              albumName: galleryName,
+            )
+          : '';
+
       for (int i = 0; i < imageUrls.length; i++) {
         final imageUrl = imageUrls[i].originalUrl;
         downloadManager.addDownload(
@@ -180,6 +188,7 @@ class DownloaderService {
           folder: mainFolderName,
           subFolder: subFolderName,
           galleryName: galleryName,
+          targetDirectoryPath: targetDirectoryPath,
           batchId: batchId,
           albumName: galleryName,
           onProgress: (progress) {},
@@ -231,6 +240,14 @@ class DownloaderService {
         galleryName: galleryName,
       );
 
+      final targetDirectoryPath = selectedIndices.isNotEmpty
+          ? await downloadManager.getResolvedTargetDirectory(
+              url: imageUrls[selectedIndices.first].originalUrl,
+              galleryName: galleryName,
+              albumName: galleryName,
+            )
+          : '';
+
       for (int index in selectedIndices) {
         final imageUrl = imageUrls[index].originalUrl;
         downloadManager.addDownload(
@@ -238,6 +255,7 @@ class DownloaderService {
           folder: mainFolderName,
           subFolder: subFolderName,
           galleryName: galleryName,
+          targetDirectoryPath: targetDirectoryPath,
           batchId: batchId,
           albumName: galleryName,
           onProgress: (progress) {},
@@ -273,11 +291,18 @@ class DownloaderService {
       final folderName = folder ?? 'SingleImages';
       final subFolder = DateTime.now().toString().split(' ')[0];
 
+      final targetDirectoryPath = await downloadManager.getResolvedTargetDirectory(
+        url: imageUrl,
+        galleryName: galleryTitle ?? 'Single Image',
+        albumName: galleryTitle ?? 'Single Image',
+      );
+
       downloadManager.addDownload(
         url: imageUrl,
         folder: folderName,
         subFolder: subFolder,
         galleryName: galleryTitle ?? 'Single Image',
+        targetDirectoryPath: targetDirectoryPath,
         albumName: galleryTitle ?? 'Single Image',
         onProgress: (progress) {},
         onComplete: (success) {},
