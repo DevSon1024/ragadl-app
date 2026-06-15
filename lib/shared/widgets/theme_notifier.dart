@@ -53,9 +53,9 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  ThemeData getThemeData({bool isDark = false}) {
+  ThemeData getThemeData({bool isDark = false, bool amoledBlack = false}) {
     if (isDark) {
-      return ThemeConfig.getDarkTheme(_primaryColor);
+      return ThemeConfig.getDarkTheme(_primaryColor, amoledBlack: amoledBlack);
     } else {
       return ThemeConfig.getLightTheme(_primaryColor);
     }

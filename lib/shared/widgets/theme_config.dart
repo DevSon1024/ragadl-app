@@ -80,39 +80,42 @@ class ThemeConfig {
   }
 
   // Modern Dark Theme
-  static ThemeData getDarkTheme(Color primaryColor) {
+  static ThemeData getDarkTheme(Color primaryColor, {bool amoledBlack = false}) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.dark,
     );
-    const scaffoldBg = Color(0xFF100E14);
+    final scaffoldBg = amoledBlack ? Colors.black : const Color(0xFF100E14);
+    final cardBg = amoledBlack ? Colors.black : const Color(0xFF1C1B1F);
+    final surfaceBg = amoledBlack ? Colors.black : const Color(0xFF1C1B1F);
+    final containerBg = amoledBlack ? const Color(0xFF0F0E12) : const Color(0xFF211F26);
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme.copyWith(
         primary: primaryColor,
         onPrimary: const Color(0xFF2A1C6A),
-        surface: const Color(0xFF1C1B1F),
+        surface: surfaceBg,
         onSurface: const Color(0xFFE6E1E5),
-        surfaceContainer: const Color(0xFF211F26),
+        surfaceContainer: containerBg,
         onSurfaceVariant: const Color(0xFFCAC4D0),
         outline: const Color(0xFF938F99),
       ),
       scaffoldBackgroundColor: scaffoldBg,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: scaffoldBg,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: Color(0xFFE6E1E5),
+        foregroundColor: const Color(0xFFE6E1E5),
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: const Color(0xFF1C1B1F),
+        color: cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(Radius.circular(16)),
           side: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.2),
+            color: amoledBlack ? Colors.grey.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -128,7 +131,7 @@ class ThemeConfig {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF2A282E),
+        fillColor: amoledBlack ? const Color(0xFF121212) : const Color(0xFF2A282E),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

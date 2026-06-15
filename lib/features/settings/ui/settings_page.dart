@@ -31,7 +31,7 @@ class SettingsPage extends ConsumerWidget {
                 context,
                 icon: Icons.display_settings,
                 title: 'Display',
-                subtitle: 'Theme, font size, etc.',
+                subtitle: 'Theme, AMOLED black, accent color, grid columns',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -59,7 +59,7 @@ class SettingsPage extends ConsumerWidget {
                 context,
                 icon: Icons.palette,
                 title: 'UI & Customization',
-                subtitle: 'Grid columns, quality, black theme',
+                subtitle: 'Preferences & history auto-clear',
                 onTap: () {
                   Navigator.push(
                     context,

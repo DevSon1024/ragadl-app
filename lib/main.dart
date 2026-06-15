@@ -13,6 +13,7 @@ import 'core/permissions.dart';
 import 'core/services/notification_controller.dart';
 import 'features/home/ui/home_page.dart';
 import 'shared/widgets/theme_notifier.dart';
+import 'features/settings/logic/settings_service.dart';
 
 final themeNotifierProvider = ChangeNotifierProvider<ThemeNotifier>((ref) {
   return ThemeNotifier();
@@ -57,10 +58,11 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeNotifier = ref.watch(themeNotifierProvider);
+    final settings = ref.watch(settingsServiceProvider);
     return MaterialApp(
       title: 'RagaDL',
       theme: themeNotifier.getThemeData(),
-      darkTheme: themeNotifier.getThemeData(isDark: true),
+      darkTheme: themeNotifier.getThemeData(isDark: true, amoledBlack: settings.amoledBlack),
       themeMode: themeNotifier.themeMode,
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,

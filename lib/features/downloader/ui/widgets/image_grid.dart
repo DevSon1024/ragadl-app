@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../logic/downloader_service.dart';
-import '../../../../shared/widgets/grid_utils.dart';
+import '../../../settings/logic/settings_service.dart';
 import '../controllers/downloader_controller.dart';
 import '../utils/navigation_helper.dart';
 
-class DownloaderImageGrid extends StatelessWidget {
+class DownloaderImageGrid extends ConsumerWidget {
   final DownloaderController controller;
 
   const DownloaderImageGrid({
@@ -16,17 +17,17 @@ class DownloaderImageGrid extends StatelessWidget {
     required this.controller,
   });
 
-  int _getColumnCount(BuildContext context) {
-    return calculateGridColumns(context);
+  int _getColumnCount(BuildContext context, WidgetRef ref) {
+    return ref.watch(settingsServiceProvider).gridColumns;
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _getColumnCount(context),
+          crossAxisCount: _getColumnCount(context, ref),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: 0.8,
