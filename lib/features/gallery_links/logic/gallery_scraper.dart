@@ -12,15 +12,13 @@ class GalleryScraper {
   final List<String> _thumbnailDomains = thumbnailDomains;
 
   Future<GalleryScrapingResult> fetchGalleryUrls(String profileUrl) async {
-    final receivePort = ReceivePort();
     final scrapingData = GalleryScrapingData(
       profileUrl: profileUrl,
       headers: _headers,
       thumbnailDomains: _thumbnailDomains,
     );
 
-    await Isolate.spawn(_fetchUrlsIsolate, <dynamic>[receivePort.sendPort, scrapingData]);
-    final result = await receivePort.first as GalleryScrapingResult;
+    final result = await Isolate.run(() => _fetchUrlsIsolate(scrapingData));
     if (result.error != null) {
       throw Exception(result.error);
     }
@@ -28,15 +26,13 @@ class GalleryScraper {
   }
 
   Future<GalleryScrapingResult> loadBatchItems(List<String> urls) async {
-    final receivePort = ReceivePort();
     final batchData = BatchScrapingData(
       urls: urls,
       headers: _headers,
       thumbnailDomains: _thumbnailDomains,
     );
 
-    await Isolate.spawn(_loadBatchIsolate, <dynamic>[receivePort.sendPort, batchData]);
-    return await receivePort.first as GalleryScrapingResult;
+    return await Isolate.run(() => _loadBatchIsolate(batchData));
   }
 
   Future<bool> checkGalleryAvailability(String galleryUrl) async {
@@ -65,10 +61,7 @@ class GalleryScraper {
     }
   }
 
-  static Future<void> _fetchUrlsIsolate(List<dynamic> args) async {
-    final SendPort sendPort = args[0] as SendPort;
-    final GalleryScrapingData data = args[1] as GalleryScrapingData;
-
+  static Future<GalleryScrapingResult> _fetchUrlsIsolate(GalleryScrapingData data) async {
     try {
       final response = await DioClient().dio.get<String>(
         data.profileUrl,
@@ -80,24 +73,23 @@ class GalleryScraper {
       );
 
       if (response.statusCode != 200 || response.data == null) {
-        sendPort.send(GalleryScrapingResult(error: 'Failed to load page: ${response.statusCode}'));
-        return;
+        return GalleryScrapingResult(error: 'Failed to load page: ${response.statusCode}');
       }
 
       final document = html_parser.parse(response.data!);
       final urls = _extractGalleryLinksIsolate(document, data.profileUrl);
-      sendPort.send(GalleryScrapingResult(urls: urls));
+      return GalleryScrapingResult(urls: urls);
     } on DioException catch (de) {
       if (de.type == DioExceptionType.connectionTimeout ||
           de.type == DioExceptionType.receiveTimeout ||
           de.type == DioExceptionType.sendTimeout ||
           de.type == DioExceptionType.connectionError) {
-        sendPort.send(GalleryScrapingResult(error: 'Slow internet connection. Please try again.'));
+        return GalleryScrapingResult(error: 'Slow internet connection. Please try again.');
       } else {
-        sendPort.send(GalleryScrapingResult(error: 'Network error: ${de.message}'));
+        return GalleryScrapingResult(error: 'Network error: ${de.message}');
       }
     } catch (e) {
-      sendPort.send(GalleryScrapingResult(error: 'Failed to fetch URLs: $e'));
+      return GalleryScrapingResult(error: 'Failed to fetch URLs: $e');
     }
   }
 
@@ -106,10 +98,7 @@ class GalleryScraper {
     return parser.extractGalleryLinks(document, profileUrl);
   }
 
-  static Future<void> _loadBatchIsolate(List<dynamic> args) async {
-    final SendPort sendPort = args[0] as SendPort;
-    final BatchScrapingData data = args[1] as BatchScrapingData;
-
+  static Future<GalleryScrapingResult> _loadBatchIsolate(BatchScrapingData data) async {
     try {
       final List<GalleryItem> items = <GalleryItem>[];
       const int chunkSize = 5;
@@ -121,9 +110,9 @@ class GalleryScraper {
         final List<GalleryItem?> results = await Future.wait(futures);
         items.addAll(results.whereType<GalleryItem>());
       }
-      sendPort.send(GalleryScrapingResult(items: items));
+      return GalleryScrapingResult(items: items);
     } catch (e) {
-      sendPort.send(GalleryScrapingResult(error: 'Failed to load batch: $e'));
+      return GalleryScrapingResult(error: 'Failed to load batch: $e');
     }
   }
 

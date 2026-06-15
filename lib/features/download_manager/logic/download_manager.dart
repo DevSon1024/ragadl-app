@@ -102,11 +102,22 @@ class DownloadManager extends ChangeNotifier {
   }
 
   // Public API - add / pause / resume / cancel / retry / clear
+  Future<String> getResolvedTargetDirectory({
+    required String url,
+    required String galleryName,
+    String? albumName,
+  }) async {
+    final host = Uri.parse(url).host.replaceAll('www.', '').replaceAll('m.', '');
+    final directory = await _getBaseDirectory(host, albumName ?? galleryName);
+    return directory.path;
+  }
+
   Future<void> addDownload({
     required String url,
     required String folder,
     required String subFolder,
     required String galleryName,
+    required String targetDirectoryPath,
     required void Function(double progress) onProgress,
     required void Function(bool success) onComplete,
     String? batchId,
@@ -122,9 +133,6 @@ class DownloadManager extends ChangeNotifier {
 
     DownloadTask? task;
     try {
-      final host = Uri.parse(url).host.replaceAll('www.', '').replaceAll('m.', '');
-      final directory = await _getBaseDirectory(host, albumName ?? galleryName);
-
       final nodeId = url.split('/').last;
       String fileName = nodeId;
       final isImgBBPage = url.toLowerCase().contains('ibb.co') &&
@@ -143,14 +151,14 @@ class DownloadManager extends ChangeNotifier {
         fileName = '$fileName.jpg';
       }
 
-      final savePath = p.join(directory.path, fileName);
+      final savePath = p.join(targetDirectoryPath, fileName);
       final cancelToken = CancelToken();
 
       task = DownloadTask(
         url: url,
         fileName: fileName,
         savePath: savePath,
-        targetDirectory: directory.path,
+        targetDirectory: targetDirectoryPath,
         folder: folder,
         subFolder: subFolder,
         galleryName: galleryName,
@@ -189,26 +197,23 @@ class DownloadManager extends ChangeNotifier {
     final task = _tasks[url];
     if (task != null && (task.status == DownloadStatus.downloading || task.status == DownloadStatus.scraping)) {
       task.cancelToken.cancel('Download paused');
-      _updateTask(url, task.copyWith(status: DownloadStatus.paused));
-      notifyListeners();
+      task.status = DownloadStatus.paused;
+      _updateTask(url, task);
     } else if (task != null && task.status == DownloadStatus.queued) {
-      _updateTask(url, task.copyWith(status: DownloadStatus.paused));
+      task.status = DownloadStatus.paused;
+      _updateTask(url, task);
       _pendingQueue.removeWhere((t) => t.url == url);
-      notifyListeners();
     }
   }
 
   void resumeDownload(String url) {
     final task = _tasks[url];
     if (task != null && task.status == DownloadStatus.paused) {
-      final newTask = task.copyWith(
-        cancelToken: CancelToken(),
-        status: DownloadStatus.queued,
-      );
-      _updateTask(url, newTask);
-      _pendingQueue.add(newTask);
+      task.cancelToken = CancelToken();
+      task.status = DownloadStatus.queued;
+      _updateTask(url, task);
+      _pendingQueue.add(task);
       _processQueue();
-      notifyListeners();
     }
   }
 
@@ -227,15 +232,13 @@ class DownloadManager extends ChangeNotifier {
   void retryFailedDownload(String url) {
     final task = _tasks[url];
     if (task != null && task.status == DownloadStatus.failed) {
-      final newTask = task.copyWith(
-        status: DownloadStatus.queued,
-        retryCount: 0,
-        progress: 0.0,
-        cancelToken: CancelToken(),
-        errorMessage: null,
-      );
-      _updateTask(url, newTask);
-      _pendingQueue.add(newTask);
+      task.status = DownloadStatus.queued;
+      task.retryCount = 0;
+      task.progress = 0.0;
+      task.cancelToken = CancelToken();
+      task.errorMessage = null;
+      _updateTask(url, task);
+      _pendingQueue.add(task);
       _processQueue();
       notifyListeners();
     }
@@ -275,13 +278,13 @@ class DownloadManager extends ChangeNotifier {
         .toList();
     for (final task in activeRunningTasks) {
       task.cancelToken.cancel('Paused');
-      _updateTask(task.url, task.copyWith(
-        status: DownloadStatus.paused,
-        cancelToken: CancelToken(),
-      ));
+      task.status = DownloadStatus.paused;
+      task.cancelToken = CancelToken();
+      _updateTask(task.url, task);
     }
     for (final task in _pendingQueue) {
-      _updateTask(task.url, task.copyWith(status: DownloadStatus.paused));
+      task.status = DownloadStatus.paused;
+      _updateTask(task.url, task);
     }
     _pendingQueue.clear();
     _refreshBatchNotification(isPaused: true);
@@ -292,12 +295,10 @@ class DownloadManager extends ChangeNotifier {
     _isPaused = false;
     final pausedTasks = _tasks.values.where((t) => t.status == DownloadStatus.paused).toList();
     for (final task in pausedTasks) {
-      final queuedTask = task.copyWith(
-        status: DownloadStatus.queued,
-        cancelToken: CancelToken(),
-      );
-      _updateTask(task.url, queuedTask);
-      _pendingQueue.add(queuedTask);
+      task.status = DownloadStatus.queued;
+      task.cancelToken = CancelToken();
+      _updateTask(task.url, task);
+      _pendingQueue.add(task);
     }
     _processQueue();
     _refreshBatchNotification(isPaused: false);
@@ -344,23 +345,19 @@ class DownloadManager extends ChangeNotifier {
   }
 
   Future<void> _scrapeAndDownload(DownloadTask task) async {
-    DownloadTask currentTask = task;
     try {
       final isImgBBPage = task.url.toLowerCase().contains('ibb.co') &&
           !task.url.toLowerCase().contains('i.ibb.co');
 
       if (isImgBBPage && task.resolvedUrl == null) {
-        currentTask = task.copyWith(status: DownloadStatus.scraping);
-        _updateTask(task.url, currentTask);
-        notifyListeners();
+        task.status = DownloadStatus.scraping;
+        _updateTask(task.url, task);
 
         final directUrl = await _scrapeImageLink(task.url);
         if (directUrl == null) {
-          final failedTask = currentTask.copyWith(
-            status: DownloadStatus.failed,
-            errorMessage: 'Failed to scrape direct image link',
-          );
-          _updateTask(task.url, failedTask);
+          task.status = DownloadStatus.failed;
+          task.errorMessage = 'Failed to scrape direct image link';
+          _updateTask(task.url, task);
           _handleDownloadComplete(task.url, false, task.batchId);
           return;
         }
@@ -377,30 +374,24 @@ class DownloadManager extends ChangeNotifier {
             ? p.join(task.targetDirectory!, finalFileName)
             : p.join(p.dirname(task.savePath), finalFileName);
 
-        currentTask = currentTask.copyWith(
-          status: DownloadStatus.downloading,
-          resolvedUrl: directUrl,
-          fileName: finalFileName,
-          savePath: finalSavePath,
-        );
-        _updateTask(task.url, currentTask);
-        notifyListeners();
+        task.resolvedUrl = directUrl;
+        task.fileName = finalFileName;
+        task.savePath = finalSavePath;
+        task.status = DownloadStatus.downloading;
+        _updateTask(task.url, task);
       } else {
-        currentTask = currentTask.copyWith(status: DownloadStatus.downloading);
-        _updateTask(task.url, currentTask);
-        notifyListeners();
+        task.status = DownloadStatus.downloading;
+        _updateTask(task.url, task);
       }
 
-      final success = await _download(currentTask);
-      _handleDownloadComplete(currentTask.url, success, currentTask.batchId);
+      final success = await _download(task);
+      _handleDownloadComplete(task.url, success, task.batchId);
     } catch (e) {
       debugPrint("Error in _scrapeAndDownload: $e");
-      final failedTask = currentTask.copyWith(
-        status: DownloadStatus.failed,
-        errorMessage: e.toString(),
-      );
-      _updateTask(currentTask.url, failedTask);
-      _handleDownloadComplete(currentTask.url, false, currentTask.batchId);
+      task.status = DownloadStatus.failed;
+      task.errorMessage = e.toString();
+      _updateTask(task.url, task);
+      _handleDownloadComplete(task.url, false, task.batchId);
     } finally {
       _activeDownloads--;
       _processQueue();
@@ -421,14 +412,7 @@ class DownloadManager extends ChangeNotifier {
       );
       if (response.statusCode == 200 && response.data != null) {
         final html = response.data.toString();
-        final regExp = RegExp(
-          r'https://i\.ibb\.co/[a-zA-Z0-9]+/[a-zA-Z0-9\-_.]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)',
-          caseSensitive: false,
-        );
-        final match = regExp.firstMatch(html);
-        if (match != null) {
-          return match.group(0);
-        }
+        return await compute(parseImgBBHtml, html);
       }
       return null;
     } catch (e) {
@@ -442,14 +426,10 @@ class DownloadManager extends ChangeNotifier {
 
     if (success) {
       if (task != null) {
-        _updateTask(
-          url,
-          task.copyWith(
-            status: DownloadStatus.completed,
-            progress: 1.0,
-            completedTime: DateTime.now(),
-          ),
-        );
+        task.status = DownloadStatus.completed;
+        task.progress = 1.0;
+        task.completedTime = DateTime.now();
+        _updateTask(url, task);
         if (batchId != null) {
           _galleryCompletedCount[batchId] =
               (_galleryCompletedCount[batchId] ?? 0) + 1;
@@ -461,25 +441,19 @@ class DownloadManager extends ChangeNotifier {
       if (task != null &&
           task.retryCount < maxRetries &&
           task.status != DownloadStatus.paused) {
-        final newTask = task.copyWith(
-          retryCount: task.retryCount + 1,
-          status: DownloadStatus.queued,
-          progress: 0.0,
-          cancelToken: CancelToken(),
-        );
-        _updateTask(url, newTask);
-        _pendingQueue.insert(0, newTask);
+        task.retryCount = task.retryCount + 1;
+        task.status = DownloadStatus.queued;
+        task.progress = 0.0;
+        task.cancelToken = CancelToken();
+        _updateTask(url, task);
+        _pendingQueue.insert(0, task);
         return;
       }
       if (task != null) {
-        _updateTask(
-          url,
-          task.copyWith(
-            status: DownloadStatus.failed,
-            errorMessage:
-                'Download failed after ${task.retryCount + 1} attempts',
-          ),
-        );
+        task.status = DownloadStatus.failed;
+        task.errorMessage =
+            'Download failed after ${task.retryCount + 1} attempts';
+        _updateTask(url, task);
         if (batchId != null) {
           _galleryFailedCount[batchId] =
               (_galleryFailedCount[batchId] ?? 0) + 1;
@@ -600,7 +574,13 @@ class DownloadManager extends ChangeNotifier {
         task.savePath,
         cancelToken: task.cancelToken,
         deleteOnError: false,
-        onReceiveProgress: null,
+        onReceiveProgress: (received, total) {
+          if (total > 0) {
+            final currentProgress = (start + received) / (start + total);
+            task.progress = currentProgress;
+            task.onProgress?.call(currentProgress);
+          }
+        },
         options: Options(
           headers: headers,
           followRedirects: true,
@@ -666,4 +646,14 @@ class DownloadManager extends ChangeNotifier {
     }
     return directory;
   }
+}
+
+/// Extracts the direct image URL from ImgBB HTML payload.
+String? parseImgBBHtml(String html) {
+  final regExp = RegExp(
+    r'https://i\.ibb\.co/[a-zA-Z0-9]+/[a-zA-Z0-9\-_.]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)',
+    caseSensitive: false,
+  );
+  final match = regExp.firstMatch(html);
+  return match?.group(0);
 }
