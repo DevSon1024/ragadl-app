@@ -1,5 +1,5 @@
 import 'package:html/dom.dart' as dom;
-import '../../downloader/logic/downloader_service.dart';
+import '../../../downloader/logic/downloader_service.dart';
 import 'idlebrain.dart';
 import 'ragalahari.dart';
 import 'behindwoods.dart';

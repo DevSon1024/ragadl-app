@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../controllers/gallery_links_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../viewmodel/gallery_links_view_model.dart';
 import '../widgets/gallery_grid.dart';
 import '../../../../shared/widgets/search_bar.dart';
 import '../widgets/pagination_bar.dart';
@@ -10,7 +11,7 @@ import '../widgets/empty_view.dart';
 import '../../../downloader/ui/pages/ragadl_page.dart';
 import '../../../../shared/utils/celebrity_utils.dart';
 
-class GalleryLinksPage extends StatefulWidget {
+class GalleryLinksPage extends ConsumerStatefulWidget {
   final String celebrityName;
   final String profileUrl;
   final String? thumbnailUrl;
@@ -26,18 +27,18 @@ class GalleryLinksPage extends StatefulWidget {
   });
 
   @override
-  State<GalleryLinksPage> createState() => _GalleryLinksPageState();
+  ConsumerState<GalleryLinksPage> createState() => _GalleryLinksPageState();
 }
 
-class _GalleryLinksPageState extends State<GalleryLinksPage> {
-  late final GalleryLinksController _controller;
+class _GalleryLinksPageState extends ConsumerState<GalleryLinksPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
+  late final GalleryLinksParam _param;
 
   @override
   void initState() {
     super.initState();
-    _controller = GalleryLinksController(
+    _param = GalleryLinksParam(
       celebrityName: widget.celebrityName,
       profileUrl: widget.profileUrl,
       thumbnailUrl: widget.thumbnailUrl,
@@ -46,7 +47,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
     _searchController.addListener(() {
       if (_debounce?.isActive ?? false) _debounce!.cancel();
       _debounce = Timer(const Duration(milliseconds: 500), () {
-        _controller.filterGalleries(_searchController.text.trim());
+        ref
+            .read(galleryLinksViewModelProvider(_param).notifier)
+            .filterGalleries(_searchController.text.trim());
       });
     });
   }
@@ -55,7 +58,6 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -64,7 +66,9 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
       const SnackBar(content: Text('Checking gallery availability...')),
     );
 
-    final isAvailable = await _controller.checkGalleryAvailability(url);
+    final isAvailable = await ref
+        .read(galleryLinksViewModelProvider(_param).notifier)
+        .checkGalleryAvailability(url);
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -90,80 +94,95 @@ class _GalleryLinksPageState extends State<GalleryLinksPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final asyncState = ref.watch(galleryLinksViewModelProvider(_param));
 
-    return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              '${widget.celebrityName} - Galleries',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  _controller.isCelebrityFavorite
-                      ? Icons.star
-                      : Icons.star_border,
-                  color: _controller.isCelebrityFavorite ? Colors.amber : null,
-                ),
-                onPressed: _controller.toggleCelebrityFavorite,
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: CommonSearchBar(
-                controller: _searchController,
-                isAppBarStyle: true,
-                hintText: 'Search by gallery code...',
-                keyboardType: TextInputType.number,
-              ),
-            ),
-          ),
-          body: _buildBody(),
-        );
-      },
-    );
-  }
-
-  Widget _buildBody() {
-    if (_controller.error != null) {
-      return CommonErrorView(
-        error: _controller.error!,
-        onRetry: () => _controller.retry(),
-      );
-    }
-    if (_controller.isLoadingUrls) {
-      return const LoadingView();
-    }
-    if (_controller.filteredUrls.isEmpty) {
-      return const EmptyView();
-    }
-
-    return Column(
-      children: [
-        if (_controller.loadingPages.contains(_controller.currentPage))
-          LinearProgressIndicator(
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-          ),
-
-        Expanded(
-          child: GalleryGrid(
-            controller: _controller,
-            onTapCard: _handleDownloadNavigation,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '${widget.celebrityName} - Galleries',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
         ),
-
-        if (_controller.totalPages > 1)
-          PaginationBar(
-            currentPage: _controller.currentPage,
-            totalPages: _controller.totalPages,
-            onPageChanged: _controller.changePage,
+        actions: [
+          IconButton(
+            icon: Icon(
+              asyncState.maybeWhen(
+                data:
+                    (state) =>
+                        state.isCelebrityFavorite
+                            ? Icons.star
+                            : Icons.star_border,
+                orElse: () => Icons.star_border,
+              ),
+              color: asyncState.maybeWhen(
+                data:
+                    (state) => state.isCelebrityFavorite ? Colors.amber : null,
+                orElse: () => null,
+              ),
+            ),
+            onPressed: () {
+              ref
+                  .read(galleryLinksViewModelProvider(_param).notifier)
+                  .toggleCelebrityFavorite();
+            },
           ),
-      ],
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: CommonSearchBar(
+            controller: _searchController,
+            isAppBarStyle: true,
+            hintText: 'Search by gallery code...',
+            keyboardType: TextInputType.number,
+          ),
+        ),
+      ),
+      body: asyncState.when(
+        loading: () => const LoadingView(),
+        error:
+            (err, stack) => CommonErrorView(
+              error: err.toString().replaceAll('Exception: ', ''),
+              onRetry:
+                  () =>
+                      ref
+                          .read(galleryLinksViewModelProvider(_param).notifier)
+                          .retry(),
+            ),
+        data: (state) {
+          if (state.filteredUrls.isEmpty) {
+            return const EmptyView();
+          }
+
+          return Column(
+            children: [
+              if (state.loadingPages.contains(state.currentPage))
+                LinearProgressIndicator(
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainer,
+                ),
+
+              Expanded(
+                child: GalleryGrid(
+                  state: state,
+                  param: _param,
+                  onTapCard: _handleDownloadNavigation,
+                ),
+              ),
+
+              if (state.totalPages > 1)
+                PaginationBar(
+                  currentPage: state.currentPage,
+                  totalPages: state.totalPages,
+                  onPageChanged:
+                      (page) => ref
+                          .read(galleryLinksViewModelProvider(_param).notifier)
+                          .changePage(page),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

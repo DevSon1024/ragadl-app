@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:ragadl/core/permissions.dart';
 import '../../logic/downloader_service.dart';
-import '../../../gallery_links/logic/site_parser.dart';
+import '../../../gallery_links/logic/parsers/site_parser.dart';
 
 final downloaderControllerProvider =
     ChangeNotifierProvider.autoDispose<DownloaderController>((ref) {
@@ -261,12 +261,15 @@ class DownloaderController extends ChangeNotifier {
         HeadlessInAppWebView? headlessWebView;
         try {
           final completer = Completer<Map<dynamic, dynamic>?>();
-          final targetUrl = (isLoadMore && nextPageUrl != null) ? nextPageUrl! : baseUrl;
+          final targetUrl =
+              (isLoadMore && nextPageUrl != null) ? nextPageUrl! : baseUrl;
 
           headlessWebView = HeadlessInAppWebView(
             onWebViewCreated: (controller) async {
               try {
-                await controller.loadUrl(urlRequest: URLRequest(url: WebUri(targetUrl)));
+                await controller.loadUrl(
+                  urlRequest: URLRequest(url: WebUri(targetUrl)),
+                );
               } catch (_) {
                 if (!completer.isCompleted) completer.complete(null);
               }
@@ -275,14 +278,16 @@ class DownloaderController extends ChangeNotifier {
               try {
                 if (!isLoadMore) {
                   final titleResult = await controller.evaluateJavascript(
-                    source: "document.title.split(' - ')[0].trim() || 'Unknown Album'",
+                    source:
+                        "document.title.split(' - ')[0].trim() || 'Unknown Album'",
                   );
                   if (titleResult is String) {
                     albumTitle = titleResult;
                   }
                 }
 
-                await controller.evaluateJavascript(source: '''
+                await controller.evaluateJavascript(
+                  source: '''
                   (async () => {
                     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
                     let lastHeight = 0; let newHeight = document.body.scrollHeight;
@@ -291,11 +296,13 @@ class DownloaderController extends ChangeNotifier {
                       await delay(800); lastHeight = newHeight; newHeight = document.body.scrollHeight;
                     }
                   })();
-                ''');
+                ''',
+                );
 
                 await Future.delayed(const Duration(seconds: 3));
 
-                final result = await controller.evaluateJavascript(source: '''
+                final result = await controller.evaluateJavascript(
+                  source: '''
                   (() => {
                     const nextBtn = document.querySelector('[data-pagination="next"]') || document.querySelector('.pagination-next a') || document.querySelector('.btn-load-more');
                     const nextUrl = nextBtn ? nextBtn.href : null;
@@ -305,7 +312,8 @@ class DownloaderController extends ChangeNotifier {
                     });
                     return { "nextUrl": nextUrl, "images": images };
                   })()
-                ''');
+                ''',
+                );
 
                 if (!completer.isCompleted) {
                   completer.complete(result is Map ? result : null);
@@ -327,24 +335,31 @@ class DownloaderController extends ChangeNotifier {
           );
 
           if (result != null) {
-            final imagesList = result['images'] is List ? result['images'] as List : [];
-            final nextUrl = result['nextUrl'] is String ? result['nextUrl'] as String : null;
+            final imagesList =
+                result['images'] is List ? result['images'] as List : [];
+            final nextUrl =
+                result['nextUrl'] is String
+                    ? result['nextUrl'] as String
+                    : null;
 
-            final newImages = imagesList
-                .where((item) => item is Map && item['pageUrl'] != null)
-                .map((item) {
-                  final map = item as Map;
-                  return ImageData(
-                    thumbnailUrl: map['thumbnailUrl'] ?? '',
-                    originalUrl: map['pageUrl'] ?? '',
-                  );
-                })
-                .toList();
+            final newImages =
+                imagesList
+                    .where((item) => item is Map && item['pageUrl'] != null)
+                    .map((item) {
+                      final map = item as Map;
+                      return ImageData(
+                        thumbnailUrl: map['thumbnailUrl'] ?? '',
+                        originalUrl: map['pageUrl'] ?? '',
+                      );
+                    })
+                    .toList();
 
             int addedCount = 0;
             if (isLoadMore) {
               for (final img in newImages) {
-                final isDuplicate = imageUrls.any((existing) => existing.originalUrl == img.originalUrl);
+                final isDuplicate = imageUrls.any(
+                  (existing) => existing.originalUrl == img.originalUrl,
+                );
                 if (!isDuplicate) {
                   imageUrls.add(img);
                   addedCount++;
@@ -360,7 +375,7 @@ class DownloaderController extends ChangeNotifier {
             isLoadMoreLoading = false;
             notifyListeners();
             showSnackBar(
-              isLoadMore 
+              isLoadMore
                   ? 'Loaded $addedCount new images'
                   : 'Found ${imageUrls.length} images in ImgBB album',
               Icons.photo_library_rounded,
@@ -381,7 +396,11 @@ class DownloaderController extends ChangeNotifier {
           isLoadMoreLoading = false;
           error = e.toString();
           notifyListeners();
-          showSnackBar('Scraping failed: $e', Icons.error_rounded, isError: true);
+          showSnackBar(
+            'Scraping failed: $e',
+            Icons.error_rounded,
+            isError: true,
+          );
         } finally {
           try {
             await headlessWebView?.dispose();
@@ -395,7 +414,9 @@ class DownloaderController extends ChangeNotifier {
           headlessWebView = HeadlessInAppWebView(
             onWebViewCreated: (controller) async {
               try {
-                await controller.loadUrl(urlRequest: URLRequest(url: WebUri(baseUrl)));
+                await controller.loadUrl(
+                  urlRequest: URLRequest(url: WebUri(baseUrl)),
+                );
               } catch (_) {
                 if (!completer.isCompleted) completer.complete(null);
               }
@@ -434,17 +455,11 @@ class DownloaderController extends ChangeNotifier {
 
           if (directUrl != null) {
             imageUrls = [
-              ImageData(
-                thumbnailUrl: directUrl,
-                originalUrl: baseUrl,
-              )
+              ImageData(thumbnailUrl: directUrl, originalUrl: baseUrl),
             ];
             isLoading = false;
             notifyListeners();
-            showSnackBar(
-              'Found 1 image',
-              Icons.photo_rounded,
-            );
+            showSnackBar('Found 1 image', Icons.photo_rounded);
           } else {
             isLoading = false;
             error = 'Failed to load single image link.';
@@ -459,7 +474,11 @@ class DownloaderController extends ChangeNotifier {
           isLoading = false;
           error = e.toString();
           notifyListeners();
-          showSnackBar('Failed to load image: $e', Icons.error_rounded, isError: true);
+          showSnackBar(
+            'Failed to load image: $e',
+            Icons.error_rounded,
+            isError: true,
+          );
         } finally {
           try {
             await headlessWebView?.dispose();

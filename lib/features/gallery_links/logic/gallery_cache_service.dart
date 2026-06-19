@@ -2,7 +2,12 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/utils/celebrity_utils.dart';
+
+final galleryCacheServiceProvider = Provider<GalleryCacheService>((ref) {
+  return GalleryCacheService();
+});
 
 class GalleryCacheService {
   static const String _favoriteKey = 'favorites';

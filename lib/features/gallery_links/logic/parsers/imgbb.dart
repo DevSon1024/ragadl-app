@@ -1,6 +1,6 @@
 import 'package:html/dom.dart' as dom;
 import 'site_parser.dart';
-import '../../downloader/logic/downloader_service.dart';
+import '../../../downloader/logic/downloader_service.dart';
 
 class ImgBBParser implements SiteParser {
   @override

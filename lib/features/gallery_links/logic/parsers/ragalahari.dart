@@ -1,7 +1,7 @@
 import 'package:html/dom.dart' as dom;
 import 'package:intl/intl.dart';
 import 'site_parser.dart';
-import '../../downloader/logic/downloader_service.dart';
+import '../../../downloader/logic/downloader_service.dart';
 
 class RagalahariParser implements SiteParser {
   @override

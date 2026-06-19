@@ -10,7 +10,7 @@ import 'package:ragadl/core/services/notification_controller.dart';
 import 'package:ragadl/core/services/dio_client.dart';
 import '../../download_manager/logic/download_manager.dart';
 import '../ui/pages/link_history_page.dart';
-import '../../gallery_links/logic/site_parser.dart';
+import '../../gallery_links/logic/parsers/site_parser.dart';
 
 // User agents for rotation
 const List<String> userAgents = [
@@ -173,13 +173,14 @@ class DownloaderService {
         galleryName: galleryName,
       );
 
-      final targetDirectoryPath = imageUrls.isNotEmpty
-          ? await downloadManager.getResolvedTargetDirectory(
-              url: imageUrls.first.originalUrl,
-              galleryName: galleryName,
-              albumName: galleryName,
-            )
-          : '';
+      final targetDirectoryPath =
+          imageUrls.isNotEmpty
+              ? await downloadManager.getResolvedTargetDirectory(
+                url: imageUrls.first.originalUrl,
+                galleryName: galleryName,
+                albumName: galleryName,
+              )
+              : '';
 
       for (int i = 0; i < imageUrls.length; i++) {
         final imageUrl = imageUrls[i].originalUrl;
@@ -240,13 +241,14 @@ class DownloaderService {
         galleryName: galleryName,
       );
 
-      final targetDirectoryPath = selectedIndices.isNotEmpty
-          ? await downloadManager.getResolvedTargetDirectory(
-              url: imageUrls[selectedIndices.first].originalUrl,
-              galleryName: galleryName,
-              albumName: galleryName,
-            )
-          : '';
+      final targetDirectoryPath =
+          selectedIndices.isNotEmpty
+              ? await downloadManager.getResolvedTargetDirectory(
+                url: imageUrls[selectedIndices.first].originalUrl,
+                galleryName: galleryName,
+                albumName: galleryName,
+              )
+              : '';
 
       for (int index in selectedIndices) {
         final imageUrl = imageUrls[index].originalUrl;
@@ -291,11 +293,12 @@ class DownloaderService {
       final folderName = folder ?? 'SingleImages';
       final subFolder = DateTime.now().toString().split(' ')[0];
 
-      final targetDirectoryPath = await downloadManager.getResolvedTargetDirectory(
-        url: imageUrl,
-        galleryName: galleryTitle ?? 'Single Image',
-        albumName: galleryTitle ?? 'Single Image',
-      );
+      final targetDirectoryPath = await downloadManager
+          .getResolvedTargetDirectory(
+            url: imageUrl,
+            galleryName: galleryTitle ?? 'Single Image',
+            albumName: galleryTitle ?? 'Single Image',
+          );
 
       downloadManager.addDownload(
         url: imageUrl,
@@ -370,7 +373,10 @@ Future<int> _getTotalPages(Dio dio, String url) async {
     final headers = <String, String>{
       'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
-    final response = await dio.get<String>(url, options: Options(headers: headers));
+    final response = await dio.get<String>(
+      url,
+      options: Options(headers: headers),
+    );
 
     if (response.statusCode == 200 && response.data != null) {
       final document = parse(response.data!);
@@ -395,7 +401,10 @@ Future<void> _processPage(
     final headers = <String, String>{
       'User-Agent': userAgents[Random().nextInt(userAgents.length)],
     };
-    final response = await dio.get<String>(pageUrl, options: Options(headers: headers));
+    final response = await dio.get<String>(
+      pageUrl,
+      options: Options(headers: headers),
+    );
 
     if (response.statusCode == 200 && response.data != null) {
       final document = parse(response.data!);

@@ -1,8 +1,8 @@
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:dio/dio.dart';
-import '../../../core/services/dio_client.dart';
-import '../../downloader/logic/downloader_service.dart';
+import '../../../../core/services/dio_client.dart';
+import '../../../downloader/logic/downloader_service.dart';
 import 'site_parser.dart';
 
 class BehindwoodsScraper {

@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ragadl/shared/widgets/grid_utils.dart';
-import '../controllers/gallery_links_controller.dart';
+import '../viewmodel/gallery_links_view_model.dart';
 import 'gallery_card.dart';
 
-class GalleryGrid extends StatelessWidget {
-  final GalleryLinksController controller;
+class GalleryGrid extends ConsumerWidget {
+  final GalleryLinksState state;
+  final GalleryLinksParam param;
   final Function(String url, String title) onTapCard;
 
   const GalleryGrid({
     super.key,
-    required this.controller,
+    required this.state,
+    required this.param,
     required this.onTapCard,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final urls = controller.currentPageUrls;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final urls = state.currentPageUrls;
 
     return GridView.builder(
       padding: const EdgeInsets.all(12),
@@ -28,7 +31,7 @@ class GalleryGrid extends StatelessWidget {
       itemCount: urls.length,
       itemBuilder: (context, index) {
         final url = urls[index];
-        final item = controller.loadedItems[url];
+        final item = state.loadedItems[url];
 
         return _buildAnimatedItem(
           keyId: url,
@@ -36,17 +39,31 @@ class GalleryGrid extends StatelessWidget {
           child: GalleryCard(
             url: url,
             item: item,
-            isFavorite: controller.isGalleryFavorite(url),
+            isFavorite: state.favoriteUrls.contains(url),
             onTap: item != null ? () => onTapCard(item.url, item.title) : () {},
-            onLongPress: item != null ? () => controller.toggleGalleryFavorite(item) : () {},
-            onToggleFavorite: item != null ? () => controller.toggleGalleryFavorite(item) : () {},
+            onLongPress:
+                item != null
+                    ? () => ref
+                        .read(galleryLinksViewModelProvider(param).notifier)
+                        .toggleGalleryFavorite(item)
+                    : () {},
+            onToggleFavorite:
+                item != null
+                    ? () => ref
+                        .read(galleryLinksViewModelProvider(param).notifier)
+                        .toggleGalleryFavorite(item)
+                    : () {},
           ),
         );
       },
     );
   }
 
-  Widget _buildAnimatedItem({required Widget child, required String keyId, required int index}) {
+  Widget _buildAnimatedItem({
+    required Widget child,
+    required String keyId,
+    required int index,
+  }) {
     return TweenAnimationBuilder<double>(
       key: ValueKey(keyId),
       tween: Tween<double>(begin: 0.0, end: 1.0),

@@ -5,7 +5,7 @@ import 'package:html/dom.dart' as dom;
 import '../../../shared/utils/celebrity_utils.dart';
 import '../../../core/services/dio_client.dart';
 import '../models/scraping_models.dart';
-import 'site_parser.dart';
+import 'parsers/site_parser.dart';
 
 class GalleryScraper {
   final Map<String, String> _headers = headers;
