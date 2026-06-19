@@ -4,11 +4,13 @@ import 'idlebrain.dart';
 import 'ragalahari.dart';
 import 'behindwoods.dart';
 import 'imgbb.dart';
+import 'telugu_one.dart';
 
 export 'idlebrain.dart';
 export 'ragalahari.dart';
 export 'behindwoods.dart';
 export 'imgbb.dart';
+export 'telugu_one.dart';
 
 abstract class SiteParser {
   List<String> extractGalleryLinks(dom.Document document, String profileUrl);
@@ -27,7 +29,7 @@ abstract class SiteParser {
 }
 
 class ParserFactory {
-  static const List<String> supportedDomains = ['idlebrain.com', 'ragalahari.com', 'behindwoods.com', 'ibb.co'];
+  static const List<String> supportedDomains = ['idlebrain.com', 'ragalahari.com', 'behindwoods.com', 'ibb.co', 'teluguone.com'];
 
   static bool isSupported(String url) {
     final lowerUrl = url.toLowerCase();
@@ -43,6 +45,9 @@ class ParserFactory {
     }
     if (url.toLowerCase().contains('ibb.co')) {
       return ImgBBParser();
+    }
+    if (url.toLowerCase().contains('teluguone.com')) {
+      return TeluguOneParser();
     }
     return RagalahariParser();
   }

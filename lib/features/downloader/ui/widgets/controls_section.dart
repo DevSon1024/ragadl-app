@@ -233,7 +233,7 @@ class ControlsSection extends StatelessWidget {
                             !controller.downloaderService.isValidUrl(
                               controller.urlController.text,
                             )
-                        ? 'Enter a valid Ragalahari, Idlebrain, or Behindwoods URL'
+                        ? 'Enter a valid Ragalahari, Idlebrain, Behindwoods, or TeluguOne URL'
                         : null,
               ),
               keyboardType: TextInputType.url,
@@ -453,6 +453,12 @@ class ControlsSection extends StatelessWidget {
                 context,
                 title: 'Behindwoods',
                 domains: ['behindwoods.com'],
+              ),
+              const SizedBox(height: 12),
+              _buildSheetPortalItem(
+                context,
+                title: 'TeluguOne',
+                domains: ['teluguone.com'],
               ),
             ],
           ),

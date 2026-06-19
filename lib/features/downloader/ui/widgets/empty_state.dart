@@ -117,6 +117,15 @@ class EmptyState extends StatelessWidget {
             title: 'Behindwoods',
             domains: ['behindwoods.com'],
           ),
+
+          const SizedBox(height: 12),
+
+          // Portal 5: TeluguOne
+          _buildPortalCard(
+            context,
+            title: 'TeluguOne',
+            domains: ['teluguone.com'],
+          ),
         ],
       ),
     );
