@@ -32,8 +32,8 @@ android {
         applicationId = "com.devson.ragadl"
         minSdk = 25
         targetSdk = 35
-        versionCode = 351
-        versionName = "3.5.1"
+        versionCode = 352
+        versionName = "3.5.2"
         multiDexEnabled = true
     }
 
@@ -106,4 +106,26 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+}
+
+tasks.register("copyApksToFlutterApk") {
+    doLast {
+        val apkDir = layout.buildDirectory.dir("outputs/apk").get().asFile
+        val flutterApkDir = layout.buildDirectory.dir("outputs/flutter-apk").get().asFile
+        if (apkDir.exists()) {
+            project.copy {
+                from(apkDir)
+                into(flutterApkDir)
+                include("**/*.apk")
+                eachFile {
+                    path = name
+                }
+                includeEmptyDirs = false
+            }
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("assemble") }.configureEach {
+    finalizedBy("copyApksToFlutterApk")
 }

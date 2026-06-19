@@ -437,6 +437,12 @@ class ControlsSection extends StatelessWidget {
               const SizedBox(height: 12),
               _buildSheetPortalItem(
                 context,
+                title: 'IMGbb',
+                domains: ['imgbb.com'],
+              ),
+              const SizedBox(height: 12),
+              _buildSheetPortalItem(
+                context,
                 title: 'Behindwoods',
                 domains: ['behindwoods.com'],
               ),
@@ -473,28 +479,29 @@ class ControlsSection extends StatelessWidget {
           ),
           Wrap(
             spacing: 6,
-            children: domains.map((domain) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: color.surfaceContainerHighest.withValues(
-                    alpha: 0.6,
-                  ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  domain,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: color.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              );
-            }).toList(),
+            children:
+                domains.map((domain) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.surfaceContainerHighest.withValues(
+                        alpha: 0.6,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      domain,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: color.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  );
+                }).toList(),
           ),
         ],
       ),
