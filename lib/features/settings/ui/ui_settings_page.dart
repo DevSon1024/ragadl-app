@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../logic/settings_service.dart';
-import 'display_settings_page.dart';
 
 class UiSettingsPage extends ConsumerWidget {
   const UiSettingsPage({super.key});
@@ -11,44 +10,10 @@ class UiSettingsPage extends ConsumerWidget {
     final settings = ref.watch(settingsServiceProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('UI & Customization'),
-      ),
+      appBar: AppBar(title: const Text('UI & Customization')),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
-          // Themes & Layout Quick Link
-          _buildSectionHeader(context, 'Appearance & Layout'),
-          Card(
-            elevation: 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ListTile(
-              leading: Icon(
-                Icons.display_settings_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: const Text(
-                'Display & Layout Settings',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: const Text(
-                'Theme mode, AMOLED black, accent color, and grid column count.',
-                style: TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DisplaySettingsPage(),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
           // Preferences Section
           _buildSectionHeader(context, 'Preferences'),
           Card(

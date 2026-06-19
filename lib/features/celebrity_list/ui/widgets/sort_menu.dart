@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/utils/celebrity_utils.dart';
@@ -70,7 +70,7 @@ class SortMenu extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: PopupMenuButton<SortOption>(
-        icon: Icon(Icons.sort_rounded, color: color.primary),
+        icon: Icon(Icons.swap_vert_rounded, color: color.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onSelected: (SortOption newValue) {
           ref.read(celebrityProvider.notifier).changeSort(newValue);

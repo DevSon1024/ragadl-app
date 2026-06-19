@@ -198,19 +198,27 @@ class ControlsSection extends StatelessWidget {
                         ),
                         child: IconButton(
                           icon: Icon(
-                            Icons.help_outline_rounded,
+                            Icons.content_paste_rounded,
                             color: color.primary,
                             size: 18,
                           ),
                           onPressed: () {
-                            _showSupportedPortalsBottomSheet(context);
+                            controller.pasteFromClipboard(
+                              onPaste: () {
+                                SnackbarHelper.showModernSnackBar(
+                                  context: context,
+                                  message: 'URL pasted from clipboard',
+                                  icon: Icons.paste_rounded,
+                                );
+                              },
+                            );
                           },
                           padding: const EdgeInsets.all(8),
                           constraints: const BoxConstraints(
                             minWidth: 32,
                             minHeight: 32,
                           ),
-                          tooltip: 'Supported Portals',
+                          tooltip: 'Paste URL',
                         ),
                       ),
                   ],
@@ -390,7 +398,7 @@ class ControlsSection extends StatelessWidget {
     );
   }
 
-  void _showSupportedPortalsBottomSheet(BuildContext context) {
+  static void showSupportedPortalsBottomSheet(BuildContext context) {
     final theme = Theme.of(context);
     final color = theme.colorScheme;
 
@@ -453,7 +461,7 @@ class ControlsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildSheetPortalItem(
+  static Widget _buildSheetPortalItem(
     BuildContext context, {
     required String title,
     required List<String> domains,

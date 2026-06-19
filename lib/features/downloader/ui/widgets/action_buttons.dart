@@ -118,11 +118,11 @@ class ActionButtons extends StatelessWidget {
                 SnackbarHelper.showModernSnackBar(
                   context: context,
                   message: 'All fields and images cleared',
-                  icon: Icons.clear_all_rounded,
+                  icon: Icons.delete_sweep_rounded,
                 );
               },
             ),
-            icon: const Icon(Icons.clear_all_rounded),
+            icon: const Icon(Icons.delete_sweep_rounded),
             label: const Text('Clear All'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),

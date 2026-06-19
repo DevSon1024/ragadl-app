@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -393,7 +393,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
         _history.clear();
         _filteredHistory.clear();
       });
-      _showModernSnackBar('All history cleared', Icons.clear_all_rounded);
+      _showModernSnackBar('All history cleared', Icons.delete_sweep_rounded);
     }
   }
 
@@ -466,7 +466,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
             borderRadius: BorderRadius.circular(12),
           ),
           child: PopupMenuButton<HistorySortOption>(
-            icon: Icon(Icons.sort_rounded, color: color.primary),
+            icon: Icon(Icons.swap_vert_rounded, color: color.primary),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -504,7 +504,7 @@ class _LinkHistoryPageState extends State<LinkHistoryPage>
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              icon: Icon(Icons.clear_all_rounded, color: color.error),
+              icon: Icon(Icons.delete_sweep_rounded, color: color.error),
               onPressed: _clearAllHistory,
               tooltip: 'Clear All History',
             ),

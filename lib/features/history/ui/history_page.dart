@@ -462,7 +462,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     tooltip: 'Recycle Bin',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.sort_rounded),
+                    icon: const Icon(Icons.swap_vert_rounded),
                     onPressed: () => _showSortOptions(context),
                     tooltip: 'Sort Options',
                   ),
@@ -508,7 +508,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         const Spacer(),
                         TextButton.icon(
                           onPressed: _clearSelection,
-                          icon: const Icon(Icons.clear_all_rounded),
+                          icon: const Icon(Icons.deselect_rounded),
                           label: const Text('Clear'),
                         ),
                       ],

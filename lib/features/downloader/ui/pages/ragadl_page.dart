@@ -9,7 +9,6 @@ import '../widgets/controls_section.dart';
 import '../widgets/loading_section.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/floating_button.dart';
 import '../widgets/image_grid.dart';
 
 class RagaDL extends ConsumerStatefulWidget {
@@ -146,6 +145,20 @@ class _RagadlState extends ConsumerState<RagaDL>
         centerTitle: true,
         actions: [
           Container(
+            margin: const EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(
+              color: color.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.help_outline_rounded, color: color.primary),
+              onPressed: () {
+                ControlsSection.showSupportedPortalsBottomSheet(context);
+              },
+              tooltip: 'Supported Portals',
+            ),
+          ),
+          Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: color.primaryContainer.withValues(alpha: 0.3),
@@ -163,10 +176,6 @@ class _RagadlState extends ConsumerState<RagaDL>
             ),
           ),
         ],
-      ),
-      floatingActionButton: DownloaderFloatingButton(
-        controller: controller,
-        galleryTitle: widget.galleryTitle,
       ),
       bottomNavigationBar: _buildBottomBar(context, controller),
       body: FadeTransition(
