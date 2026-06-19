@@ -1108,8 +1108,12 @@ class _ImageListTile extends StatelessWidget {
 class _ModernPageRoute extends PageRouteBuilder {
   _ModernPageRoute(Widget page)
     : super(
-        transitionDuration: const Duration(milliseconds: 280),
-        reverseTransitionDuration: const Duration(milliseconds: 240),
+        opaque: false,
+        maintainState: true,
+        barrierColor: Colors.black,
+        barrierDismissible: false,
+        transitionDuration: const Duration(milliseconds: 260),
+        reverseTransitionDuration: const Duration(milliseconds: 220),
         pageBuilder: (_, __, ___) => page,
         transitionsBuilder: (context, anim, secondary, child) {
           final curved = CurvedAnimation(
