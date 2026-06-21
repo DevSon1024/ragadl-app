@@ -1,10 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/utils/celebrity_utils.dart';
 
 // Data holder used by list page (only name + url)
 typedef CelebrityRow = Map<String, String>;
+
+final celebrityRepositoryProvider = Provider<CelebrityRepository>((ref) {
+  return CelebrityRepository.instance;
+});
 
 class CelebrityRepository {
   CelebrityRepository._privateConstructor();

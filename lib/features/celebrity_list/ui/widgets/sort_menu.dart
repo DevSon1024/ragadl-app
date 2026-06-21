@@ -59,9 +59,7 @@ class SortMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Theme.of(context).colorScheme;
-    final currentSort = ref.watch(
-      celebrityProvider.select((s) => s.sortOption),
-    );
+    final currentSort = ref.watch(celebritySortProvider);
 
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -73,7 +71,7 @@ class SortMenu extends ConsumerWidget {
         icon: Icon(Icons.swap_vert_rounded, color: color.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onSelected: (SortOption newValue) {
-          ref.read(celebrityProvider.notifier).changeSort(newValue);
+          ref.read(celebritySortProvider.notifier).changeSort(newValue);
           HapticFeedback.selectionClick();
         },
         itemBuilder:

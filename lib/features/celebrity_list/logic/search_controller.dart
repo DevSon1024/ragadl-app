@@ -8,27 +8,40 @@ import 'celebrity_controller.dart';
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-final searchProvider = StateNotifierProvider<SearchController, List<CelebrityModel>>((ref) {
-  final query = ref.watch(searchQueryProvider);
-  final sortOption = ref.watch(celebrityProvider.select((state) => state.sortOption));
-  return SearchController(CelebrityRepository.instance, query, sortOption);
-});
+class DebouncedQuery extends Notifier<String> {
+  Timer? _timer;
 
-class SearchController extends StateNotifier<List<CelebrityModel>> {
-  final CelebrityRepository _repository;
-  Timer? _debouncer;
-  final String _query;
-  final SortOption _sortOption;
+  @override
+  String build() {
+    final query = ref.watch(searchQueryProvider);
 
-  SearchController(this._repository, this._query, this._sortOption) : super([]) {
-    _performSearch();
+    if (query.isEmpty) {
+      return '';
+    }
+
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 500), () {
+      state = query;
+    });
+
+    ref.onDispose(() {
+      _timer?.cancel();
+    });
+
+    return state;
   }
+}
 
-  void search(String query) {
-    // Controller handles search state independently
-  }
+final debouncedQueryProvider = NotifierProvider<DebouncedQuery, String>(DebouncedQuery.new);
 
-  CategoryOption _sortToCategory(SortOption option) {
+final searchProvider = FutureProvider<List<CelebrityModel>>((ref) async {
+  final query = ref.watch(debouncedQueryProvider);
+  if (query.isEmpty) return const [];
+
+  final sortOption = ref.watch(celebritySortProvider);
+  final repository = ref.watch(celebrityRepositoryProvider);
+
+  CategoryOption sortToCategory(SortOption option) {
     switch (option) {
       case SortOption.celebrityActors:
         return CategoryOption.actors;
@@ -39,35 +52,14 @@ class SearchController extends StateNotifier<List<CelebrityModel>> {
     }
   }
 
-  Future<void> _performSearch() async {
-    if (_debouncer?.isActive ?? false) _debouncer!.cancel();
-    
-    _debouncer = Timer(const Duration(milliseconds: 500), () async {
-      if (_query.isEmpty) {
-        state = [];
-        return;
-      }
+  final matches = await repository.searchByName(
+    query: query,
+    limit: 120,
+    category: sortToCategory(sortOption),
+  );
 
-      try {
-        final matches = await _repository.searchByName(
-          query: _query,
-          limit: 120,
-          category: _sortToCategory(_sortOption),
-        );
-        
-        state = matches.map((map) => CelebrityModel(
-          name: map['name'] ?? 'Unknown',
-          url: map['url'] ?? '',
-        )).toList();
-      } catch (_) {
-        // Handle search errors silently in UI as it is typahead
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _debouncer?.cancel();
-    super.dispose();
-  }
-}
+  return matches.map((map) => CelebrityModel(
+    name: map['name'] ?? 'Unknown',
+    url: map['url'] ?? '',
+  )).toList();
+});

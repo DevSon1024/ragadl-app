@@ -114,129 +114,138 @@ class CelebrityListPage extends ConsumerWidget {
   }
 
   Widget _buildContent(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(celebrityProvider);
+    final celebrityState = ref.watch(celebrityListProvider);
     final searchResults = ref.watch(searchProvider);
     final query = ref.watch(searchQueryProvider);
 
-    if (state.isLoading) {
-      return const LoadingView(message: 'Loading celebrities...');
-    }
-    if (state.errorMessage != null) {
-      return CommonErrorView(
-        error: state.errorMessage!,
-        onRetry: () => ref.read(celebrityProvider.notifier).retry(),
-      );
-    }
-    if (query.isNotEmpty) {
-      if (searchResults.isEmpty) {
-        return const EmptyView(
-          title: 'No results found',
-          message: 'Try a different name.',
-        );
-      }
-      return FadeSlideWrapper(
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: searchResults.length,
-          physics: const BouncingScrollPhysics(),
-          separatorBuilder:
-              (context, index) => Divider(
-                color: Theme.of(
-                  context,
-                ).colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-          itemBuilder: (context, index) {
-            final celeb = searchResults[index];
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.search_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-              ),
-              title: Text(
-                celeb.name,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              trailing: Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  _createPageRoute(
-                    GalleryLinksPage(
-                      celebrityName: celeb.name,
-                      profileUrl: celeb.url,
-                      onDownloadSelected: onDownloadSelected,
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      );
-    }
-
-    if (state.items.isEmpty) {
-      return const EmptyView(
-        title: 'No celebrities found',
-        message: 'Try adjusting your search or filter options.',
-      );
-    }
-
-    final favorites = ref.watch(favoritesProvider);
-
-    return FadeSlideWrapper(
-      child: CelebrityListView(
-        items: state.items,
-        hasMore: state.hasMore,
-        isFetching: state.isFetching,
-        onLoadMore: () => ref.read(celebrityProvider.notifier).fetchNextPage(),
-        isFavorite: (url) => favorites.contains(url),
-        onFavoriteToggle: (name, url) async {
-          HapticFeedback.mediumImpact();
-          final isPositive = await ref
-              .read(favoritesProvider.notifier)
-              .toggleFavorite(name, url);
-          if (context.mounted) {
-            _showSnackBar(
-              context,
-              isPositive
-                  ? '$name added to favorites'
-                  : '$name removed from favorites',
-              isPositive,
-            );
-          }
-        },
-        onTap: (celeb) {
-          Navigator.push(
-            context,
-            _createPageRoute(
-              GalleryLinksPage(
-                celebrityName: celeb.name,
-                profileUrl: celeb.url,
-                onDownloadSelected: onDownloadSelected,
-              ),
-            ),
-          );
-        },
+    return celebrityState.when(
+      loading: () => const LoadingView(message: 'Loading celebrities...'),
+      error: (err, stack) => CommonErrorView(
+        error: 'Failed to load celebrities. Please try again.',
+        onRetry: () => ref.read(celebrityListProvider.notifier).retry(),
       ),
+      data: (listState) {
+        if (query.isNotEmpty) {
+          return searchResults.when(
+            loading: () => const LoadingView(message: 'Searching...'),
+            error: (err, stack) => const EmptyView(
+              title: 'No results found',
+              message: 'Try a different name.',
+            ),
+            data: (results) {
+              if (results.isEmpty) {
+                return const EmptyView(
+                  title: 'No results found',
+                  message: 'Try a different name.',
+                );
+              }
+              return FadeSlideWrapper(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: results.length,
+                  physics: const BouncingScrollPhysics(),
+                  separatorBuilder:
+                      (context, index) => Divider(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                  itemBuilder: (context, index) {
+                    final celeb = results[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.search_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        celeb.name,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          _createPageRoute(
+                            GalleryLinksPage(
+                              celebrityName: celeb.name,
+                              profileUrl: celeb.url,
+                              onDownloadSelected: onDownloadSelected,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        }
+
+        if (listState.items.isEmpty) {
+          return const EmptyView(
+            title: 'No celebrities found',
+            message: 'Try adjusting your search or filter options.',
+          );
+        }
+
+        final favorites = ref.watch(favoritesProvider);
+
+        return FadeSlideWrapper(
+          child: CelebrityListView(
+            items: listState.items,
+            hasMore: listState.hasMore,
+            isFetching: listState.isFetchingNextPage,
+            onLoadMore: () => ref.read(celebrityListProvider.notifier).fetchNextPage(),
+            isFavorite: (url) => favorites.contains(url),
+            onFavoriteToggle: (name, url) async {
+              HapticFeedback.mediumImpact();
+              final isPositive = await ref
+                  .read(favoritesProvider.notifier)
+                  .toggleFavorite(name, url);
+              if (context.mounted) {
+                _showSnackBar(
+                  context,
+                  isPositive
+                      ? '$name added to favorites'
+                      : '$name removed from favorites',
+                  isPositive,
+                );
+              }
+            },
+            onTap: (celeb) {
+              Navigator.push(
+                context,
+                _createPageRoute(
+                  GalleryLinksPage(
+                    celebrityName: celeb.name,
+                    profileUrl: celeb.url,
+                    onDownloadSelected: onDownloadSelected,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
