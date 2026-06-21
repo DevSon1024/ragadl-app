@@ -18,10 +18,34 @@ import '../widgets/empty_view.dart';
 // make sure its typedef is imported where needed. Assuming it's defined elsewhere.
 typedef DownloadSelectedCallback = void Function(String, String, dynamic);
 
-class CelebrityListPage extends ConsumerWidget {
+class CelebrityListPage extends ConsumerStatefulWidget {
   final DownloadSelectedCallback? onDownloadSelected;
 
   const CelebrityListPage({super.key, this.onDownloadSelected});
+
+  @override
+  ConsumerState<CelebrityListPage> createState() => _CelebrityListPageState();
+}
+
+class _CelebrityListPageState extends ConsumerState<CelebrityListPage> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: ref.read(searchQueryProvider),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(searchQueryProvider.notifier).state = '';
+    });
+    super.dispose();
+  }
 
   void _showSnackBar(BuildContext context, String message, bool isPositive) {
     final color = Theme.of(context).colorScheme;
@@ -72,7 +96,7 @@ class CelebrityListPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -89,6 +113,7 @@ class CelebrityListPage extends ConsumerWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: CommonSearchBar(
+            controller: _searchController,
             hintText: 'Search Celebrities...',
             isAppBarStyle: true,
             onChanged: (val) {
@@ -187,7 +212,7 @@ class CelebrityListPage extends ConsumerWidget {
                             GalleryLinksPage(
                               celebrityName: celeb.name,
                               profileUrl: celeb.url,
-                              onDownloadSelected: onDownloadSelected,
+                              onDownloadSelected: widget.onDownloadSelected,
                             ),
                           ),
                         );
@@ -238,7 +263,7 @@ class CelebrityListPage extends ConsumerWidget {
                   GalleryLinksPage(
                     celebrityName: celeb.name,
                     profileUrl: celeb.url,
-                    onDownloadSelected: onDownloadSelected,
+                    onDownloadSelected: widget.onDownloadSelected,
                   ),
                 ),
               );
