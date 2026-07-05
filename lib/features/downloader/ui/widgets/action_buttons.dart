@@ -28,6 +28,7 @@ class ActionButtons extends StatelessWidget {
                     (controller.isLoading || controller.isDownloading || controller.mainFolderName.isEmpty)
                         ? null
                         : () {
+                          FocusManager.instance.primaryFocus?.unfocus();
                           final url = controller.urlController.text.trim();
                           if (url.isEmpty) {
                             SnackbarHelper.showModernSnackBar(

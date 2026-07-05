@@ -238,6 +238,30 @@ class ControlsSection extends StatelessWidget {
               ),
               keyboardType: TextInputType.url,
               onChanged: (value) => controller.refreshState(),
+              onSubmitted: (value) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                final url = value.trim();
+                if (url.isNotEmpty &&
+                    controller.downloaderService.isValidUrl(url) &&
+                    !controller.isLoading &&
+                    !controller.isDownloading &&
+                    controller.mainFolderName.isNotEmpty) {
+                  HapticFeedback.mediumImpact();
+                  controller.processGallery(
+                    baseUrl: url,
+                    galleryTitle: galleryTitle,
+                    context: context,
+                    showSnackBar: (msg, icon, {isError = false}) {
+                      SnackbarHelper.showModernSnackBar(
+                        context: context,
+                        message: msg,
+                        icon: icon,
+                        isError: isError,
+                      );
+                    },
+                  );
+                }
+              },
             ),
           ),
 

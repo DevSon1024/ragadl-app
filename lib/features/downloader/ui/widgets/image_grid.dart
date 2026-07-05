@@ -44,6 +44,7 @@ class DownloaderImageGrid extends ConsumerWidget {
               if (controller.isImgBB || controller.isSelectionMode) {
                 controller.toggleSelection(index);
               } else {
+                FocusManager.instance.primaryFocus?.unfocus();
                 Navigator.push(
                   context,
                   NavigationHelper.createModernPageRoute(
@@ -234,16 +235,22 @@ class _FullImagePageState extends State<FullImagePage> {
   late int currentIndex;
   bool isDownloading = false;
 
+  // State notifier to track if the current active image is zoomed in.
+  // This is used to dynamically disable PageView horizontal swipe physics.
+  late final ValueNotifier<bool> _isZoomedNotifier;
+
   @override
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
     pageController = PageController(initialPage: widget.initialIndex);
+    _isZoomedNotifier = ValueNotifier<bool>(false);
   }
 
   @override
   void dispose() {
     pageController.dispose();
+    _isZoomedNotifier.dispose();
     super.dispose();
   }
 
@@ -349,17 +356,36 @@ class _FullImagePageState extends State<FullImagePage> {
           ),
         ],
       ),
-      body: PageView.builder(
-        controller: pageController,
-        itemCount: widget.imageUrls.length,
-        onPageChanged: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-        itemBuilder: (context, index) {
-          final imageData = widget.imageUrls[index];
-          return ZoomableImageItem(imageData: imageData);
+      body: ValueListenableBuilder<bool>(
+        valueListenable: _isZoomedNotifier,
+        builder: (context, isZoomed, child) {
+          return PageView.builder(
+            controller: pageController,
+            physics: isZoomed
+                ? const NeverScrollableScrollPhysics()
+                : const BouncingScrollPhysics(),
+            itemCount: widget.imageUrls.length,
+            onPageChanged: (index) {
+              setState(() {
+                currentIndex = index;
+              });
+              // Reset the zoom level state notifier on page transition
+              _isZoomedNotifier.value = false;
+            },
+            itemBuilder: (context, index) {
+              final imageData = widget.imageUrls[index];
+              return ZoomableImageItem(
+                imageData: imageData,
+                onZoomChanged: (zoomed) {
+                  // Only update the page scroll-locking state if the event belongs
+                  // to the current visible page.
+                  if (index == currentIndex) {
+                    _isZoomedNotifier.value = zoomed;
+                  }
+                },
+              );
+            },
+          );
         },
       ),
     );
@@ -368,46 +394,144 @@ class _FullImagePageState extends State<FullImagePage> {
 
 class ZoomableImageItem extends StatefulWidget {
   final ImageData imageData;
+  final ValueChanged<bool> onZoomChanged;
 
   const ZoomableImageItem({
     super.key,
     required this.imageData,
+    required this.onZoomChanged,
   });
 
   @override
   State<ZoomableImageItem> createState() => _ZoomableImageItemState();
 }
 
-class _ZoomableImageItemState extends State<ZoomableImageItem> {
+class _ZoomableImageItemState extends State<ZoomableImageItem>
+    with SingleTickerProviderStateMixin {
   late final TransformationController _transformationController;
+  late final AnimationController _animationController;
+  Animation<Matrix4>? _zoomAnimation;
+
+  // Track the double-tap location to zoom in on that specific coordinate
+  Offset _doubleTapPosition = Offset.zero;
+
+  // Track whether the current image is zoomed to avoid redundant callbacks
+  bool _isZoomed = false;
 
   @override
   void initState() {
     super.initState();
     _transformationController = TransformationController();
+    _transformationController.addListener(_handleTransformationChanged);
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
   }
 
   @override
   void dispose() {
+    _transformationController.removeListener(_handleTransformationChanged);
     _transformationController.dispose();
+    _animationController.dispose();
     super.dispose();
+  }
+
+  /// Listens to matrix updates from manual gestures or double-tap animations
+  void _handleTransformationChanged() {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    // Using a tolerance slightly above 1.0 to account for floating-point inaccuracies
+    final isZoomed = scale > 1.01;
+    if (_isZoomed != isZoomed) {
+      _isZoomed = isZoomed;
+      widget.onZoomChanged(isZoomed);
+    }
+  }
+
+  /// Stops any running animations when the user starts a manual gesture
+  void _handleInteractionStart(ScaleStartDetails details) {
+    if (_animationController.isAnimating) {
+      _animationController.stop();
+    }
+  }
+
+  /// Stores the location of the double tap down gesture
+  void _handleDoubleTapDown(TapDownDetails details) {
+    _doubleTapPosition = details.localPosition;
+  }
+
+  /// Toggles zoom state smoothly centering on the double tap position
+  void _handleDoubleTap() {
+    if (_animationController.isAnimating) return;
+
+    final currentScale = _transformationController.value.getMaxScaleOnAxis();
+    final bool isCurrentlyZoomed = currentScale > 1.01;
+
+    final double targetScale = isCurrentlyZoomed ? 1.0 : 3.0;
+
+    final Matrix4 begin = _transformationController.value;
+    final Matrix4 end;
+
+    if (targetScale == 1.0) {
+      end = Matrix4.identity();
+    } else {
+      final x = _doubleTapPosition.dx;
+      final y = _doubleTapPosition.dy;
+      
+      // Compute the pivot matrix around the tapped coordinate
+      end = Matrix4.identity()
+        ..translate(x, y)
+        ..scale(targetScale)
+        ..translate(-x, -y);
+    }
+
+    _zoomAnimation = Matrix4Tween(
+      begin: begin,
+      end: end,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _zoomAnimation!.addListener(_onAnimationTick);
+
+    _animationController.forward(from: 0.0).then((_) {
+      if (mounted) {
+        _zoomAnimation?.removeListener(_onAnimationTick);
+        _zoomAnimation = null;
+      }
+    });
+  }
+
+  void _onAnimationTick() {
+    if (_zoomAnimation != null) {
+      _transformationController.value = _zoomAnimation!.value;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return InteractiveViewer(
-      transformationController: _transformationController,
-      minScale: 0.1,
-      maxScale: 15.0,
-      child: Hero(
-        tag: widget.imageData.originalUrl,
-        child: CachedNetworkImage(
-          imageUrl: widget.imageData.originalUrl,
-          fit: BoxFit.contain,
-          placeholder:
-              (context, url) =>
-                  const Center(child: CircularProgressIndicator()),
-          errorWidget: (context, url, error) => const Icon(Icons.error),
+    return GestureDetector(
+      onDoubleTapDown: _handleDoubleTapDown,
+      onDoubleTap: _handleDoubleTap,
+      behavior: HitTestBehavior.opaque,
+      child: InteractiveViewer(
+        transformationController: _transformationController,
+        minScale: 1.0,
+        maxScale: 8.0,
+        onInteractionStart: _handleInteractionStart,
+        child: Hero(
+          tag: widget.imageData.originalUrl,
+          child: CachedNetworkImage(
+            imageUrl: widget.imageData.originalUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) =>
+                const Center(child: CircularProgressIndicator()),
+            errorWidget: (context, url, error) => const Icon(Icons.error),
+          ),
         ),
       ),
     );
