@@ -23,8 +23,12 @@ class DownloaderController extends ChangeNotifier {
   bool get isBehindwoodsLink =>
       urlController.text.trim().toLowerCase().contains('behindwoods.com');
 
-  bool get isImgBB =>
-      urlController.text.trim().toLowerCase().contains('ibb.co');
+  bool get isImgBB {
+    final lower = urlController.text.trim().toLowerCase();
+    return lower.contains('ibb.co') ||
+        lower.contains('imgbb.com') ||
+        lower.contains('imgbb.co');
+  }
 
   DownloaderController(this.downloaderService) {
     urlFocusNode.addListener(_handleFocusChange);
@@ -208,7 +212,10 @@ class DownloaderController extends ChangeNotifier {
     showSnackBar,
     bool isLoadMore = false,
   }) async {
-    final isImgBB = baseUrl.toLowerCase().contains('ibb.co');
+    final lowerUrl = baseUrl.toLowerCase();
+    final isImgBB = lowerUrl.contains('ibb.co') ||
+        lowerUrl.contains('imgbb.com') ||
+        lowerUrl.contains('imgbb.co');
 
     if (isImgBB) {
       if (!isLoadMore) {
@@ -282,7 +289,14 @@ class DownloaderController extends ChangeNotifier {
                         "document.title.split(' - ')[0].trim() || 'Unknown Album'",
                   );
                   if (titleResult is String) {
-                    albumTitle = titleResult;
+                    String title = titleResult;
+                    title = title
+                        .replaceAll(
+                          RegExp(r'\s*[\-—–]\s*ImgBB\s*$', caseSensitive: false),
+                          '',
+                        )
+                        .trim();
+                    albumTitle = title.isEmpty ? 'Unknown Album' : title;
                   }
                 }
 

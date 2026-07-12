@@ -13,10 +13,8 @@ import '../../../downloader/logic/downloader_service.dart';
 /// URL pattern for a gallery page:
 ///   https://www.teluguone.com/photos/gallery/<actor-slug>-photos-<id>.html
 class TeluguOneParser implements SiteParser {
-  // ---------------------------------------------------------------------------
   // Gallery index — extracts individual gallery page links from a profile/actor
   // listing page.
-  // ---------------------------------------------------------------------------
   @override
   List<String> extractGalleryLinks(dom.Document document, String profileUrl) {
     final Set<String> links = <String>{};
@@ -35,12 +33,11 @@ class TeluguOneParser implements SiteParser {
     return links.toList();
   }
 
-  // ---------------------------------------------------------------------------
   // Title
-  // ---------------------------------------------------------------------------
   @override
   String extractTitle(dom.Document document, String link) {
-    final titleElement = document.querySelector('h1') ??
+    final titleElement =
+        document.querySelector('h1') ??
         document.querySelector('h2') ??
         document.querySelector('title');
     if (titleElement != null && titleElement.text.trim().isNotEmpty) {
@@ -58,14 +55,12 @@ class TeluguOneParser implements SiteParser {
     return link.split('/').last.replaceAll('.html', '');
   }
 
-  // ---------------------------------------------------------------------------
   // Thumbnail for gallery card
-  // ---------------------------------------------------------------------------
   @override
   String? extractThumbnail(dom.Document document, String link) {
     for (final dom.Element img in document.getElementsByTagName('img')) {
       final src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
-      if (src.contains('/photos/uploadsExt/uploads/')) {
+      if (src.contains('/photos/uploadsExt/uploads/') || src.contains('/photos/uploads/')) {
         return src.startsWith('http')
             ? src
             : Uri.parse(link).resolve(src).toString();
@@ -74,19 +69,14 @@ class TeluguOneParser implements SiteParser {
     return null;
   }
 
-  // ---------------------------------------------------------------------------
   // Pagination — TeluguOne galleries are single-page so always return 1.
-  // ---------------------------------------------------------------------------
   @override
   int getPages(dom.Document document) => 1;
 
-  // ---------------------------------------------------------------------------
   // Date — not reliably available; return now as fallback.
-  // ---------------------------------------------------------------------------
   @override
   DateTime getDate(dom.Document document) => DateTime.now();
 
-  // ---------------------------------------------------------------------------
   // Image extraction — core logic.
   //
   // Strategy (mirrors memo.py):
@@ -95,7 +85,6 @@ class TeluguOneParser implements SiteParser {
   //   3. Exclude noise paths: `/photos/assets/images/` and `/home_images/`.
   //   4. Thumbnail URL is the raw URL (may contain `_small`).
   //   5. Original URL is derived by removing `_small` before the extension.
-  // ---------------------------------------------------------------------------
   @override
   List<ImageData> extractImageUrls(dom.Document document, String baseUrl) {
     final Set<ImageData> imageDataSet = <ImageData>{};
@@ -116,12 +105,13 @@ class TeluguOneParser implements SiteParser {
               lower.endsWith('.jpeg') ||
               lower.endsWith('.png') ||
               lower.endsWith('.webp')) &&
-          href.contains('/photos/uploadsExt/uploads/') &&
+          (href.contains('/photos/uploadsExt/uploads/') || href.contains('/photos/uploads/')) &&
           !href.contains('/photos/assets/images/') &&
           !href.contains('/home_images/')) {
-        final resolved = href.startsWith('http')
-            ? href
-            : Uri.parse(baseUrl).resolve(href).toString();
+        final resolved =
+            href.startsWith('http')
+                ? href
+                : Uri.parse(baseUrl).resolve(href).toString();
         // When the anchor itself is a full-res link, both urls are the same.
         final originalUrl = _removeSmallSuffix(resolved);
         imageDataSet.add(
@@ -133,9 +123,7 @@ class TeluguOneParser implements SiteParser {
     return imageDataSet.toList();
   }
 
-  // ---------------------------------------------------------------------------
   // Gallery ID — use numeric segment from URL, or fallback to hash.
-  // ---------------------------------------------------------------------------
   @override
   String extractGalleryId(String url) {
     // e.g. …-photos-12345.html  →  12345
@@ -144,8 +132,7 @@ class TeluguOneParser implements SiteParser {
 
     final uri = Uri.tryParse(url);
     if (uri != null) {
-      final segments =
-          uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
       if (segments.isNotEmpty) {
         return segments.last.replaceAll('.html', '');
       }
@@ -153,32 +140,28 @@ class TeluguOneParser implements SiteParser {
     return url.hashCode.abs().toString();
   }
 
-  // ---------------------------------------------------------------------------
   // Page URL construction — single page, always return baseUrl.
-  // ---------------------------------------------------------------------------
   @override
   String constructPageUrl(String baseUrl, String galleryId, int index) =>
       baseUrl;
 
-  // ---------------------------------------------------------------------------
   // Folder naming
-  // ---------------------------------------------------------------------------
   @override
-  String get defaultMainFolderName => 'TeluguOneDownloads';
+  String get defaultMainFolderName => 'TeluguOne';
 
   @override
   String? suggestFolderName(String url) {
     try {
       final uri = Uri.tryParse(url);
       if (uri == null) return null;
-      final segments =
-          uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
       if (segments.isNotEmpty) {
         // Strip the numeric id and ".html" to produce a clean folder name
-        final slug = segments.last
-            .replaceAll('.html', '')
-            .replaceAll(RegExp(r'-\d+$'), '')
-            .trim();
+        final slug =
+            segments.last
+                .replaceAll('.html', '')
+                .replaceAll(RegExp(r'-\d+$'), '')
+                .trim();
         if (slug.isNotEmpty) return slug;
       }
     } catch (_) {}
@@ -191,9 +174,7 @@ class TeluguOneParser implements SiteParser {
     return '$mainFolderName-$galleryId';
   }
 
-  // ---------------------------------------------------------------------------
   // Private helpers
-  // ---------------------------------------------------------------------------
 
   /// Resolves [src] against [baseUrl] and returns an [ImageData] if it passes
   /// the TeluguOne image filter, otherwise returns null.
@@ -210,15 +191,17 @@ class TeluguOneParser implements SiteParser {
     }
 
     // Must be under the uploads path
-    if (!src.contains('/photos/uploadsExt/uploads/')) return null;
+    if (!src.contains('/photos/uploadsExt/uploads/') &&
+        !src.contains('/photos/uploads/')) return null;
 
     // Exclude noise paths
     if (src.contains('/photos/assets/images/')) return null;
     if (src.contains('/home_images/')) return null;
 
-    final thumbnailUrl = src.startsWith('http')
-        ? src
-        : Uri.parse(baseUrl).resolve(src).toString();
+    final thumbnailUrl =
+        src.startsWith('http')
+            ? src
+            : Uri.parse(baseUrl).resolve(src).toString();
 
     final originalUrl = _removeSmallSuffix(thumbnailUrl);
 

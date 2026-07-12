@@ -122,10 +122,24 @@ class RagalahariParser implements SiteParser {
   }
 
   @override
-  String get defaultMainFolderName => 'RagaDownloads';
+  String get defaultMainFolderName => 'Ragalahari';
 
   @override
-  String? suggestFolderName(String url) => null;
+  String? suggestFolderName(String url) {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null) return null;
+      final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      if (segments.isNotEmpty) {
+        final last = segments.last.replaceAll('.aspx', '').replaceAll('-', ' ').trim();
+        if (RegExp(r'^\d+$').hasMatch(last) && segments.length > 1) {
+          return segments[segments.length - 2].replaceAll('-', ' ').trim();
+        }
+        return last;
+      }
+    } catch (_) {}
+    return 'Ragalahari';
+  }
 
   @override
   String getSubFolderName(String mainFolderName, String galleryId) {

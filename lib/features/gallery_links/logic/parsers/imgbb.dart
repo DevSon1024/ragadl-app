@@ -43,7 +43,7 @@ class ImgBBParser implements SiteParser {
   String constructPageUrl(String baseUrl, String galleryId, int index) => baseUrl;
 
   @override
-  String get defaultMainFolderName => 'ImgBB';
+  String get defaultMainFolderName => 'IMGbb';
 
   @override
   String? suggestFolderName(String url) {

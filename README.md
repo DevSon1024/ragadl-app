@@ -70,9 +70,26 @@ RagaDL utilizes a decoupled, strategy-based scraping engine. The parser automati
     flutter pub get
     ```
 4.  Run the application on an emulator or connected device:
-    ```bash
-    flutter run
-    ```
+    `bash
+flutter run
+` > In Flutter, building APKs per ABI (Application Binary Interface) is done using the --split-per-abi flag. This generates separate APKs for each architecture (smaller size, production-friendly).
+
+### Command
+
+```shell
+flutter build apk --release --split-per-abi
+```
+
+### Output
+
+After build, you’ll get:
+
+```shell
+build/app/outputs/flutter-apk/
+├── app-armeabi-v7a-release.apk   (32-bit ARM)
+├── app-arm64-v8a-release.apk     (64-bit ARM - most modern phones)
+├── app-x86_64-release.apk        (emulators / some devices)
+```
 
 ---
 

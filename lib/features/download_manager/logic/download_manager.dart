@@ -41,6 +41,7 @@ class DownloadManager extends ChangeNotifier {
   final Map<String, int> _galleryCompletedCount = {};
   final Map<String, int> _galleryFailedCount = {};
   final Map<String, String> _galleryNameMap = {};
+  final Map<String, String> _galleryDirectoryMap = {};
 
   bool _isPaused = false;
 
@@ -107,8 +108,12 @@ class DownloadManager extends ChangeNotifier {
     required String galleryName,
     String? albumName,
   }) async {
+    String cleanedAlbum = (albumName ?? galleryName).replaceAll(RegExp(r'\s*[\-—–]\s*ImgBB\s*$', caseSensitive: false), '').trim();
+    if (cleanedAlbum.isEmpty) {
+      cleanedAlbum = 'Unknown Album';
+    }
     final host = Uri.parse(url).host.replaceAll('www.', '').replaceAll('m.', '');
-    final directory = await _getBaseDirectory(host, albumName ?? galleryName);
+    final directory = await _getBaseDirectory(host, cleanedAlbum);
     return directory.path;
   }
 
@@ -135,8 +140,7 @@ class DownloadManager extends ChangeNotifier {
     try {
       final nodeId = url.split('/').last;
       String fileName = nodeId;
-      final isImgBBPage = url.toLowerCase().contains('ibb.co') &&
-          !url.toLowerCase().contains('i.ibb.co');
+      final isImgBBPage = _isImgBBPage(url);
 
       if (!isImgBBPage) {
         if (url.contains('.')) {
@@ -176,6 +180,7 @@ class DownloadManager extends ChangeNotifier {
       if (batchId != null) {
         _galleryTotalCount[batchId] = (_galleryTotalCount[batchId] ?? 0) + 1;
         _galleryNameMap[batchId] = galleryName;
+        _galleryDirectoryMap[batchId] = targetDirectoryPath;
       }
 
       _pendingQueue.add(task);
@@ -331,6 +336,7 @@ class DownloadManager extends ChangeNotifier {
     _galleryCompletedCount.clear();
     _galleryFailedCount.clear();
     _galleryNameMap.clear();
+    _galleryDirectoryMap.clear();
     NotificationController.cancelBatchNotification();
     notifyListeners();
   }
@@ -346,8 +352,7 @@ class DownloadManager extends ChangeNotifier {
 
   Future<void> _scrapeAndDownload(DownloadTask task) async {
     try {
-      final isImgBBPage = task.url.toLowerCase().contains('ibb.co') &&
-          !task.url.toLowerCase().contains('i.ibb.co');
+      final isImgBBPage = _isImgBBPage(task.url);
 
       if (isImgBBPage && task.resolvedUrl == null) {
         task.status = DownloadStatus.scraping;
@@ -506,7 +511,7 @@ class DownloadManager extends ChangeNotifier {
       final basePath =
           prefs.getString('base_download_path') ??
           '/storage/emulated/0/Download';
-      final folderPath = '$basePath/$galleryName';
+      final folderPath = _galleryDirectoryMap[batchId] ?? '$basePath/$galleryName';
 
       await NotificationController.showBatchComplete(
         galleryName: galleryName,
@@ -519,6 +524,7 @@ class DownloadManager extends ChangeNotifier {
       _galleryCompletedCount.remove(batchId);
       _galleryFailedCount.remove(batchId);
       _galleryNameMap.remove(batchId);
+      _galleryDirectoryMap.remove(batchId);
     }
   }
 
@@ -606,35 +612,46 @@ class DownloadManager extends ChangeNotifier {
     return name.replaceAll(RegExp(r'[\\/:\*\?"<>\|]'), '').trim();
   }
 
-  Future<Directory> _getBaseDirectory(String host, String? albumName) async {
+  Future<Directory> _getBaseDirectory(String host, String albumName) async {
     final prefs = await SharedPreferences.getInstance();
     final basePath =
         prefs.getString('base_download_path') ?? '/storage/emulated/0/Download';
 
-    String pathSegment = '';
-    final sanitizedAlbum = albumName != null ? _sanitizeFolderName(albumName) : null;
+    final lowerHost = host.toLowerCase();
+    String siteFolderName = '';
+    bool isImgBB = false;
 
-    if (host == 'ibb.co') {
-      if (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty && sanitizedAlbum != 'Single Image' && sanitizedAlbum != 'ImgBB') {
-        pathSegment = p.join('imgbb', sanitizedAlbum);
-      } else {
-        pathSegment = 'imgbb';
-      }
-    } else if (host == 'ragalahari.com') {
-      final album = (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty) ? sanitizedAlbum : 'Unknown Album';
-      pathSegment = p.join('ragalahari', album);
-    } else if (host == 'idlebrain.com') {
-      final album = (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty) ? sanitizedAlbum : 'Unknown Album';
-      pathSegment = p.join('idlebrain', album);
-    } else if (host == 'behindwoods.com') {
-      pathSegment = 'behindwoods';
+    if (lowerHost.contains('ragalahari.com') || lowerHost.contains('ragalhari.com')) {
+      siteFolderName = 'Ragalahari';
+    } else if (lowerHost.contains('idlebrain.com')) {
+      siteFolderName = 'IdleBrain';
+    } else if (lowerHost.contains('ibb.co') || lowerHost.contains('imgbb.com') || lowerHost.contains('imgbb.co')) {
+      siteFolderName = 'IMGbb';
+      isImgBB = true;
+    } else if (lowerHost.contains('behindwoods.com')) {
+      siteFolderName = 'Behindwoods';
+    } else if (lowerHost.contains('teluguone.com')) {
+      siteFolderName = 'TeluguOne';
     } else {
-      final album = (sanitizedAlbum != null && sanitizedAlbum.isNotEmpty) ? sanitizedAlbum : 'Unknown Album';
-      pathSegment = p.join(host, album);
+      siteFolderName = host;
+    }
+
+    String pathSegment = '';
+    final sanitizedAlbum = _sanitizeFolderName(albumName);
+
+    if (isImgBB) {
+      if (sanitizedAlbum.isNotEmpty && sanitizedAlbum != 'Single Image' && sanitizedAlbum != 'ImgBB') {
+        pathSegment = p.join('IMGbb', sanitizedAlbum);
+      } else {
+        pathSegment = 'IMGbb';
+      }
+    } else {
+      final album = sanitizedAlbum.isNotEmpty ? sanitizedAlbum : 'Unknown Album';
+      pathSegment = p.join(siteFolderName, album);
     }
 
     Directory directory;
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || basePath != '/storage/emulated/0/Download') {
       directory = Directory(p.join(basePath, pathSegment));
     } else {
       final docDir = await getApplicationDocumentsDirectory();
@@ -645,6 +662,13 @@ class DownloadManager extends ChangeNotifier {
       await directory.create(recursive: true);
     }
     return directory;
+  }
+
+  bool _isImgBBPage(String url) {
+    final lower = url.toLowerCase();
+    final hasImgBBDomain = lower.contains('ibb.co') || lower.contains('imgbb.com') || lower.contains('imgbb.co');
+    final isDirectImg = lower.contains('i.ibb.co');
+    return hasImgBBDomain && !isDirectImg;
   }
 }
 

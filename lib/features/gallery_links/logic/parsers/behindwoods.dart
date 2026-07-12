@@ -19,7 +19,8 @@ class BehindwoodsScraper {
       'bw-gold', 'bw_gold', 'play-icon', 'favicon', 'loading', 'share',
       'social', 'facebook', 'twitter', 'youtube', 'instagram', 'prev', 'next',
       '/images/behindwoods', 'behindwoods.png', 'behindwoods.jpg', 'behindwoods-logo',
-      'bw-logo', 'bwlogo', 'ic_launcher', 'ic_', 'launcher', '/images/app/', '/app/'
+      'bw-logo', 'bwlogo', 'ic_launcher', 'ic_', 'launcher', '/images/app/', '/app/',
+      'menu', 'thumbnails', 'thumbnail'
     ];
     if (badKeywords.any((keyword) => u.contains(keyword))) {
       return false;
@@ -229,7 +230,7 @@ class BehindwoodsParser implements SiteParser {
   }
 
   @override
-  String get defaultMainFolderName => 'BehindwoodsDownloads';
+  String get defaultMainFolderName => 'Behindwoods';
 
   @override
   String? suggestFolderName(String url) {

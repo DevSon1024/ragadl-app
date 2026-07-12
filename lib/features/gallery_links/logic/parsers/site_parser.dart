@@ -29,7 +29,16 @@ abstract class SiteParser {
 }
 
 class ParserFactory {
-  static const List<String> supportedDomains = ['idlebrain.com', 'ragalahari.com', 'behindwoods.com', 'ibb.co', 'teluguone.com'];
+  static const List<String> supportedDomains = [
+    'idlebrain.com',
+    'ragalahari.com',
+    'ragalhari.com',
+    'behindwoods.com',
+    'ibb.co',
+    'imgbb.com',
+    'imgbb.co',
+    'teluguone.com',
+  ];
 
   static bool isSupported(String url) {
     final lowerUrl = url.toLowerCase();
@@ -37,16 +46,19 @@ class ParserFactory {
   }
 
   static SiteParser getParser(String url) {
-    if (url.toLowerCase().contains('idlebrain.com')) {
+    final lowerUrl = url.toLowerCase();
+    if (lowerUrl.contains('idlebrain.com')) {
       return IdlebrainParser();
     }
-    if (url.toLowerCase().contains('behindwoods.com')) {
+    if (lowerUrl.contains('behindwoods.com')) {
       return BehindwoodsParser();
     }
-    if (url.toLowerCase().contains('ibb.co')) {
+    if (lowerUrl.contains('ibb.co') ||
+        lowerUrl.contains('imgbb.com') ||
+        lowerUrl.contains('imgbb.co')) {
       return ImgBBParser();
     }
-    if (url.toLowerCase().contains('teluguone.com')) {
+    if (lowerUrl.contains('teluguone.com')) {
       return TeluguOneParser();
     }
     return RagalahariParser();

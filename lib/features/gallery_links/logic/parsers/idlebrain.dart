@@ -136,7 +136,7 @@ class IdlebrainParser implements SiteParser {
   }
 
   @override
-  String get defaultMainFolderName => 'IdlebrainDownloads';
+  String get defaultMainFolderName => 'IdleBrain';
 
   @override
   String? suggestFolderName(String url) {
