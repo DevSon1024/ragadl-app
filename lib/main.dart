@@ -11,9 +11,12 @@ import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'core/permissions.dart';
 import 'core/services/notification_controller.dart';
+import 'core/services/github_data_sync_service.dart';
 import 'features/home/ui/home_page.dart';
 import 'shared/widgets/theme_notifier.dart';
 import 'features/settings/logic/settings_service.dart';
+import 'features/settings/logic/terms_acceptance_provider.dart';
+import 'features/settings/ui/terms_of_use_dialog.dart';
 
 final themeNotifierProvider = ChangeNotifierProvider<ThemeNotifier>((ref) {
   return ThemeNotifier();
@@ -70,14 +73,15 @@ class MyApp extends ConsumerWidget {
   }
 }
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStateMixin {
+  bool _termsDialogShowing = false;
   int _selectedIndex = 0;
   late PageController _pageController;
   late AnimationController _fabAnimationController;
@@ -113,8 +117,44 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeControllers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      PermissionHandler.requestFirstRunPermissions(context);
+      // Trigger background check for GitHub database updates
+      GithubDataSyncService.instance.checkForUpdatesAndSync();
+
+      final termsState = ref.read(termsAcceptanceProvider);
+      termsState.whenOrNull(
+        data: (accepted) {
+          if (accepted) {
+            PermissionHandler.requestFirstRunPermissions(context);
+          } else {
+            _showTermsDialog();
+          }
+        },
+      );
     });
+  }
+
+  void _showTermsDialog() {
+    if (_termsDialogShowing) return;
+    _termsDialogShowing = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return PopScope(
+          canPop: false,
+          child: TermsOfUseDialog(
+            onAccept: () async {
+              await ref.read(termsAcceptanceProvider.notifier).acceptTerms();
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+              _termsDialogShowing = false;
+            },
+          ),
+        );
+      },
+    );
   }
 
   void _initializeControllers() {
@@ -180,6 +220,18 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<bool>>(termsAcceptanceProvider, (previous, next) {
+      next.whenOrNull(
+        data: (accepted) {
+          if (!accepted) {
+            _showTermsDialog();
+          } else {
+            PermissionHandler.requestFirstRunPermissions(context);
+          }
+        },
+      );
+    });
+
     final theme = Theme.of(context);
 
     return Scaffold(

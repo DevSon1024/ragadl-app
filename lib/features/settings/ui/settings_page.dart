@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:ragadl/main.dart';
 import 'display_settings_page.dart';
 import 'storage_settings.dart';
+import 'update_database_page.dart';
 import 'notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 import 'contact_us_page.dart';
-// import 'package:ragadl/features/settings/ui/update_database_page.dart';
 import 'version_page.dart';
 import 'technical_settings_page.dart';
 import 'ui_settings_page.dart';
@@ -83,6 +83,20 @@ class SettingsPage extends ConsumerWidget {
               ),
               _buildSettingsItem(
                 context,
+                icon: Icons.update_rounded,
+                title: 'Update Database',
+                subtitle: 'Fetch latest celebrity dataset from GitHub',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UpdateDatabasePage(),
+                    ),
+                  );
+                },
+              ),
+              _buildSettingsItem(
+                context,
                 icon: Icons.notifications,
                 title: 'Notifications',
                 subtitle: 'Notification preferences',
@@ -97,26 +111,6 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
-          // _buildSettingsSection(
-          //   context,
-          //   title: 'na kcData',
-          // children: [
-          // _buildSettingsItem(
-          //   context,
-          //   icon: Icons.update,
-          //   title: 'Update Database',
-          //   subtitle: 'Fetch the latest celebrity data',
-          //   onTap: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(
-          //         builder: (_) => const UpdateDatabasePage(),
-          //       ),
-          //     );
-          //   },
-          // ),
-          // ],
-          // ),
           _buildSettingsSection(
             context,
             title: 'About',

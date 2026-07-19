@@ -1,138 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:isolate';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as parser;
-import 'package:csv/csv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_isolate/flutter_isolate.dart';
-
-// Helper function to be executed in an isolate for updating the database.
-void _updateDatabaseIsolate(SendPort sendPort) async {
-  List<Map<String, String>> actorsData = [];
-  List<Map<String, String>> actressesData = [];
-  List<List<dynamic>> newCsvData = [];
-  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-
-  try {
-    // Reading existing names from CSV to avoid duplicates.
-    List<String> existingNames = await _readExistingNames('Fetched_StarZone_Data.csv');
-
-    for (int i = 0; i < alphabet.length; i++) {
-      String letter = alphabet[i];
-      // Sending progress back to the main thread.
-      sendPort.send({'type': 'progress', 'value': i / alphabet.length});
-
-      // Fetching data for actors and actresses concurrently.
-      var actorDataFuture = _fetchLinksFromAlpha(letter, 'actor');
-      var actressDataFuture = _fetchLinksFromAlpha(letter, 'actress');
-      var results = await Future.wait([actorDataFuture, actressDataFuture]);
-      var actorData = results[0];
-      var actressData = results[1];
-
-      actorsData.addAll(actorData);
-      actressesData.addAll(actressData);
-
-      for (var data in [...actorData, ...actressData]) {
-        String name = data['Name']!;
-        if (!existingNames.contains(name)) {
-          newCsvData.add([name, data['URL']]);
-          sendPort.send({'type': 'log', 'value': '$name Added'});
-        }
-      }
-      await Future.delayed(const Duration(milliseconds: 300)); // To avoid overwhelming the server.
-    }
-
-    if (newCsvData.isNotEmpty) {
-      sendPort.send({'type': 'log', 'value': 'Saving data to CSV and JSON...'});
-
-      Directory saveDir = await getApplicationDocumentsDirectory();
-      String dirPath = '${saveDir.path}/RagalahariData';
-      Directory(dirPath).createSync(recursive: true);
-
-      // Save CSV
-      String csvFilePath = '$dirPath/Fetched_StarZone_Data.csv';
-      File csvFile = File(csvFilePath);
-      List<List<dynamic>> existingCsvData = [];
-      if (await csvFile.exists()) {
-        String csvContent = await csvFile.readAsString();
-        existingCsvData = const CsvToListConverter().convert(csvContent);
-      }
-      List<List<dynamic>> csvData = [
-        ['Name', 'URL'],
-        ...existingCsvData.skip(1),
-        ...newCsvData,
-      ];
-      String csv = const ListToCsvConverter().convert(csvData);
-      await csvFile.writeAsString(csv);
-
-      // Save JSON
-      String jsonFilePath = '$dirPath/Fetched_Albums_StarZone.json';
-      File jsonFile = File(jsonFilePath);
-      Map<String, dynamic> jsonData = {
-        'actors': actorsData,
-        'actresses': actressesData,
-      };
-      await jsonFile.writeAsString(json.encode(jsonData));
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('lastUpdateTimestamp', DateTime.now().millisecondsSinceEpoch);
-
-      sendPort.send({'type': 'done', 'value': 'Database updated successfully!'});
-    } else {
-      sendPort.send({'type': 'done', 'value': 'No new data to add.'});
-    }
-  } catch (e) {
-    sendPort.send({'type': 'error', 'value': 'Error: $e'});
-  }
-}
-
-// Helper function to read existing names from the CSV file.
-Future<List<String>> _readExistingNames(String filename) async {
-  try {
-    Directory saveDir = await getApplicationDocumentsDirectory();
-    String dirPath = '${saveDir.path}/RagalahariData';
-    String filePath = '$dirPath/$filename';
-    Directory(dirPath).createSync(recursive: true);
-    File file = File(filePath);
-    if (await file.exists()) {
-      String csvContent = await file.readAsString();
-      List<List<dynamic>> csvData = const CsvToListConverter().convert(csvContent);
-      return csvData.skip(1).map((row) => row[0].toString()).toList();
-    }
-    return [];
-  } catch (e) {
-    return [];
-  }
-}
-
-// Helper function to fetch links from a given alphabet letter and category.
-Future<List<Map<String, String>>> _fetchLinksFromAlpha(String alphaLetter, String category) async {
-  String baseUrl = 'https://www.ragalahari.com/$category/$alphaLetter/starzonesearch.aspx';
-  List<Map<String, String>> linksData = [];
-
-  try {
-    final response = await http.get(Uri.parse(baseUrl));
-    if (response.statusCode == 200) {
-      var document = parser.parse(response.body);
-      var aTags = document.querySelectorAll('a.galleryname#lnknav');
-      for (var aTag in aTags) {
-        String? href = aTag.attributes['href'];
-        String name = aTag.text.trim();
-        if (href != null && href.isNotEmpty && name.isNotEmpty) {
-          String fullUrl = 'https://www.ragalahari.com$href';
-          linksData.add({'Name': name, 'URL': fullUrl});
-        }
-      }
-    }
-  } catch (e) {
-    // Errors will be caught and sent back to the main thread from the isolate.
-  }
-  return linksData;
-}
+import '../../../core/services/github_data_sync_service.dart';
+import '../../celebrity_list/data/celebrity_repository.dart';
 
 class UpdateDatabasePage extends StatefulWidget {
   final bool startUpdateOnLoad;
@@ -151,13 +20,20 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
   String _updateFrequency = 'Every 24 Hours';
   Timer? _updateTimer;
   String _lastUpdateText = 'Never';
-  FlutterIsolate? _isolate;
-  ReceivePort? _receivePort;
+
+  int _csvLinesCount = 0;
+  int _csvEntriesCount = 0;
+  int _jsonLinesCount = 0;
+  int _jsonEntriesCount = 0;
+  int _actorsCount = 0;
+  int _actressesCount = 0;
+  bool _isLoadingStats = true;
 
   @override
   void initState() {
     super.initState();
     _loadLastUpdateTime();
+    _loadDatabaseStats();
     _startAutoUpdate();
     if (widget.startUpdateOnLoad) {
       _runUpdate();
@@ -168,8 +44,6 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
   void dispose() {
     _scrollController.dispose();
     _updateTimer?.cancel();
-    _isolate?.kill();
-    _receivePort?.close();
     super.dispose();
   }
 
@@ -183,20 +57,61 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
     }
   }
 
-  Future<void> _loadLastUpdateTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastUpdate = prefs.getInt('lastUpdateTimestamp');
-    if (lastUpdate != null) {
-      final lastUpdateTime = DateTime.fromMillisecondsSinceEpoch(lastUpdate);
-      final duration = DateTime.now().difference(lastUpdateTime);
+  Future<void> _loadDatabaseStats() async {
+    final repo = CelebrityRepository.instance;
+    await repo.loadSources();
+
+    final syncService = GithubDataSyncService.instance;
+    final csvFile = await syncService.getCsvFile();
+    final jsonFile = await syncService.getJsonFile();
+
+    int csvLines = 0;
+    int jsonLines = 0;
+
+    if (await csvFile.exists()) {
+      final content = await csvFile.readAsString();
+      csvLines = content.split('\n').length;
+    }
+    if (await jsonFile.exists()) {
+      final content = await jsonFile.readAsString();
+      jsonLines = content.split('\n').length;
+    }
+
+    final csvEntries = repo.totalCount;
+    final actors = repo.actorUrls.length;
+    final actresses = repo.actressUrls.length;
+
+    if (mounted) {
       setState(() {
-        if (duration.inDays > 30) {
-          _lastUpdateText = '${duration.inDays ~/ 30} month${(duration.inDays ~/ 30) > 1 ? 's' : ''} ago';
-        } else if (duration.inDays > 0) {
-          _lastUpdateText = '${duration.inDays} day${duration.inDays > 1 ? 's' : ''} ago';
-        } else {
-          _lastUpdateText = '${duration.inHours} hour${duration.inHours > 1 ? 's' : ''} ago';
-        }
+        _csvLinesCount = csvLines;
+        _csvEntriesCount = csvEntries;
+        _jsonLinesCount = jsonLines;
+        _actorsCount = actors;
+        _actressesCount = actresses;
+        _jsonEntriesCount = actors + actresses;
+        _isLoadingStats = false;
+      });
+    }
+  }
+
+  Future<void> _loadLastUpdateTime() async {
+    final syncService = GithubDataSyncService.instance;
+    final lastTime = await syncService.getLastSyncTime();
+    final sha = await syncService.getLastSyncedSha();
+    if (lastTime != null) {
+      final duration = DateTime.now().difference(lastTime);
+      String timeAgo;
+      if (duration.inDays > 30) {
+        timeAgo = '${duration.inDays ~/ 30} month${(duration.inDays ~/ 30) > 1 ? 's' : ''} ago';
+      } else if (duration.inDays > 0) {
+        timeAgo = '${duration.inDays} day${duration.inDays > 1 ? 's' : ''} ago';
+      } else if (duration.inHours > 0) {
+        timeAgo = '${duration.inHours} hour${duration.inHours > 1 ? 's' : ''} ago';
+      } else {
+        timeAgo = '${duration.inMinutes} min${duration.inMinutes > 1 ? 's' : ''} ago';
+      }
+      setState(() {
+        _lastUpdateText = sha != null ? '$timeAgo (SHA: ${sha.substring(0, sha.length > 7 ? 7 : sha.length)})' : timeAgo;
       });
     }
   }
@@ -223,46 +138,35 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
     if (!isBackground) {
       setState(() {
         _isLoading = true;
-        _progress = 0.0;
-        _statusText = 'Starting update...';
+        _progress = 0.1;
+        _statusText = 'Starting GitHub Database Sync...';
         _logMessages = [];
       });
     }
 
-    _receivePort = ReceivePort();
-    _isolate = await FlutterIsolate.spawn(_updateDatabaseIsolate, _receivePort!.sendPort);
-
-    _receivePort!.listen((message) {
-      final type = message['type'];
-      final value = message['value'];
-
-      if (!isBackground) {
-        if (type == 'progress') {
+    final updated = await GithubDataSyncService.instance.checkForUpdatesAndSync(
+      onLog: (logMsg) {
+        if (!isBackground) {
+          _addLog(logMsg);
           setState(() {
-            _progress = value;
-            _statusText = 'Fetching data...';
+            _progress = (_progress + 0.2).clamp(0.1, 0.95);
           });
-        } else if (type == 'log') {
-          _addLog(value);
-        } else if (type == 'done' || type == 'error') {
-          setState(() {
-            _statusText = value;
-            _isLoading = false;
-            if (type == 'done') _progress = 1.0;
-          });
-          _loadLastUpdateTime();
-          _isolate?.kill();
-          _receivePort?.close();
         }
-      } else {
-        // Handle background completion if needed (e.g., show a notification)
-        if (type == 'done' || type == 'error') {
-          _loadLastUpdateTime();
-          _isolate?.kill();
-          _receivePort?.close();
-        }
-      }
-    });
+      },
+      force: true,
+    );
+
+    if (!isBackground) {
+      setState(() {
+        _progress = 1.0;
+        _isLoading = false;
+        _statusText = updated
+            ? 'Database updated successfully from GitHub!'
+            : 'Database check complete.';
+      });
+    }
+    await _loadLastUpdateTime();
+    await _loadDatabaseStats();
   }
 
   void _addLog(String message) {
@@ -270,6 +174,35 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
       _logMessages.add('${DateTime.now().toString().substring(11, 19)}: $message');
       Future.delayed(Duration.zero, _scrollToBottom);
     });
+  }
+
+  Widget _buildStatRow(
+    ThemeData theme, {
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: theme.colorScheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -299,12 +232,67 @@ class _UpdateDatabasePageState extends State<UpdateDatabasePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Click on "Update Database" to add newly added celebrities to your app.',
+              'Click on "Update Database" to fetch the latest dataset directly from GitHub.',
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              surfaceTintColor: theme.colorScheme.surfaceTint,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.analytics_outlined, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Database Statistics',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (_isLoadingStats)
+                      const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
+                    else ...[
+                      _buildStatRow(
+                        theme,
+                        label: 'Celebrity Data',
+                        value: '$_csvLinesCount lines ($_csvEntriesCount celebrities)',
+                        icon: Icons.person_search_outlined,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildStatRow(
+                        theme,
+                        label: 'Category Data',
+                        value: '$_jsonLinesCount lines ($_jsonEntriesCount items)',
+                        icon: Icons.category_outlined,
+                      ),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 26.0),
+                        child: Text(
+                          '• Actors: $_actorsCount  |  • Actresses: $_actressesCount',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

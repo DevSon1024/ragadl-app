@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/github_data_sync_service.dart';
 import '../../../shared/utils/celebrity_utils.dart';
 
 // Data holder used by list page (only name + url)
@@ -35,27 +36,75 @@ class CelebrityRepository {
   // Number of data lines (excluding header)
   int get totalCount => _csvLines.isEmpty ? 0 : (_csvLines.length - 1);
 
-  // Load only the sources (no full parse of all rows)
-  Future<void> loadSources() async {
-    if (_sourcesLoaded) return;
-    // Load CSV and JSON once
-    final csvString = await rootBundle.loadString(
-      'assets/data/Fetched_StarZone_Data.csv',
-    );
-    final jsonString = await rootBundle.loadString(
-      'assets/data/Fetched_Albums_StarZone.json',
-    );
+  // Force reset cached data and reload from disk/assets
+  Future<void> reloadSources({bool force = true}) async {
+    _sourcesLoaded = false;
+    _csvLines = const [];
+    _actorUrls = {};
+    _actressUrls = {};
+    _sortedAZ = null;
+    _sortedZA = null;
+    _actorsSortedAZ = null;
+    _actressesSortedAZ = null;
+    await loadSources(force: force);
+  }
 
-    _csvLines = csvString.split('\n');
-    final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
-    _actorUrls =
-        (jsonData['actors'] as List)
-            .map((e) => (e['URL'] as String).trim())
-            .toSet();
-    _actressUrls =
-        (jsonData['actresses'] as List)
-            .map((e) => (e['URL'] as String).trim())
-            .toSet();
+  // Load only the sources (no full parse of all rows)
+  Future<void> loadSources({bool force = false}) async {
+    if (_sourcesLoaded && !force) return;
+
+    String? csvString;
+    String? jsonString;
+
+    final syncService = GithubDataSyncService.instance;
+    final csvFile = await syncService.getCsvFile();
+    final jsonFile = await syncService.getJsonFile();
+
+    if (await csvFile.exists() && await jsonFile.exists()) {
+      try {
+        csvString = await csvFile.readAsString();
+        jsonString = await jsonFile.readAsString();
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error reading local data files: $e');
+        }
+      }
+    }
+
+    // Fallback to assets if local storage files do not exist or failed to load
+    if (csvString == null || jsonString == null) {
+      try {
+        csvString = await rootBundle.loadString(
+          'assets/data/Fetched_StarZone_Data.csv',
+        );
+        jsonString = await rootBundle.loadString(
+          'assets/data/Fetched_Albums_StarZone.json',
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('Asset fallback load exception: $e');
+        }
+      }
+    }
+
+    if (csvString != null && jsonString != null) {
+      try {
+        _csvLines = csvString.split('\n');
+        final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
+        _actorUrls =
+            (jsonData['actors'] as List? ?? [])
+                .map((e) => ((e as Map)['URL'] as String).trim())
+                .toSet();
+        _actressUrls =
+            (jsonData['actresses'] as List? ?? [])
+                .map((e) => ((e as Map)['URL'] as String).trim())
+                .toSet();
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error parsing dataset strings: $e');
+        }
+      }
+    }
 
     _sourcesLoaded = true;
   }

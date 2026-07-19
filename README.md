@@ -99,6 +99,18 @@ If you find a bug, encounter a scraping error on a specific gallery, or want to 
 
 ---
 
+## ⚖️ Legal Disclaimer
+
+> [!IMPORTANT]
+> **RagaDL** is an open-source tool developed and provided strictly for **educational and demonstration purposes** to showcase web scraping, concurrency controls (Isolates), and performance optimizations in Flutter.
+
+*   **No Content Hosting**: RagaDL does not host, store, or republish any copyrighted images or media. It functions solely as a neutral web-browsing utility (scraper/downloader) that retrieves media directly from public domains.
+*   **User Responsibility**: Any and all media downloaded using this application remains the exclusive intellectual property of the respective copyright holders/websites.
+*   **Liability Disclaimer**: The authors and contributors of RagaDL assume absolutely no liability or responsibility for how end-users compile, deploy, or utilize the application, its scraping engine, or any media fetched through it. End-users are solely responsible for ensuring that their usage of this tool complies with applicable local copyright laws, terms of service of the target portals, and is strictly limited to personal, non-commercial use.
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
