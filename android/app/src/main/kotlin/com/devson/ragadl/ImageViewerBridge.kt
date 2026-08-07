@@ -2,6 +2,7 @@ package com.devson.ragadl
 
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -26,6 +27,19 @@ class ImageViewerBridge(private val context: Context) {
                                 result.success(true)
                             } else {
                                 result.error("INVALID_ARGUMENT", "Image path or list is null", null)
+                            }
+                        } catch (e: Exception) {
+                            result.error("ERROR", e.message, null)
+                        }
+                    }
+                    "scanFile" -> {
+                        try {
+                            val path = call.argument<String>("path")
+                            if (path != null) {
+                                MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
+                                result.success(true)
+                            } else {
+                                result.error("INVALID_ARGUMENT", "Path is null", null)
                             }
                         } catch (e: Exception) {
                             result.error("ERROR", e.message, null)

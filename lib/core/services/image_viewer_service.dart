@@ -1,4 +1,5 @@
-﻿import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class ImageViewerService {
@@ -40,6 +41,22 @@ class ImageViewerService {
       return result;
     } on PlatformException catch (e) {
       debugPrint('Error opening video player: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Scan media file to make it visible in Android gallery apps immediately
+  ///
+  /// [filePath] - Path to the file to scan
+  static Future<bool> scanFile(String filePath) async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final bool result = await _channel.invokeMethod('scanFile', {
+        'path': filePath,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint('Error scanning file: ${e.message}');
       return false;
     }
   }

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:ragadl/core/services/dio_client.dart';
 import 'package:ragadl/core/services/notification_controller.dart';
+import 'package:ragadl/core/services/image_viewer_service.dart';
 import 'package:ragadl/features/settings/logic/settings_service.dart';
 import '../models/download_task.dart';
 
@@ -435,6 +436,10 @@ class DownloadManager extends ChangeNotifier {
         task.progress = 1.0;
         task.completedTime = DateTime.now();
         _updateTask(url, task);
+        
+        // Scan the completed download to register it in Android media provider
+        ImageViewerService.scanFile(task.savePath);
+
         if (batchId != null) {
           _galleryCompletedCount[batchId] =
               (_galleryCompletedCount[batchId] ?? 0) + 1;
