@@ -29,17 +29,19 @@
 
 > ## Supported Portals
 
-RagaDL utilizes a decoupled, strategy-based scraping engine. The parser automatically cleans markup patterns and resolves high-resolution source images from:
+RagaDL utilizes a constructive, strategy-based scraping engine. The parser automatically cleans markup patterns and handles the source images from bellw supported sites:
 
-- **Ragalahari (`ragalahari.com`, `m.ragalahari.com`)** - Resolves full actress portfolios and media events. Downloads the entire set of high-res image listings directly.
+- **Ragalahari (`ragalahari.com`, `m.ragalahari.com`)** - Core and beginning site which access full actress portfolios and media events. Downloads the entire set of high-res image listings directly.
+
 - **Idlebrain (`idlebrain.com`)** - Tollywood gallery archives. Filters out promotional/navigation layouts and strips thumbnail suffixes to retrieve original clean source files.
+
 - **Behindwoods (`behindwoods.com`)** - Extensive cinema and actress galleries. Because single galleries can hold thousands of images, it includes a batch range selector (`Start Image` to `End Image`) to crawl and download images in custom sizes safely.
 
 ---
 
 > ## Key Features
 
-- **Smart Downloader** - Paste a link from any of the supported portals. The scraper automatically detects the source, extracts individual image previews, and presents them in an interactive grid.
+- **Smart Downloader** - Paste a link from any of the supported portals. The scraper automatically detects the source, extracts individual image previews, and presents them in an proeper interactive grid.
 - **Controlled Batch Downloading** - Downloader queues downloads via background worker threads using a connection-pooled HTTP client. Supports pausing, resuming, and cancelling active downloads.
 - **Range-Bound Fetching** - Enter custom ranges for Behindwoods links. Enables downloading large galleries in smaller batches to save data and prevent network timeouts.
 - **Favorites & History** - Save your favorite galleries and celebrities. Features an offline search, download history, recycle bin, and single-click share options.
