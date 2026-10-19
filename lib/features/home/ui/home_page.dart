@@ -2,16 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../latest/ui/pages/actor_page.dart';
-import '../../latest/ui/pages/actress_page.dart';
-import '../../latest/ui/pages/celebrity_page.dart';
-import '../../latest/ui/pages/events_page.dart';
 import '../../downloader/ui/pages/link_history_page.dart';
-import '../../settings/ui/favourite_page.dart';
 import '../../history/ui/history_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -30,109 +24,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Map<String, dynamic>> sections = [
-    {
-      'title': 'Latest All Celebrities',
-      'icon': Icons.star_rounded,
-      'page': const LatestCelebrityPage(),
-    },
-    {
-      'title': 'Latest Actress',
-      'icon': Icons.person_outline_rounded,
-      'page': const ActressPage(),
-    },
-    {
-      'title': 'Latest Actors',
-      'icon': Icons.person_rounded,
-      'page': const ActorPage(),
-    },
-    {
-      'title': 'Latest Events',
-      'icon': Icons.event_rounded,
-      'page': const LatestEventsPage(),
-    },
-    {
-      'title': 'Favorites',
-      'icon': Icons.favorite_rounded,
-      'page': const FavouritePage(),
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _loadSectionOrder();
-    _checkFirstRun();
-  }
-
-  Future<void> _checkFirstRun() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isFirstRun = prefs.getBool('isFirstRun') ?? true;
-    if (isFirstRun) {
-      if (mounted) {
-        // _showUpdateDialog();
-      }
-      await prefs.setBool('isFirstRun', false);
-    }
-  }
-
-  // void _showUpdateDialog() {
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return AlertDialog(
-  //         title: const Text('Update Celebrity Database'),
-  //         content: const Text(
-  //             'For the best experience, we recommend updating the celebrity database. This will ensure you have the latest celebrity information.'),
-  //         actions: <Widget>[
-  //           TextButton(
-  //             child: const Text('Later'),
-  //             onPressed: () {
-  //               Navigator.of(context).pop();
-  //             },
-  //           ),
-  //           TextButton(
-  //             child: const Text('Update Now'),
-  //             onPressed: () {
-  //               Navigator.of(context).pop();
-  //               Navigator.of(context).push(
-  //                 MaterialPageRoute(
-  //                   builder: (context) => const UpdateDatabasePage(startUpdateOnLoad: true),
-  //                 ),
-  //               );
-  //             },
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }
-
-  Future<void> _loadSectionOrder() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final order = prefs.getStringList('section_order');
-      if (order != null && order.length == sections.length) {
-        final reordered = <Map<String, dynamic>>[];
-        for (final title in order) {
-          final section = sections.firstWhere(
-            (s) => s['title'] == title,
-            orElse: () => sections.first,
-          );
-          reordered.add(section);
-        }
-        if (mounted) {
-          setState(() => sections = reordered);
-        }
-      }
-    } catch (_) {
-      // Ignore ordering errors to keep UI resilient.
-    }
-  }
-
-  void _openPage(Widget page) {
-    Navigator.of(context).push(_ModernPageRoute(page));
   }
 
   Future<void> _launchUrl(String urlString) async {
@@ -233,25 +128,6 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _buildQuickActions(context),
                   ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'Explore',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Sections grid/list
-                  ...sections.map(
-                    (section) => _SectionCard(
-                      title: section['title'] as String,
-                      icon: section['icon'] as IconData,
-                      onTap: () => _openPage(section['page'] as Widget),
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   // Social Links Section
                   Padding(
@@ -349,7 +225,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Browse celebrities, actors, and moreâ€”then jump into downloads anytime.',
+                    'Fast paste-link gallery downloader and history utility.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: color.onPrimary.withValues(alpha: 0.9),
                     ),
@@ -477,72 +353,6 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Material(
-        color: color.surface,
-        elevation: 2,
-        shadowColor: color.shadow.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        color.primary.withValues(alpha: 0.12),
-                        color.primary.withValues(alpha: 0.22),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  child: Icon(icon, color: color.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: color.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -664,30 +474,4 @@ class _Glass extends StatelessWidget {
       child: child,
     );
   }
-}
-
-class _ModernPageRoute extends PageRouteBuilder {
-  _ModernPageRoute(Widget page)
-    : super(
-        transitionDuration: const Duration(milliseconds: 260),
-        reverseTransitionDuration: const Duration(milliseconds: 220),
-        pageBuilder: (_, __, ___) => page,
-        transitionsBuilder: (context, anim, secondary, child) {
-          final curved = CurvedAnimation(
-            parent: anim,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04),
-              end: Offset.zero,
-            ).animate(curved),
-            child: FadeTransition(
-              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      );
 }

@@ -4,15 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/downloader/ui/pages/ragadl_page.dart';
 import 'features/history/ui/history_page.dart';
 import 'features/download_manager/download_manager_page.dart';
-import 'features/celebrity_list/ui/pages/celebrity_list_page.dart';
 import 'features/settings/ui/settings_page.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'core/permissions.dart';
 import 'core/services/notification_controller.dart';
-import 'core/services/github_data_sync_service.dart';
-import 'features/home/ui/home_page.dart';
 import 'shared/widgets/theme_notifier.dart';
 import 'features/settings/logic/settings_service.dart';
 import 'features/settings/logic/terms_acceptance_provider.dart';
@@ -84,31 +81,29 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
   bool _termsDialogShowing = false;
   int _selectedIndex = 0;
   late PageController _pageController;
-  late AnimationController _fabAnimationController;
   late AnimationController _navAnimationController;
-  late Animation<double> _fabScaleAnimation;
   late Animation<double> _navSlideAnimation;
 
   final List<NavigationItem> _navItems = [
     NavigationItem(
-      icon: Icons.home_rounded,
-      activeIcon: Icons.home,
-      label: 'Home',
+      icon: Icons.download_for_offline_outlined,
+      activeIcon: Icons.download_for_offline_rounded,
+      label: 'Downloader',
     ),
     NavigationItem(
-      icon: Icons.person,
-      activeIcon: Icons.person_outline,
-      label: 'Celebrity',
-    ),
-    NavigationItem(
-      icon: Icons.download,
-      activeIcon: Icons.download_outlined,
+      icon: Icons.download_outlined,
+      activeIcon: Icons.download_rounded,
       label: 'Downloads',
     ),
     NavigationItem(
-      icon: Icons.history,
-      activeIcon: Icons.history_outlined,
+      icon: Icons.history_outlined,
+      activeIcon: Icons.history_rounded,
       label: 'History',
+    ),
+    NavigationItem(
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings_rounded,
+      label: 'Settings',
     ),
   ];
 
@@ -117,9 +112,6 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
     super.initState();
     _initializeControllers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Trigger background check for GitHub database updates
-      GithubDataSyncService.instance.checkForUpdatesAndSync();
-
       final termsState = ref.read(termsAcceptanceProvider);
       termsState.whenOrNull(
         data: (accepted) {
@@ -160,18 +152,9 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
   void _initializeControllers() {
     _pageController = PageController();
 
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-
     _navAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
-    );
-
-    _fabScaleAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
-      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
     );
 
     _navSlideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -188,7 +171,6 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
   @override
   void dispose() {
     _pageController.dispose();
-    _fabAnimationController.dispose();
     _navAnimationController.dispose();
     super.dispose();
   }
@@ -201,10 +183,6 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
 
     setState(() {
       _selectedIndex = index;
-    });
-
-    _fabAnimationController.forward().then((_) {
-      _fabAnimationController.reverse();
     });
 
     if (_pageController.hasClients) {
@@ -239,25 +217,11 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
-        children: [
-          HomePage(
-            onDownloadSelected: ({url, folder, title}) {
-              // Navigate to downloader
-            },
-            openSettings: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
-          ),
-          CelebrityListPage(
-            onDownloadSelected: (url, folder, title) {
-              // Navigate to downloader
-            },
-          ),
-          const DownloadManagerPage(),
-          const HistoryPage(),
+        children: const [
+          RagaDLPage(),
+          DownloadManagerPage(),
+          HistoryPage(),
+          SettingsPage(),
         ],
       ),
       bottomNavigationBar: AnimatedBuilder(
@@ -293,7 +257,6 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
                       children: [
                         _buildModernNavItem(0),
                         _buildModernNavItem(1),
-                        const SizedBox(width: 64), // Space for FAB
                         _buildModernNavItem(2),
                         _buildModernNavItem(3),
                       ],
@@ -305,8 +268,6 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
           );
         },
       ),
-      floatingActionButton: _buildModernFAB(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 
@@ -371,80 +332,6 @@ class _MainScreenState extends ConsumerState<MainScreen> with TickerProviderStat
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildModernFAB() {
-    final theme = Theme.of(context);
-
-    return AnimatedBuilder(
-      animation: _fabScaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _fabScaleAnimation.value,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  theme.colorScheme.primary,
-                  theme.colorScheme.primary.withValues(alpha: 0.8),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: FloatingActionButton(
-              heroTag: 'main_fab',
-              backgroundColor: Colors.transparent,
-              foregroundColor: theme.colorScheme.onPrimary,
-              elevation: 0,
-              highlightElevation: 0,
-              onPressed: () {
-                HapticFeedback.mediumImpact();
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder:
-                        (context, animation, secondaryAnimation) =>
-                            const RagaDL(),
-                    transitionsBuilder: (
-                      context,
-                      animation,
-                      secondaryAnimation,
-                      child,
-                    ) {
-                      const begin = Offset(0.0, 1.0);
-                      const end = Offset.zero;
-                      const curve = Curves.easeOutCubic;
-
-                      var tween = Tween(
-                        begin: begin,
-                        end: end,
-                      ).chain(CurveTween(curve: curve));
-
-                      return SlideTransition(
-                        position: animation.drive(tween),
-                        child: child,
-                      );
-                    },
-                    transitionDuration: const Duration(milliseconds: 300),
-                  ),
-                );
-              },
-              shape: const CircleBorder(),
-              child: const Icon(Icons.download_for_offline_rounded, size: 28),
-            ),
-          ),
-        );
-      },
     );
   }
 }

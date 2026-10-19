@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:ragadl/main.dart';
 import 'display_settings_page.dart';
 import 'storage_settings.dart';
-import 'update_database_page.dart';
 import 'notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 import 'contact_us_page.dart';
@@ -78,20 +77,6 @@ class SettingsPage extends ConsumerWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StoragePage()),
-                  );
-                },
-              ),
-              _buildSettingsItem(
-                context,
-                icon: Icons.update_rounded,
-                title: 'Update Database',
-                subtitle: 'Fetch latest celebrity dataset from GitHub',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const UpdateDatabasePage(),
-                    ),
                   );
                 },
               ),

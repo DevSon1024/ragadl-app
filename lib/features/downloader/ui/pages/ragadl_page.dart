@@ -27,6 +27,9 @@ class RagaDL extends ConsumerStatefulWidget {
   ConsumerState<RagaDL> createState() => _RagadlState();
 }
 
+/// Alias for RagaDL page
+typedef RagaDLPage = RagaDL;
+
 class _RagadlState extends ConsumerState<RagaDL>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
