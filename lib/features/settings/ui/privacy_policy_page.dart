@@ -155,7 +155,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'RagaDL ("we", "our", or "the app") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our image downloading application for Android devices.',
+              'RagaDL ("we", "our", or "the app") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our user-initiated link-downloader utility and local download history manager for Android devices.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.6,
@@ -254,7 +254,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         ),
         _buildBulletPoint(
           'Network Usage',
-          'The app accesses internet only to fetch images from publicly available sources (Ragalahari.com) that you explicitly choose to download.',
+          'The app accesses the internet solely to fetch image links and media from public URLs that you explicitly paste and initiate to download.',
         ),
         _buildBulletPoint(
           'No Analytics',
@@ -335,7 +335,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         ),
         _buildBulletPoint(
           'Source Website Access',
-          'The app only communicates with Ragalahari.com to fetch publicly available images when you initiate a download.',
+          'The app communicates only with external web hosts to resolve and download media from URLs you explicitly submit. No built-in directories or pre-packaged databases are queried.',
         ),
       ],
     );
@@ -356,7 +356,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         _buildPermissionItem(
           Icons.wifi_rounded,
           'Internet Access',
-          'Required to download images from Ragalahari.com. No data is sent from your device.',
+          'Required to parse image galleries and download media files from the links you provide. No user data is sent from your device.',
         ),
         _buildPermissionItem(
           Icons.folder_rounded,

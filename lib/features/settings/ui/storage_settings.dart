@@ -136,14 +136,6 @@ class _StoragePageState extends State<StoragePage> {
       final prefs = await SharedPreferences.getInstance();
       final archive = Archive();
 
-      // Export favorites
-      final favorites = prefs.getStringList('favorites') ?? [];
-      archive.addFile(ArchiveFile(
-        'favorites.json',
-        utf8.encode(jsonEncode(favorites)).length,
-        utf8.encode(jsonEncode(favorites)),
-      ));
-
       // Export link history
       final history = prefs.getStringList('link_history') ?? [];
       archive.addFile(ArchiveFile(
@@ -282,10 +274,7 @@ class _StoragePageState extends State<StoragePage> {
       final data = file.content as List<int>;
       final jsonString = utf8.decode(data);
 
-      if (file.name == 'favorites.json') {
-        final favorites = jsonDecode(jsonString) as List;
-        await prefs.setStringList('favorites', favorites.cast<String>());
-      } else if (file.name == 'link_history.json') {
+      if (file.name == 'link_history.json') {
         final history = jsonDecode(jsonString) as List;
         await prefs.setStringList('link_history', history.cast<String>());
       } else if (file.name == 'display_settings.json') {
@@ -573,7 +562,7 @@ class _StoragePageState extends State<StoragePage> {
             _SettingsTile(
               icon: Icons.backup_rounded,
               title: 'Backup Data',
-              subtitle: 'Export favorites, history, and settings',
+              subtitle: 'Export history and app settings',
               color: color.tertiary,
               onTap: _exportData,
             ),

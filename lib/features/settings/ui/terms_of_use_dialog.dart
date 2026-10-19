@@ -81,10 +81,10 @@ class TermsOfUseDialog extends StatelessWidget {
                     children: [
                       _buildBulletCard(
                         context,
-                        icon: Icons.search_rounded,
-                        title: 'Neutral Web Utility',
+                        icon: Icons.link_rounded,
+                        title: 'Paste-Link Utility',
                         description:
-                            'RagaDL is a neutral web-browsing utility designed to scrape and download media from third-party websites.',
+                            'RagaDL is a neutral, user-initiated utility designed strictly to download media from user-provided URLs and manage local download history. It does not host, index, or pre-package celebrity directories or databases.',
                       ),
                       const SizedBox(height: 10),
                       _buildBulletCard(
@@ -92,7 +92,7 @@ class TermsOfUseDialog extends StatelessWidget {
                         icon: Icons.copyright_rounded,
                         title: 'Intellectual Property',
                         description:
-                            'All downloaded media items remain the exclusive property of their respective copyright owners. RagaDL claims no ownership over scraped content.',
+                            'All downloaded media items remain the exclusive property of their respective copyright owners. RagaDL claims no ownership over downloaded content. Users are responsible for respecting source copyright.',
                       ),
                       const SizedBox(height: 10),
                       _buildBulletCard(
@@ -100,7 +100,7 @@ class TermsOfUseDialog extends StatelessWidget {
                         icon: Icons.person_rounded,
                         title: 'Personal & Non-Commercial Use',
                         description:
-                            'This application must strictly be used for personal, non-commercial purposes. Redistribution or commercial use is solely the user\'s responsibility.',
+                            'This application must strictly be used for personal, non-commercial archiving purposes. Redistribution or commercial use is solely the user\'s responsibility.',
                       ),
                       const SizedBox(height: 14),
                       Container(

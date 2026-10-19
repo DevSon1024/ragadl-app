@@ -4,7 +4,6 @@ import '../../history/ui/history_page.dart';
 enum ViewPreset {
   images,
   galleriesFolder,
-  celebrityAlbum,
 }
 
 enum ViewType {
@@ -66,20 +65,6 @@ class ViewPresetSelector extends StatelessWidget {
             )
                 : null,
             onTap: () => onPresetSelected(ViewPreset.galleriesFolder),
-          ),
-          ListTile(
-            leading: Icon(
-              Icons.person,
-              color: Theme.of(context).iconTheme.color,
-            ),
-            title: const Text('Celebrity Album'),
-            trailing: currentPreset == ViewPreset.celebrityAlbum
-                ? Icon(
-              Icons.check,
-              color: Theme.of(context).iconTheme.color,
-            )
-                : null,
-            onTap: () => onPresetSelected(ViewPreset.celebrityAlbum),
           ),
           const Divider(),
           const Text(
